@@ -94,3 +94,11 @@ export interface NewsletterIssue {
 	content_html: string | null
 	modified: string
 }
+
+export interface MailingSettings {
+	name: 'Mailing Settings'
+	email_account: string | null
+	company_name: string | null
+	gstin: string | null
+	postal_address: string | null
+}

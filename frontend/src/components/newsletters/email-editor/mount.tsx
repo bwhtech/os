@@ -4,6 +4,7 @@ import { EmailEditor, type EmailEditorRef } from '@react-email/editor'
 import { composeReactEmail } from '@react-email/editor/core'
 import { StarterKit } from '@react-email/editor/extensions'
 import { EmailTheming } from '@react-email/editor/plugins'
+import { Inspector } from '@react-email/editor/ui'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import themeCss from '@react-email/editor/themes/default.css?inline'
 import type { NewsletterTheme } from '@/types'
@@ -42,12 +43,17 @@ const PAGE_CSS = `
 }
 `
 
-// The email is white in both themes. CSS variables and color inherit into the shadow root, so set them.
+// The email is white in both themes. CSS variables and color inherit into the shadow root, so the
+// canvas sets them. The inspector keeps the page variables, so it follows the OS theme.
 // ProseMirror also needs its base styles, which the shadow root does not get from the page.
 const EDITOR_CSS = `
-:host {
+.editor-layout { display: flex; flex-wrap: wrap; align-items: stretch; }
+.email-canvas {
+	flex: 1 1 36rem;
+	min-width: 0;
 	color-scheme: light;
 	color: #1c1c1c;
+	background: #fff;
 	--re-bg: #fff;
 	--re-bg-active: #f5f5f5;
 	--re-border: #e5e5e5;
@@ -59,6 +65,19 @@ const EDITOR_CSS = `
 	--re-pressed: rgba(0, 0, 0, 0.06);
 	--re-danger: #dc2626;
 }
+.email-inspector {
+	flex: 0 0 15rem;
+	box-sizing: border-box;
+	max-height: 48rem;
+	overflow-y: auto;
+	padding: 12px;
+	border-left: 1px solid var(--re-border);
+	color: var(--re-text);
+	background: var(--re-bg);
+	font-size: 13px;
+}
+/* The inspector theme leaves the browser's white input background. */
+.email-inspector input, .email-inspector select { background: transparent; color: inherit; }
 .ProseMirror { white-space: pre-wrap; word-wrap: break-word; outline: none; min-height: 24rem; }
 .ProseMirror p.is-empty::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: #a3a3a3; }
 `
@@ -72,6 +91,8 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 	const style = document.createElement('style')
 	style.textContent = themeCss + EDITOR_CSS
 	const container = document.createElement('div')
+	// EmailEditor renders its children as siblings of the editor content, so the inspector sits beside it.
+	container.className = 'editor-layout'
 	shadow.append(style, container)
 	const stopMirror = mirrorThemeStyles(shadow)
 
@@ -95,10 +116,18 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 					options.onReady(toApi(ref))
 				}}
 				onUploadImage={options.uploadImage}
-			/>,
+				className="email-canvas"
+			>
+				<Inspector.Root className="email-inspector">
+					<Inspector.Breadcrumb />
+					<Inspector.Document />
+					<Inspector.Node />
+					<Inspector.Text />
+				</Inspector.Root>
+			</EmailEditor>,
 		)
 	}
-	render(options.theme, options.content && withoutThemeStyles(options.content))
+	render(options.theme, options.content)
 
 	return {
 		/** Restyle the current content. The undo history starts again. */
@@ -128,8 +157,8 @@ function editorExtensions(theme: (typeof EMAIL_THEMES)[NewsletterTheme]) {
 }
 
 /**
- * The editor saves the theme styles in a globalContent node and uses the theme only when that node
- * is missing. Remove the node, so the theme of the issue always wins.
+ * The editor saves the document styles in a globalContent node: the theme, with the changes made in
+ * the inspector. It uses the theme only when that node is missing, so a new theme removes the node.
  */
 function withoutThemeStyles(json: JSONContent): JSONContent {
 	return { ...json, content: json.content?.filter((node) => node.type !== 'globalContent') }

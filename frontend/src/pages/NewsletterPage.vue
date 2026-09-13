@@ -21,7 +21,8 @@
 		</div>
 	</PageHeader>
 
-	<div class="mx-auto max-w-3xl space-y-6 px-3 py-6 pb-20 sm:px-5">
+	<!-- Wide enough for the 600px email and the inspector side by side. -->
+	<div class="mx-auto max-w-5xl space-y-6 px-3 py-6 pb-20 sm:px-5">
 		<LoadingText v-if="!issue.doc && !issue.error" :lines="6" />
 		<ErrorMessage v-else-if="issue.error" :message="errorMessage(issue.error)" />
 

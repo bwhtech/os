@@ -1,6 +1,6 @@
 <template>
 	<!-- No padding: the theme sets the email background and spacing. -->
-	<div class="relative overflow-hidden rounded-6 border border-outline-gray-2 bg-white">
+	<div class="relative overflow-hidden rounded-6 border border-outline-gray-2">
 		<LoadingText v-if="!ready" class="p-4" :lines="4" />
 		<div ref="host" />
 	</div>

@@ -29,6 +29,8 @@
 			</Dropdown>
 		</div>
 	</Sidebar>
+
+	<MailingSettingsDialog v-model:open="settingsOpen" />
 </template>
 
 <script setup lang="ts">
@@ -42,7 +44,9 @@ import {
 	SidebarSection,
 	type DropdownOptions,
 } from 'frappe-ui'
+import { ref } from 'vue'
 import { useRoute } from 'vue-router'
+import MailingSettingsDialog from '@/components/shell/MailingSettingsDialog.vue'
 import { useSession } from '@/composables/useSession'
 
 const LOGO_URL = '/assets/bwh_os/images/os-logo.svg'
@@ -61,6 +65,7 @@ const SECTIONS = [
 ]
 
 const route = useRoute()
+const settingsOpen = ref(false)
 const { user, logout } = useSession()
 
 const workspaceMenu = [
@@ -75,7 +80,7 @@ const workspaceMenu = [
 		label: 'Mailing Settings',
 		icon: 'lucide-settings',
 		onClick: () => {
-			window.location.href = '/desk/mailing-settings'
+			settingsOpen.value = true
 		},
 	},
 ]

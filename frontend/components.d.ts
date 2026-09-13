@@ -26,6 +26,7 @@ declare module 'vue' {
     ImportSubscribersDialog: typeof import('./src/components/subscribers/import/ImportSubscribersDialog.vue')['default']
     LeadMagnetDownloads: typeof import('./src/components/lead-magnets/LeadMagnetDownloads.vue')['default']
     LeadMagnetFileInput: typeof import('./src/components/lead-magnets/LeadMagnetFileInput.vue')['default']
+    MailingSettingsDialog: typeof import('./src/components/shell/MailingSettingsDialog.vue')['default']
     NewFormDialog: typeof import('./src/components/forms/NewFormDialog.vue')['default']
     NewLeadMagnetDialog: typeof import('./src/components/lead-magnets/NewLeadMagnetDialog.vue')['default']
     NewNewsletterDialog: typeof import('./src/components/newsletters/NewNewsletterDialog.vue')['default']
