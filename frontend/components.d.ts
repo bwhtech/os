@@ -15,11 +15,14 @@ declare module 'vue' {
     AppShell: typeof import('./src/components/shell/AppShell.vue')['default']
     AppSidebar: typeof import('./src/components/shell/AppSidebar.vue')['default']
     EmbedSnippet: typeof import('./src/components/forms/EmbedSnippet.vue')['default']
+    LeadMagnetFileInput: typeof import('./src/components/lead-magnets/LeadMagnetFileInput.vue')['default']
     NewFormDialog: typeof import('./src/components/forms/NewFormDialog.vue')['default']
+    NewLeadMagnetDialog: typeof import('./src/components/lead-magnets/NewLeadMagnetDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SubscriberEmptyState: typeof import('./src/components/subscribers/SubscriberEmptyState.vue')['default']
     SubscriberList: typeof import('./src/components/subscribers/SubscriberList.vue')['default']
     TagPicker: typeof import('./src/components/tags/TagPicker.vue')['default']
+    WelcomeEmailSection: typeof import('./src/components/forms/WelcomeEmailSection.vue')['default']
   }
 }

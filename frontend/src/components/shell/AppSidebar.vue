@@ -54,6 +54,7 @@ const SECTIONS = [
 		items: [
 			{ to: '/subscribers', label: 'Subscribers', icon: 'lucide-users' },
 			{ to: '/forms', label: 'Forms', icon: 'lucide-clipboard-list' },
+			{ to: '/lead-magnets', label: 'Lead Magnets', icon: 'lucide-gift' },
 		],
 	},
 ]
@@ -67,6 +68,13 @@ const workspaceMenu = [
 		icon: 'lucide-app-window',
 		onClick: () => {
 			window.location.href = '/desk'
+		},
+	},
+	{
+		label: 'Mailing Settings',
+		icon: 'lucide-settings',
+		onClick: () => {
+			window.location.href = '/desk/mailing-settings'
 		},
 	},
 ]

@@ -47,6 +47,12 @@
 				/>
 			</section>
 
+			<WelcomeEmailSection
+				v-model:lead-magnet="draft.leadMagnet"
+				v-model:subject="draft.welcomeSubject"
+				v-model:body="draft.welcomeBody"
+			/>
+
 			<EmbedSnippet :form-id="formId" :collect-name="draft.collectName" />
 		</template>
 	</div>
@@ -67,6 +73,7 @@ import {
 	useDoc,
 } from 'frappe-ui'
 import EmbedSnippet from '@/components/forms/EmbedSnippet.vue'
+import WelcomeEmailSection from '@/components/forms/WelcomeEmailSection.vue'
 import TagPicker from '@/components/tags/TagPicker.vue'
 import { errorMessage } from '@/lib/errors'
 import type { SignupForm } from '@/types'
@@ -84,6 +91,9 @@ const draft = reactive({
 	collectName: false,
 	tags: [] as string[],
 	successMessage: '',
+	leadMagnet: '',
+	welcomeSubject: '',
+	welcomeBody: '',
 })
 
 const breadcrumbs = computed(() => [
@@ -101,6 +111,9 @@ const saved = computed(() => {
 		collectName: Boolean(doc.collect_name),
 		tags: doc.tags.map((row) => row.tag),
 		successMessage: doc.success_message,
+		leadMagnet: doc.lead_magnet ?? '',
+		welcomeSubject: doc.welcome_subject ?? '',
+		welcomeBody: doc.welcome_body ?? '',
 	}
 })
 
@@ -117,6 +130,9 @@ async function save() {
 			collect_name: draft.collectName ? 1 : 0,
 			success_message: draft.successMessage,
 			tags: draft.tags.map((tag) => ({ tag })),
+			lead_magnet: draft.leadMagnet || null,
+			welcome_subject: draft.welcomeSubject,
+			welcome_body: draft.welcomeBody,
 		})
 		toast.success('Form saved')
 	} catch (error) {

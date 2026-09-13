@@ -27,4 +27,15 @@ export interface SignupForm {
 	collect_name: 0 | 1
 	success_message: string
 	tags: TagRow[]
+	lead_magnet: string | null
+	welcome_subject: string | null
+	welcome_body: string | null
+}
+
+export interface LeadMagnet {
+	name: string
+	title: string
+	description: string | null
+	/** Private file URL */
+	file: string
 }

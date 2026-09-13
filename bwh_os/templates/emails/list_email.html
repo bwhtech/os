@@ -1,0 +1,23 @@
+<div style="max-width: 560px; margin: 0 auto; font-size: 15px; line-height: 1.6; color: #171717;">
+	{{ body }}
+
+	{% if button %}
+	<p style="margin: 24px 0;">
+		{# Frappe's email CSS forces a dark color on links without the btn class. #}
+		<a
+			class="btn"
+			href="{{ button.url }}"
+			style="display: inline-block; padding: 10px 18px; border-radius: 8px; background: #171717; color: #ffffff; text-decoration: none; font-weight: 600;"
+		>{{ button.label }}</a>
+	</p>
+	{% endif %}
+
+	{% if settings.company_name or settings.postal_address %}
+	<hr style="margin: 32px 0 16px; border: 0; border-top: 1px solid #e5e5e5;" />
+	<p style="margin: 0; font-size: 12px; line-height: 1.5; color: #737373;">
+		{% if settings.company_name %}{{ settings.company_name }}<br />{% endif %}
+		{% if settings.gstin %}GSTIN: {{ settings.gstin }}<br />{% endif %}
+		{% if settings.postal_address %}{{ settings.postal_address | e | replace("\n", "<br />") }}{% endif %}
+	</p>
+	{% endif %}
+</div>

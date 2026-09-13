@@ -19,6 +19,17 @@ const routes: RouteRecordRaw[] = [
 		component: () => import('@/pages/FormPage.vue'),
 		props: true,
 	},
+	{
+		path: '/lead-magnets',
+		name: 'Lead Magnets',
+		component: () => import('@/pages/LeadMagnetsPage.vue'),
+	},
+	{
+		path: '/lead-magnets/:leadMagnetId',
+		name: 'Lead Magnet',
+		component: () => import('@/pages/LeadMagnetPage.vue'),
+		props: true,
+	},
 	{ path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

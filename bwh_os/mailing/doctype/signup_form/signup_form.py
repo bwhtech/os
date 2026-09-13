@@ -8,6 +8,7 @@ from frappe import _
 from frappe.model.document import Document
 
 from bwh_os.mailing.doctype.subscriber.subscriber import normalize_email
+from bwh_os.mailing.emails import ListEmail
 
 FORM_ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -30,9 +31,12 @@ class SignupForm(Document):
 		collect_name: DF.Check
 		form_id: DF.Data
 		is_active: DF.Check
+		lead_magnet: DF.Link | None
 		success_message: DF.SmallText
 		tags: DF.TableMultiSelect[SubscriberTagItem]
 		title: DF.Data
+		welcome_body: DF.TextEditor | None
+		welcome_subject: DF.Data | None
 	# end: auto-generated types
 
 	def before_validate(self):
@@ -50,7 +54,10 @@ class SignupForm(Document):
 		utm: dict | None = None,
 		consent_ip: str | None = None,
 	):
-		"""Add a signup from this form. A known email gets the form tags and is made Active again."""
+		"""Add a signup from this form. A known email gets the form tags and is made Active again.
+
+		Only a new subscriber gets the welcome email, so a second signup does not send it twice.
+		"""
 		if not self.is_active:
 			frappe.throw(_("This form is closed"), FormClosedError)
 
@@ -75,5 +82,31 @@ class SignupForm(Document):
 		if subscriber.status != "Bounced":
 			subscriber.status = "Active"
 		subscriber.add_tags([row.tag for row in self.tags])
+		is_new = subscriber.is_new()
 		subscriber.save(ignore_permissions=True)
+		if is_new:
+			self.send_welcome_email(subscriber)
 		return subscriber
+
+	def send_welcome_email(self, subscriber):
+		# A missing Email Account must not lose the signup. The error log shows what failed.
+		try:
+			self.queue_welcome_email(subscriber)
+		except Exception:
+			frappe.log_error(
+				f"Welcome email for {subscriber.name} failed",
+				reference_doctype="Signup Form",
+				reference_name=self.name,
+			)
+
+	def queue_welcome_email(self, subscriber):
+		if not self.welcome_subject:
+			return
+		button = None
+		if self.lead_magnet:
+			lead_magnet = frappe.get_cached_doc("Lead Magnet", self.lead_magnet)
+			button = {
+				"label": _("Download {0}").format(lead_magnet.title),
+				"url": lead_magnet.get_download_url(subscriber.token),
+			}
+		ListEmail(subscriber, self.welcome_subject, self.welcome_body, button=button).send()

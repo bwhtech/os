@@ -12,7 +12,11 @@
   "collect_name",
   "settings_section",
   "tags",
-  "success_message"
+  "success_message",
+  "welcome_section",
+  "lead_magnet",
+  "welcome_subject",
+  "welcome_body"
  ],
  "fields": [
   {
@@ -68,11 +72,36 @@
    "fieldtype": "Small Text",
    "label": "Success Message",
    "reqd": 1
+  },
+  {
+   "description": "Sent when a person from this form becomes Active",
+   "fieldname": "welcome_section",
+   "fieldtype": "Section Break",
+   "label": "Welcome Email"
+  },
+  {
+   "description": "Linked in the welcome email",
+   "fieldname": "lead_magnet",
+   "fieldtype": "Link",
+   "label": "Lead Magnet",
+   "options": "Lead Magnet"
+  },
+  {
+   "fieldname": "welcome_subject",
+   "fieldtype": "Data",
+   "label": "Welcome Subject",
+   "mandatory_depends_on": "eval:doc.lead_magnet"
+  },
+  {
+   "description": "Jinja works here, for example {{ first_name }}. The download button goes below the body.",
+   "fieldname": "welcome_body",
+   "fieldtype": "Text Editor",
+   "label": "Welcome Body"
   }
  ],
  "grid_page_length": 50,
  "links": [],
- "modified": "2026-09-13 13:00:00.000000",
+ "modified": "2026-09-13 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Signup Form",
