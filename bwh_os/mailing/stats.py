@@ -80,6 +80,13 @@ def signups_by_form() -> list[dict]:
 	]
 
 
+def form_confirmations(form_id: str) -> dict:
+	"""Signups from one form and how many of them confirmed."""
+	signups = frappe.db.count("Subscriber", {"source_form": form_id})
+	confirmed = frappe.db.count("Subscriber", {"source_form": form_id, "confirmed_on": ("is", "set")})
+	return {"signups": signups, "confirmed": confirmed, "confirm_rate": percent(confirmed, signups)}
+
+
 def last_issue() -> dict | None:
 	"""The rates of the last sent issue, against the issue before it."""
 	name = frappe.db.get_value("Newsletter Issue", {"status": "Sent"}, "name", order_by="sent_at desc")

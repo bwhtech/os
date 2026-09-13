@@ -18,6 +18,7 @@ declare module 'vue' {
     AppSidebar: typeof import('./src/components/shell/AppSidebar.vue')['default']
     ColumnMappingStep: typeof import('./src/components/subscribers/import/ColumnMappingStep.vue')['default']
     ConfirmEmailSection: typeof import('./src/components/forms/ConfirmEmailSection.vue')['default']
+    ConfirmRateCard: typeof import('./src/components/forms/ConfirmRateCard.vue')['default']
     CsvFileStep: typeof import('./src/components/subscribers/import/CsvFileStep.vue')['default']
     DeliveryList: typeof import('./src/components/newsletters/DeliveryList.vue')['default']
     EmailComposer: typeof import('./src/components/email/EmailComposer.vue')['default']

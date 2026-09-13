@@ -23,7 +23,9 @@
 				method="bwh_os.mailing.api.get_form_activity"
 				:params="{ form_id: formId }"
 				label="Signups"
-			/>
+			>
+				<ConfirmRateCard v-if="form.doc?.double_opt_in" :form-id="formId" />
+			</ActivityCards>
 
 			<section class="max-w-2xl space-y-4">
 				<h2 class="text-lg-semibold text-ink-gray-8">Details</h2>
@@ -97,6 +99,7 @@ import {
 	useDoc,
 } from "frappe-ui";
 import ConfirmEmailSection from "@/components/forms/ConfirmEmailSection.vue";
+import ConfirmRateCard from "@/components/forms/ConfirmRateCard.vue";
 import EmbedSnippet from "@/components/forms/EmbedSnippet.vue";
 import ActivityCards from "@/components/stats/ActivityCards.vue";
 import WelcomeEmailSection from "@/components/forms/WelcomeEmailSection.vue";

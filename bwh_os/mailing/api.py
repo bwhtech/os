@@ -271,6 +271,13 @@ def get_form_activity(form_id: str) -> dict:
 	return stats.activity("Subscriber", "subscribed_on", {"source_form": form_id})
 
 
+@frappe.whitelist(methods=["GET"])
+def get_form_confirmations(form_id: str) -> dict:
+	"""Signups from one form, how many confirmed, and the confirm rate."""
+	frappe.only_for("System Manager")
+	return stats.form_confirmations(form_id)
+
+
 @frappe.whitelist(methods=["POST"])
 def get_youtube_video(url: str) -> dict:
 	"""The title, link, and thumbnail for the YouTube video block in the email editor.

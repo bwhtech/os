@@ -190,6 +190,14 @@ export interface Activity {
 	weekly: { week: string; count: number }[]
 }
 
+/** From `get_form_confirmations` */
+export interface FormConfirmations {
+	signups: number
+	confirmed: number
+	/** 0 to 100, or null with no signups */
+	confirm_rate: number | null
+}
+
 export interface ListOverview {
 	subscribers: Activity
 	/** Unsubscribed subscribers, dated by `unsubscribed_on` */

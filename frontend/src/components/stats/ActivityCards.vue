@@ -1,5 +1,5 @@
 <template>
-	<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+	<div class="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
 		<NumberCard
 			v-for="card in cards"
 			:key="card.title"
@@ -7,6 +7,8 @@
 			:loading="activity.loading && !activity.data"
 			:error="activity.error ? errorMessage(activity.error) : null"
 		/>
+		<!-- More cards for the same row -->
+		<slot />
 	</div>
 </template>
 
