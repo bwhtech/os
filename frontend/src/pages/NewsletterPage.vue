@@ -53,7 +53,7 @@
 				}"
 			/>
 			<h1 class="text-xl-semibold text-ink-gray-9">{{ issue.doc.subject }}</h1>
-			<EmailPreview :html="issue.doc.content_html" />
+			<EmailPreview :html="sampleHtml" />
 		</template>
 
 		<template v-else-if="issue.doc && !isDraft">
@@ -66,7 +66,7 @@
 
 			<TabButtons v-model="sentTab" :options="SENT_TABS" />
 			<NewsletterReport v-if="sentTab === 'report'" :issue="issue.doc" @refresh="issue.reload()" />
-			<EmailPreview v-else :html="issue.doc.content_html" />
+			<EmailPreview v-else :html="sampleHtml" />
 		</template>
 
 		<template v-else-if="loaded">
@@ -86,19 +86,13 @@
 				:preview="audience"
 			/>
 
-			<div class="flex flex-wrap items-center justify-between gap-2">
-				<TabButtons v-model="tab" :options="TABS" />
-				<Select v-model="draft.theme" :options="THEMES" class="w-36" aria-label="Theme" />
-			</div>
-
-			<!-- v-show keeps the editor and its undo history while the preview is open. -->
-			<EmailEditor
-				v-show="tab === 'write'"
-				ref="editor"
-				v-model="draft.content"
-				:theme="draft.theme"
+			<EmailComposer
+				ref="composer"
+				v-model:content="draft.content"
+				v-model:theme="draft.theme"
+				:variables="NEWSLETTER_VARIABLES"
+				:preview-text="draft.previewText"
 			/>
-			<EmailPreview v-if="tab === 'preview'" :html="previewHtml" />
 		</template>
 	</div>
 
@@ -129,7 +123,6 @@ import {
 	ErrorMessage,
 	LoadingText,
 	PageHeader,
-	Select,
 	TabButtons,
 	TextInput,
 	dayjs,
@@ -137,14 +130,16 @@ import {
 	useCall,
 	useDoc,
 } from 'frappe-ui'
-import EmailEditor from '@/components/newsletters/EmailEditor.vue'
-import EmailPreview from '@/components/newsletters/EmailPreview.vue'
+import EmailComposer from '@/components/email/EmailComposer.vue'
+import EmailPreview from '@/components/email/EmailPreview.vue'
 import NewsletterAudience from '@/components/newsletters/NewsletterAudience.vue'
 import NewsletterReport from '@/components/newsletters/NewsletterReport.vue'
 import PublishDialog from '@/components/newsletters/PublishDialog.vue'
 import SendNewsletterDialog from '@/components/newsletters/SendNewsletterDialog.vue'
 import SendTestDialog from '@/components/newsletters/SendTestDialog.vue'
 import { useAudiencePreview } from '@/composables/useAudiencePreview'
+import { parseEmailDocument } from '@/lib/emailStarters'
+import { NEWSLETTER_VARIABLES, fillSamples } from '@/lib/emailVariables'
 import { errorMessage } from '@/lib/errors'
 import { STATUS_THEMES } from '@/lib/newsletters'
 import type {
@@ -157,17 +152,10 @@ import type {
 
 const props = defineProps<{ issueId: string }>()
 
-const TABS = [
-	{ label: 'Write', value: 'write' },
-	{ label: 'Preview', value: 'preview' },
-]
-
 const SENT_TABS = [
 	{ label: 'Report', value: 'report' },
 	{ label: 'Email', value: 'email' },
 ]
-
-const THEMES: NewsletterTheme[] = ['Frappe UI', 'Basic', 'Minimal']
 
 const issue = useDoc<NewsletterIssue>({
 	doctype: 'Newsletter Issue',
@@ -180,10 +168,8 @@ const unscheduleCall = useCall<NewsletterStatus, { issue: string }>({
 	immediate: false,
 })
 
-const editor = useTemplateRef<InstanceType<typeof EmailEditor>>('editor')
-const tab = ref<'write' | 'preview'>('write')
+const composer = useTemplateRef<InstanceType<typeof EmailComposer>>('composer')
 const sentTab = ref<'report' | 'email'>('report')
-const previewHtml = ref<string | null>(null)
 const saving = ref(false)
 const sendTestOpen = ref(false)
 const sendOpen = ref(false)
@@ -192,6 +178,9 @@ const publishOpen = ref(false)
 const loaded = ref(false)
 
 const isDraft = computed(() => issue.doc?.status === 'Draft')
+
+/** A scheduled or sent issue shows the saved email with sample values. */
+const sampleHtml = computed(() => fillSamples(issue.doc?.content_html ?? '', NEWSLETTER_VARIABLES))
 
 const draft = reactive({
 	subject: '',
@@ -224,7 +213,7 @@ const saved = computed(() => {
 		audience: doc.audience,
 		tags: doc.tags.map((row) => row.tag),
 		hourlyLimit: doc.hourly_limit,
-		content: parseContent(doc.content_json),
+		content: parseEmailDocument(doc.content_json),
 	}
 })
 
@@ -242,12 +231,6 @@ watch(
 	{ immediate: true },
 )
 
-watch(tab, async (value) => {
-	if (value !== 'preview') return
-	previewHtml.value = null
-	previewHtml.value = (await editor.value?.getHtml(draft.previewText)) ?? ''
-})
-
 async function save() {
 	saving.value = true
 	try {
@@ -259,7 +242,7 @@ async function save() {
 			tags: draft.tags.map((tag) => ({ tag })),
 			hourly_limit: draft.hourlyLimit,
 			content_json: JSON.stringify(draft.content),
-			content_html: (await editor.value?.getHtml(draft.previewText)) ?? '',
+			content_html: (await composer.value?.getHtml()) ?? '',
 		})
 		toast.success('Newsletter saved')
 	} catch (error) {
@@ -283,10 +266,5 @@ async function unschedule() {
 async function saveIfDirty() {
 	if (dirty.value) await save()
 	return !dirty.value
-}
-
-function parseContent(value: NewsletterIssue['content_json']): EmailDocument | null {
-	if (!value) return null
-	return typeof value === 'string' ? JSON.parse(value) : value
 }
 </script>

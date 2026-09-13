@@ -9,6 +9,7 @@ from frappe.query_builder.functions import Count
 from frappe.utils import add_to_date, get_datetime, now_datetime
 from frappe.utils.background_jobs import is_job_enqueued
 
+from bwh_os.mailing import email_variables
 from bwh_os.mailing.emails import list_headers
 from bwh_os.mailing.newsletter_tracking import EmailTracking
 
@@ -177,14 +178,14 @@ class NewsletterSend:
 			return
 
 		tracking = EmailTracking(row.name)
-		unsubscribe_url = tracking.unsubscribe_url(
-			frappe.get_doc("Subscriber", row.subscriber).get_unsubscribe_url()
-		)
+		subscriber = frappe.get_doc("Subscriber", row.subscriber)
+		unsubscribe_url = tracking.unsubscribe_url(subscriber.get_unsubscribe_url())
+		values = email_variables.subscriber_values(subscriber)
 		queue = frappe.sendmail(
 			recipients=[row.email],
 			sender=frappe.get_cached_doc("Mailing Settings").get_sender(),
-			subject=self.issue.subject,
-			message=self.issue.get_email_html(unsubscribe_url, tracking),
+			subject=email_variables.fill(self.issue.subject, values, html=False),
+			message=self.issue.get_email_html(unsubscribe_url, tracking, values),
 			# The editor makes a full HTML document. Frappe's wrapper would nest it.
 			raw_html=True,
 			reference_doctype=self.issue.doctype,

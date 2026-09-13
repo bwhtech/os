@@ -10,9 +10,17 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { LoadingText } from 'frappe-ui'
 import type { EmailEditorApi, mountEmailEditor } from './email-editor/mount'
+import type { EmailVariable } from '@/lib/emailVariables'
 import type { EmailDocument, NewsletterTheme } from '@/types'
 
-const props = defineProps<{ theme: NewsletterTheme }>()
+const props = withDefaults(
+	defineProps<{
+		theme: NewsletterTheme
+		/** Read once, on mount */
+		variables?: EmailVariable[]
+	}>(),
+	{ variables: () => [] },
+)
 
 /** The editor keeps its own state after mount. The model only reports changes out. */
 const document_ = defineModel<EmailDocument | null>({ required: true })
@@ -29,6 +37,7 @@ onMounted(async () => {
 	mounted = mountEmailEditor(host.value.attachShadow({ mode: 'open' }), {
 		content: document_.value,
 		theme: props.theme,
+		variables: props.variables,
 		onChange: (json) => {
 			document_.value = json
 		},

@@ -75,6 +75,17 @@ class IntegrationTestNewsletterSend(IntegrationTestCase):
 		token = frappe.db.get_value("Subscriber", deliveries[0].email, "token")
 		self.assertIn(token, email.get_body(("html",)).get_content())
 
+	def test_each_reader_gets_their_own_first_name(self):
+		reader = add_subscriber(f"named-{self.tag}@example.com", first_name="Ana", tags=[self.tag])
+		issue = self.issue_for_tag()
+		issue.update({"subject": "For {{ first_name }}", "content_html": "<p>Hi {{ first_name }}</p>"}).save()
+
+		run_send_job(self.start(issue).name)
+
+		email = last_email_to(reader)
+		self.assertEqual(email["Subject"], "For Ana")
+		self.assertIn("Hi Ana</p>", email.get_body(("html",)).get_content())
+
 	def test_running_the_job_again_sends_nothing_twice(self):
 		self.add_readers(2)
 		issue = self.start(self.issue_for_tag())

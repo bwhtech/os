@@ -93,8 +93,8 @@ All doctypes go in a new module, `Mailing`.
 | tags | Table MultiSelect | Tags to add on signup |
 | lead_magnet | Link: Lead Magnet | Optional |
 | success_message | Small Text | Shown on the site after submit |
-| confirm_subject, confirm_body | Data, Text Editor | Used when double opt-in is on |
-| welcome_subject, welcome_body | Data, Text Editor | Sent when the subscriber becomes Active |
+| confirm_subject, confirm_theme, confirm_content_json, confirm_content_html | Data, Select, JSON, Code | Used when double opt-in is on. Written in `EmailComposer`. The content must link to `{{ confirm_url }}`. |
+| welcome_subject, welcome_theme, welcome_content_json, welcome_content_html | Data, Select, JSON, Code | Sent when the subscriber becomes Active. With a lead magnet, the content must link to `{{ download_url }}`. |
 
 The form page in OS also shows the signup count, the confirm rate, and the embed snippet.
 
@@ -244,6 +244,17 @@ Hussain wants an editor like the [React Email editor](https://react.email/docs/e
 4. If the spike fails, use `frappe-ui/editor` (also TipTap). Add email blocks (heading, paragraph, image, button, divider, code) and our own serializer to inline-styled table HTML.
 
 Show the preview in an `iframe` with `srcdoc`, at desktop and mobile widths. Email HTML is a full document, so an iframe shows it the way an email client does.
+
+Every email in OS (newsletters, confirm, and welcome) uses `EmailComposer.vue`: the editor, a preview, and the theme picker.
+
+#### Variables
+
+- Type `{{` in the editor to add a variable. It shows as a chip with a tooltip that says what replaces it. Typing or pasting `{{ first_name }}` also makes a chip.
+- The chip serializes to `{{ first_name }}`. A link can also use a variable, for example a button to `{{ confirm_url }}`.
+- The server fills the variables when it sends (`bwh_os/mailing/email_variables.py`). Values are HTML-escaped. `first_name` falls back to "there".
+- Each email has its own variables. Newsletters: `first_name`, `email`. Confirm: also `confirm_url`. Welcome: also `download_url` and `lead_magnet`. A save fails for a variable that the email cannot fill.
+- The preview, the test send, and the web archive use sample values or fallbacks.
+- Subjects accept the same `{{ key }}` text, with no chips.
 
 The editor must accept custom blocks. We add these blocks after v1 (slice 13):
 

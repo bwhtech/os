@@ -1,21 +1,18 @@
 # Copyright (c) 2026, BWH and contributors
 # For license information, please see license.txt
 
-import re
-
 import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import get_url
 
+from bwh_os.mailing import email_variables
+from bwh_os.mailing.emails import add_footer
 from bwh_os.mailing.newsletter_archive import NewsletterRoute
 from bwh_os.mailing.newsletter_schedule import NewsletterSchedule
 from bwh_os.mailing.newsletter_send import DEFAULT_HOURLY_LIMIT, NewsletterSend
 from bwh_os.mailing.newsletter_tracking import EmailTracking
 
-FOOTER_TEMPLATE = "bwh_os/templates/emails/newsletter_footer.html"
-BODY_END = re.compile(r"</body\s*>", re.IGNORECASE)
-CELL_END = re.compile(r"</td\s*>", re.IGNORECASE)
 # What the reader gets. Tags are compared on their own, because they are a table.
 LOCKED_FIELDS = (
 	"subject",
@@ -46,9 +43,11 @@ class NewsletterIssue(Document):
 		content_json: DF.JSON | None
 		failed_count: DF.Int
 		hourly_limit: DF.Int
+		is_public: DF.Check
 		opened_count: DF.Int
 		preview_text: DF.Data | None
 		recipient_count: DF.Int
+		route: DF.Data | None
 		scheduled_at: DF.Datetime | None
 		sent_at: DF.Datetime | None
 		sent_count: DF.Int
@@ -69,6 +68,8 @@ class NewsletterIssue(Document):
 
 	def validate(self):
 		self.ensure_unchanged_after_send()
+		email_variables.check(self.subject, email_variables.NEWSLETTER, _("The subject"))
+		email_variables.check(self.content_html, email_variables.NEWSLETTER, _("The newsletter"))
 		NewsletterRoute(self).validate()
 
 	def send(self):
@@ -103,7 +104,11 @@ class NewsletterIssue(Document):
 		queued = frappe.sendmail(
 			recipients=[recipient],
 			sender=settings.get_sender(),
-			subject=_("[Test] {0}").format(self.subject),
+			subject=_("[Test] {0}").format(
+				email_variables.fill(
+					self.subject, email_variables.fallback_values(email_variables.NEWSLETTER), html=False
+				)
+			),
 			message=self.get_email_html(unsubscribe_url),
 			# The editor makes a full HTML document. Frappe's wrapper would nest it.
 			raw_html=True,
@@ -123,26 +128,20 @@ class NewsletterIssue(Document):
 		"""The page in the web archive: the content and the company footer, with no pixel and no unsubscribe link."""
 		return self.get_email_html(unsubscribe_url=None)
 
-	def get_email_html(self, unsubscribe_url: str | None, tracking: "EmailTracking | None" = None) -> str:
-		"""The content with the company footer and the unsubscribe link at the end of the email.
+	def get_email_html(
+		self,
+		unsubscribe_url: str | None,
+		tracking: "EmailTracking | None" = None,
+		values: dict[str, str | None] | None = None,
+	) -> str:
+		"""The content with the reader's values, the company footer, and the unsubscribe link.
 
-		With tracking, the content links go through the click redirect and the footer has the open pixel.
+		With no values, every variable gets its fallback. With tracking, the content links go through
+		the click redirect and the footer has the open pixel.
 		"""
-		footer = frappe.render_template(
-			FOOTER_TEMPLATE,
-			{"settings": frappe.get_cached_doc("Mailing Settings"), "unsubscribe_url": unsubscribe_url},
+		html = email_variables.fill(
+			self.content_html, values or email_variables.fallback_values(email_variables.NEWSLETTER)
 		)
-		html = self.content_html
-		if tracking:
-			html = tracking.rewrite_links(html)
-			footer += tracking.pixel()
-		body_ends = list(BODY_END.finditer(html))
-		if not body_ends:
-			return html + footer
-
-		# The editor puts the email in one outer table cell that has the theme background.
-		# Its closing tag is the last </td>, so the footer goes before it.
-		body_end = body_ends[-1].start()
-		cell_ends = list(CELL_END.finditer(html, 0, body_end))
-		at = cell_ends[-1].start() if cell_ends else body_end
-		return html[:at] + footer + html[at:]
+		if not tracking:
+			return add_footer(html, unsubscribe_url)
+		return add_footer(tracking.rewrite_links(html), unsubscribe_url, extra=tracking.pixel())

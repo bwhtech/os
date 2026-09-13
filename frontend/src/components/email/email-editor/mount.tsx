@@ -11,6 +11,8 @@ import inspectorCss from './inspector.css?inline'
 import type { NewsletterTheme } from '@/types'
 import { extraStylesCss, extraThemeStyles } from './extraStyles'
 import { EMAIL_THEMES } from './themes'
+import { variableExtension } from './variables'
+import type { EmailVariable } from '@/lib/emailVariables'
 
 export interface EmailEditorApi {
 	/** Email-safe HTML for the current document, as a full HTML document. */
@@ -20,6 +22,8 @@ export interface EmailEditorApi {
 interface MountOptions {
 	content: JSONContent | null
 	theme: NewsletterTheme
+	/** The `{{` menu offers these. With none, the editor has no variables. */
+	variables: EmailVariable[]
 	onChange: (json: JSONContent) => void
 	onReady: (api: EmailEditorApi) => void
 	uploadImage: (file: File) => Promise<{ url: string }>
@@ -42,6 +46,34 @@ const PAGE_CSS = `
 	--re-pressed: var(--surface-gray-3);
 	--re-danger: var(--ink-red-4);
 }
+.email-variable-menu {
+	position: fixed;
+	z-index: 1000;
+	width: 20rem;
+	max-height: 18rem;
+	overflow-y: auto;
+	padding: 4px;
+	border-radius: 12px;
+	border: 1px solid var(--outline-gray-2);
+	background: var(--surface-elevation-2);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+	font-size: 13px;
+}
+.email-variable-menu-item {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	width: 100%;
+	padding: 6px 8px;
+	border-radius: 8px;
+	text-align: left;
+	color: var(--ink-gray-8);
+}
+.email-variable-menu-item[aria-selected="true"], .email-variable-menu-item:hover { background: var(--surface-gray-3); }
+.email-variable-menu-label { display: flex; justify-content: space-between; gap: 8px; font-weight: 500; }
+.email-variable-menu-label code { font-size: 11px; color: var(--ink-gray-5); }
+.email-variable-menu-description { color: var(--ink-gray-5); line-height: 1.4; }
+.email-variable-menu-empty { padding: 6px 8px; color: var(--ink-gray-5); }
 `
 
 // The email is white in both themes. CSS variables and color inherit into the shadow root, so the
@@ -67,6 +99,19 @@ const EDITOR_CSS = `
 	--re-danger: #dc2626;
 }
 .ProseMirror { white-space: pre-wrap; word-wrap: break-word; outline: none; min-height: 24rem; }
+.email-variable {
+	display: inline-block;
+	padding: 0 6px;
+	border-radius: 6px;
+	background: #e6f1fe;
+	color: #0b5ecf;
+	font-weight: 500;
+	line-height: 1.45;
+	white-space: nowrap;
+	cursor: default;
+}
+.email-variable::before { content: "{ }"; margin-right: 4px; font-size: 0.8em; opacity: 0.6; }
+.ProseMirror-selectednode .email-variable, .email-variable.ProseMirror-selectednode { outline: 2px solid #0b5ecf; }
 .ProseMirror p.is-empty::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: #a3a3a3; }
 `
 
@@ -97,7 +142,7 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 				content={content ?? undefined}
 				// A new theme object gives a new editor, so the theme applies to the whole document.
 				theme={theme.config}
-				extensions={editorExtensions(theme)}
+				extensions={editorExtensions(theme, options.variables)}
 				onUpdate={(ref) => options.onChange(ref.getJSON())}
 				onReady={(ref) => {
 					editorRef = ref
@@ -131,12 +176,17 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 }
 
 /** The extensions that EmailEditor uses by default, and the extra theme styles after EmailTheming. */
-function editorExtensions(theme: (typeof EMAIL_THEMES)[NewsletterTheme]) {
+function editorExtensions(theme: (typeof EMAIL_THEMES)[NewsletterTheme], variables: EmailVariable[]) {
 	return [
+		...(variables.length ? [variableExtension(variables)] : []),
 		StarterKit.configure(),
 		Placeholder.configure({
 			placeholder: ({ node }) =>
-				node.type.name === 'heading' ? `Heading ${node.attrs.level}` : "Press '/' for commands",
+				node.type.name === 'heading'
+					? `Heading ${node.attrs.level}`
+					: variables.length
+						? "Press '/' for commands, or '{{' for a variable"
+						: "Press '/' for commands",
 			includeChildren: true,
 		}),
 		EmailTheming.configure({ theme: theme.config }),

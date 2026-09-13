@@ -1,34 +1,36 @@
+import re
+
 import frappe
 
-TEMPLATE = "bwh_os/templates/emails/list_email.html"
+from bwh_os.mailing import email_variables
+
+FOOTER_TEMPLATE = "bwh_os/templates/emails/newsletter_footer.html"
+BODY_END = re.compile(r"</body\s*>", re.IGNORECASE)
+CELL_END = re.compile(r"</td\s*>", re.IGNORECASE)
 
 
 class ListEmail:
-	"""An email to one subscriber, with the company footer from Mailing Settings."""
+	"""An email from the OS editor to one subscriber, with the company footer from Mailing Settings."""
 
-	def __init__(self, subscriber, subject: str, body: str, button: dict | None = None):
+	def __init__(self, subscriber, subject: str, html: str, values: dict[str, str | None] | None = None):
 		self.subscriber = subscriber
 		self.subject = subject
-		self.body = body
-		# {"label": ..., "url": ...}, shown below the body
-		self.button = button
+		self.html = html
+		# Values for the variables besides the subscriber's own, for example confirm_url
+		self.values = {**email_variables.subscriber_values(subscriber), **(values or {})}
 
 	def send(self):
+		if not self.html:
+			frappe.throw(frappe._("Write the email before it can go out"))
 		settings = frappe.get_cached_doc("Mailing Settings")
 		unsubscribe_url = self.subscriber.get_unsubscribe_url()
 		frappe.sendmail(
 			recipients=[self.subscriber.email],
 			sender=settings.get_sender(),
-			subject=self.render(self.subject),
-			message=frappe.render_template(
-				TEMPLATE,
-				{
-					"body": self.render(self.body),
-					"button": self.button,
-					"settings": settings,
-					"unsubscribe_url": unsubscribe_url,
-				},
-			),
+			subject=email_variables.fill(self.subject, self.values, html=False),
+			message=add_footer(email_variables.fill(self.html, self.values), unsubscribe_url),
+			# The editor makes a full HTML document. Frappe's wrapper would nest it.
+			raw_html=True,
 			reference_doctype="Subscriber",
 			reference_name=self.subscriber.name,
 			# Frappe's own link needs an Email Unsubscribe record. Ours uses the subscriber token.
@@ -36,9 +38,27 @@ class ListEmail:
 			email_headers=list_headers(unsubscribe_url),
 		)
 
-	def render(self, text: str) -> str:
-		"""Subjects and bodies can use Jinja, for example {{ first_name }}."""
-		return frappe.render_template(text or "", {"first_name": self.subscriber.first_name or ""})
+
+def add_footer(html: str, unsubscribe_url: str | None, extra: str = "") -> str:
+	"""Put the company footer, the unsubscribe link, and `extra` at the end of the email.
+
+	With no unsubscribe URL, as in the web archive, the footer has no link.
+	"""
+	footer = frappe.render_template(
+		FOOTER_TEMPLATE,
+		{"settings": frappe.get_cached_doc("Mailing Settings"), "unsubscribe_url": unsubscribe_url},
+	)
+	footer += extra
+	body_ends = list(BODY_END.finditer(html))
+	if not body_ends:
+		return html + footer
+
+	# The editor puts the email in one outer table cell that has the theme background.
+	# Its closing tag is the last </td>, so the footer goes before it.
+	body_end = body_ends[-1].start()
+	cell_ends = list(CELL_END.finditer(html, 0, body_end))
+	at = cell_ends[-1].start() if cell_ends else body_end
+	return html[:at] + footer + html[at:]
 
 
 LIST_HEADERS = ("List-Unsubscribe", "List-Unsubscribe-Post")

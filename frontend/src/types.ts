@@ -29,12 +29,17 @@ export interface SignupForm {
 	collect_name: 0 | 1
 	double_opt_in: 0 | 1
 	confirm_subject: string | null
-	confirm_body: string | null
+	confirm_theme: NewsletterTheme
+	/** The API returns JSON fields as a string */
+	confirm_content_json: string | EmailDocument | null
+	confirm_content_html: string | null
 	success_message: string
 	tags: TagRow[]
 	lead_magnet: string | null
 	welcome_subject: string | null
-	welcome_body: string | null
+	welcome_theme: NewsletterTheme
+	welcome_content_json: string | EmailDocument | null
+	welcome_content_html: string | null
 }
 
 export interface LeadMagnet {

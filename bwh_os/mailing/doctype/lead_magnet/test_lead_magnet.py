@@ -7,7 +7,7 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from bwh_os.mailing.api import add_subscriber, download_lead_magnet, subscribe
-from bwh_os.mailing.doctype.signup_form.test_signup_form import make_form
+from bwh_os.mailing.doctype.signup_form.test_signup_form import email_html, make_form
 
 FILE_BYTES = b"test manual"
 
@@ -21,7 +21,9 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 			{
 				"lead_magnet": self.lead_magnet.name,
 				"welcome_subject": "Your manual, {{ first_name }}",
-				"welcome_body": "<p>Here it is.</p>",
+				"welcome_content_html": email_html(
+					'<p>Hi {{ first_name }}, here is {{ lead_magnet }}.</p><a href="{{ download_url }}">Download</a>'
+				),
 			}
 		)
 		frappe.local.response = frappe._dict()

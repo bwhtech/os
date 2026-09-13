@@ -12,7 +12,7 @@ from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import (
 	make_lead_magnet,
 	use_test_email_account,
 )
-from bwh_os.mailing.doctype.signup_form.test_signup_form import make_form
+from bwh_os.mailing.doctype.signup_form.test_signup_form import email_html, make_form
 
 
 class IntegrationTestDoubleOptIn(IntegrationTestCase):
@@ -24,10 +24,12 @@ class IntegrationTestDoubleOptIn(IntegrationTestCase):
 			{
 				"double_opt_in": 1,
 				"confirm_subject": "Confirm, {{ first_name }}",
-				"confirm_body": "<p>One click left.</p>",
+				"confirm_content_html": email_html(
+					'<p>One click left.</p><a href="%7B%7B%20confirm_url%20%7D%7D">Confirm</a>'
+				),
 				"lead_magnet": self.lead_magnet.name,
 				"welcome_subject": "Your manual",
-				"welcome_body": "<p>Here it is.</p>",
+				"welcome_content_html": email_html('<a href="{{ download_url }}">Download</a>'),
 			}
 		)
 		frappe.local.response = frappe._dict()

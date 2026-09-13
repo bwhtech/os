@@ -7,7 +7,7 @@ from frappe.utils import set_request
 
 from bwh_os.mailing.api import add_subscriber, subscribe, unsubscribe
 from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import last_email_to, use_test_email_account
-from bwh_os.mailing.doctype.signup_form.test_signup_form import make_form
+from bwh_os.mailing.doctype.signup_form.test_signup_form import email_html, make_form
 
 
 class IntegrationTestUnsubscribe(IntegrationTestCase):
@@ -21,7 +21,7 @@ class IntegrationTestUnsubscribe(IntegrationTestCase):
 
 	def test_list_email_has_unsubscribe_link_and_headers(self):
 		form = make_form("test-unsubscribe-email")
-		form.db_set({"welcome_subject": "Welcome", "welcome_body": "<p>Hi</p>"})
+		form.db_set({"welcome_subject": "Welcome", "welcome_content_html": email_html("<p>Hi</p>")})
 		subscribe("test-unsubscribe-email", "headers@example.com")
 
 		email = last_email_to("headers@example.com")

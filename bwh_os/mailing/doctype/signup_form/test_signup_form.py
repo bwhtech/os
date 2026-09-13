@@ -99,7 +99,14 @@ def make_form(form_id: str, tags: list[str] | None = None):
 def make_api_user() -> str:
 	email = "test-signup-api@example.com"
 	if not frappe.db.exists("User", email):
-		user = frappe.get_doc({"doctype": "User", "email": email, "first_name": "Signup API", "send_welcome_email": 0})
+		user = frappe.get_doc(
+			{"doctype": "User", "email": email, "first_name": "Signup API", "send_welcome_email": 0}
+		)
 		user.append("roles", {"role": SIGNUP_API_ROLE})
 		user.insert(ignore_permissions=True)
 	return email
+
+
+def email_html(body: str) -> str:
+	"""A full document with one outer cell, as the OS editor makes it."""
+	return f"<!DOCTYPE html><html><head></head><body><table><tr><td>{body}</td></tr></table></body></html>"

@@ -10,6 +10,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import get_url
 
+from bwh_os.mailing import email_variables
 from bwh_os.mailing.doctype.subscriber.subscriber import normalize_email
 from bwh_os.mailing.emails import ListEmail
 
@@ -32,8 +33,10 @@ class SignupForm(Document):
 		from bwh_os.mailing.doctype.subscriber_tag_item.subscriber_tag_item import SubscriberTagItem
 
 		collect_name: DF.Check
-		confirm_body: DF.TextEditor | None
+		confirm_content_html: DF.Code | None
+		confirm_content_json: DF.JSON | None
 		confirm_subject: DF.Data | None
+		confirm_theme: DF.Literal["Frappe UI", "Basic", "Minimal"]
 		double_opt_in: DF.Check
 		form_id: DF.Data
 		is_active: DF.Check
@@ -41,8 +44,10 @@ class SignupForm(Document):
 		success_message: DF.SmallText
 		tags: DF.TableMultiSelect[SubscriberTagItem]
 		title: DF.Data
-		welcome_body: DF.TextEditor | None
+		welcome_content_html: DF.Code | None
+		welcome_content_json: DF.JSON | None
 		welcome_subject: DF.Data | None
+		welcome_theme: DF.Literal["Frappe UI", "Basic", "Minimal"]
 	# end: auto-generated types
 
 	def before_validate(self):
@@ -51,9 +56,37 @@ class SignupForm(Document):
 	def validate(self):
 		if not FORM_ID_PATTERN.match(self.form_id):
 			frappe.throw(_("Form ID can only have lowercase letters, digits, and single hyphens"))
+		self.validate_confirm_email()
+		self.validate_welcome_email()
+
+	def validate_confirm_email(self):
+		if not self.double_opt_in:
+			return
 		# The desk enforces mandatory_depends_on, but a save through the API does not.
-		if self.double_opt_in and not self.confirm_subject:
+		if not self.confirm_subject:
 			frappe.throw(_("Set a confirm subject for a double opt-in form"))
+		if not self.confirm_content_html:
+			frappe.throw(_("Write the confirm email for a double opt-in form"))
+		email_variables.check(self.confirm_subject, email_variables.CONFIRM, _("The confirm subject"))
+		email_variables.check(
+			self.confirm_content_html,
+			email_variables.CONFIRM,
+			_("The confirm email"),
+			required=["confirm_url"],
+		)
+
+	def validate_welcome_email(self):
+		if not self.welcome_subject:
+			return
+		if not self.welcome_content_html:
+			frappe.throw(_("Write the welcome email, or clear its subject to send nothing"))
+		email_variables.check(self.welcome_subject, email_variables.WELCOME, _("The welcome subject"))
+		email_variables.check(
+			self.welcome_content_html,
+			email_variables.WELCOME,
+			_("The welcome email"),
+			required=["download_url"] if self.lead_magnet else [],
+		)
 
 	def subscribe(
 		self,
@@ -130,21 +163,21 @@ class SignupForm(Document):
 
 	def send_confirm_email(self, subscriber):
 		with log_email_failure(subscriber, self.name, "Confirm"):
-			button = {"label": _("Confirm subscription"), "url": self.get_confirm_url(subscriber.token)}
-			ListEmail(subscriber, self.confirm_subject, self.confirm_body, button=button).send()
+			values = {"confirm_url": self.get_confirm_url(subscriber.token)}
+			ListEmail(subscriber, self.confirm_subject, self.confirm_content_html, values).send()
 
 	def send_welcome_email(self, subscriber):
 		if not self.welcome_subject:
 			return
 		with log_email_failure(subscriber, self.name, "Welcome"):
-			button = None
+			values = {"download_url": None, "lead_magnet": None}
 			if self.lead_magnet:
 				lead_magnet = frappe.get_cached_doc("Lead Magnet", self.lead_magnet)
-				button = {
-					"label": _("Download {0}").format(lead_magnet.title),
-					"url": lead_magnet.get_download_url(subscriber.token),
+				values = {
+					"download_url": lead_magnet.get_download_url(subscriber.token),
+					"lead_magnet": lead_magnet.title,
 				}
-			ListEmail(subscriber, self.welcome_subject, self.welcome_body, button=button).send()
+			ListEmail(subscriber, self.welcome_subject, self.welcome_content_html, values).send()
 
 
 @contextmanager
