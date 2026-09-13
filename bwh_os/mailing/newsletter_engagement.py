@@ -14,12 +14,8 @@ class NewsletterEngagement:
 		self.issue = issue
 
 	def report(self) -> dict:
-		previous = self.previous_issue()
 		return {
-			"rates": rates(self.issue),
-			"previous": {"name": previous.name, "subject": previous.subject, **rates(previous)}
-			if previous
-			else None,
+			**self.comparison(),
 			"funnel": [
 				{"stage": "Recipients", "count": self.issue.recipient_count},
 				{"stage": "Sent", "count": self.issue.sent_count},
@@ -28,6 +24,16 @@ class NewsletterEngagement:
 			],
 			"hourly": self.hourly(),
 			"top_links": self.top_links(),
+		}
+
+	def comparison(self) -> dict:
+		"""The rates of this issue and of the issue before it."""
+		previous = self.previous_issue()
+		return {
+			"rates": rates(self.issue),
+			"previous": {"name": previous.name, "subject": previous.subject, **rates(previous)}
+			if previous
+			else None,
 		}
 
 	def previous_issue(self):

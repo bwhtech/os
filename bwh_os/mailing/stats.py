@@ -6,8 +6,11 @@ import frappe
 from frappe.query_builder.functions import Count, Date
 from frappe.utils import getdate, nowdate
 
+from bwh_os.mailing.newsletter_engagement import COUNT_FIELDS, NewsletterEngagement, percent, rates
+
 WEEKS = 12
 PERIOD_DAYS = 30
+ISSUES = 10
 
 
 def activity(doctype: str, date_field: str, filters: dict | None = None) -> dict:
@@ -37,20 +40,74 @@ def list_overview() -> dict:
 		"downloads": activity("Lead Magnet Download", "downloaded_on"),
 		"by_status": count_grouped("Subscriber", "status"),
 		"by_form": signups_by_form(),
+		"last_issue": last_issue(),
+		"issue_rates": issue_rates(),
 	}
 
 
 def signups_by_form() -> list[dict]:
-	"""Subscriber count per signup form, biggest first. Subscribers with no form are added by hand or imported."""
-	titles = dict(frappe.get_all("Signup Form", fields=["name", "title"], as_list=True))
-	rows = [
+	"""Signups and confirmed signups per signup form, biggest first.
+
+	A single opt-in form confirms on signup, so only a double opt-in form has a confirm rate.
+	Subscribers with no form are added by hand or imported.
+	"""
+	subscriber = frappe.qb.DocType("Subscriber")
+	form = frappe.qb.DocType("Signup Form")
+	signups = Count("*")
+	rows = (
+		frappe.qb.from_(subscriber)
+		.left_join(form)
+		.on(form.name == subscriber.source_form)
+		.select(
+			subscriber.source_form,
+			form.title,
+			form.double_opt_in,
+			signups.as_("signups"),
+			Count(subscriber.confirmed_on).as_("confirmed"),
+		)
+		.groupby(subscriber.source_form, form.title, form.double_opt_in)
+		.orderby(signups, order=frappe.qb.desc)
+		.run(as_dict=True)
+	)
+	return [
 		{
-			"form": titles.get(row["value"], row["value"]) if row["value"] else "Added or imported",
-			"count": row["count"],
+			"form": (row.title or row.source_form) if row.source_form else "Added or imported",
+			"signups": row.signups,
+			"confirmed": row.confirmed,
+			"confirm_rate": percent(row.confirmed, row.signups) if row.double_opt_in else None,
 		}
-		for row in count_grouped("Subscriber", "source_form")
+		for row in rows
 	]
-	return sorted(rows, key=lambda row: row["count"], reverse=True)
+
+
+def last_issue() -> dict | None:
+	"""The rates of the last sent issue, against the issue before it."""
+	name = frappe.db.get_value("Newsletter Issue", {"status": "Sent"}, "name", order_by="sent_at desc")
+	if not name:
+		return None
+	issue = frappe.get_doc("Newsletter Issue", name)
+	return {
+		"name": issue.name,
+		"subject": issue.subject,
+		"sent_at": issue.sent_at,
+		"recipient_count": issue.recipient_count,
+		**NewsletterEngagement(issue).comparison(),
+	}
+
+
+def issue_rates() -> list[dict]:
+	"""Open and click rates of the last 10 sent issues, oldest first."""
+	issues = frappe.get_all(
+		"Newsletter Issue",
+		filters={"status": "Sent"},
+		fields=["name", "subject", "sent_at", *COUNT_FIELDS],
+		order_by="sent_at desc",
+		limit=ISSUES,
+	)
+	return [
+		{"name": issue.name, "subject": issue.subject, "sent_at": issue.sent_at, **rates(issue)}
+		for issue in reversed(issues)
+	]
 
 
 def count_grouped(doctype: str, field: str) -> list[dict]:

@@ -151,10 +151,14 @@ export interface EngagementRates {
 	unsubscribes: number
 }
 
-/** From `get_newsletter_engagement` */
-export interface NewsletterEngagement {
+/** The rates of an issue and of the issue sent before it */
+export interface EngagementComparison {
 	rates: EngagementRates
 	previous: ({ name: string; subject: string } & EngagementRates) | null
+}
+
+/** From `get_newsletter_engagement` */
+export interface NewsletterEngagement extends EngagementComparison {
 	funnel: { stage: string; count: number }[]
 	/** One row per hour from the start of the send, for 72 hours */
 	hourly: { hour: number; Open: number; Click: number }[]
@@ -187,5 +191,10 @@ export interface ListOverview {
 	unsubscribes: Activity
 	downloads: Activity
 	by_status: { value: SubscriberStatus; count: number }[]
-	by_form: { form: string; count: number }[]
+	/** Biggest form first. `confirm_rate` is null for single opt-in and for subscribers with no form. */
+	by_form: { form: string; signups: number; confirmed: number; confirm_rate: number | null }[]
+	/** The last Sent issue */
+	last_issue: ({ name: string; subject: string; sent_at: string; recipient_count: number } & EngagementComparison) | null
+	/** The last 10 Sent issues, oldest first */
+	issue_rates: ({ name: string; subject: string; sent_at: string } & EngagementRates)[]
 }

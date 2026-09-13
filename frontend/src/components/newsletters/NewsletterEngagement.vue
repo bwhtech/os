@@ -56,6 +56,7 @@
 import { computed, watch } from 'vue'
 import { dayjs, useCall } from 'frappe-ui'
 import { AreaChart, BarChart, FunnelChart, NumberCard, type NumberCardProps } from 'frappe-ui/charts'
+import { engagementCards } from '@/lib/engagement'
 import { errorMessage } from '@/lib/errors'
 import type { NewsletterEngagement, NewsletterIssue } from '@/types'
 
@@ -92,42 +93,9 @@ const linkRows = computed(() =>
 	(report.data?.top_links ?? []).map((link) => ({ link: shortUrl(link.url), clicks: link.clicks })),
 )
 
-const cards = computed<NumberCardProps[]>(() => {
-	const data = report.data
-	const previous = data?.previous
-	const caption = previous ? `vs ${previous.subject}` : 'No earlier issue'
-	return [
-		{
-			title: 'Open rate',
-			value: data?.rates.open_rate ?? null,
-			suffix: '%',
-			...change(data?.rates.open_rate, previous?.open_rate, ' pts'),
-			deltaCaption: caption,
-			loading: loading.value,
-		},
-		{
-			title: 'Click rate',
-			value: data?.rates.click_rate ?? null,
-			suffix: '%',
-			...change(data?.rates.click_rate, previous?.click_rate, ' pts'),
-			deltaCaption: caption,
-			loading: loading.value,
-		},
-		{
-			title: 'Unsubscribes',
-			value: data?.rates.unsubscribes ?? null,
-			...change(data?.rates.unsubscribes, previous?.unsubscribes),
-			negativeIsBetter: true,
-			deltaCaption: caption,
-			loading: loading.value,
-		},
-	]
-})
-
-function change(current: number | null | undefined, previous: number | null | undefined, suffix = '') {
-	if (current == null || previous == null) return {}
-	return { delta: Math.round((current - previous) * 10) / 10, deltaSuffix: suffix }
-}
+const cards = computed<NumberCardProps[]>(() =>
+	engagementCards(report.data).map((card) => ({ ...card, loading: loading.value })),
+)
 
 function shortUrl(url: string) {
 	try {
