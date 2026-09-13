@@ -114,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, useTemplateRef, watch } from 'vue'
 import {
 	Alert,
 	Badge,
@@ -251,6 +251,17 @@ async function save() {
 		saving.value = false
 	}
 }
+
+/** Cmd+S or Ctrl+S saves a draft. The key event also comes out of the editor's shadow root. */
+function onKeydown(event: KeyboardEvent) {
+	if (event.key.toLowerCase() !== 's' || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
+	// Keep the browser's Save Page dialog closed, even when there is nothing to save.
+	event.preventDefault()
+	if (isDraft.value && dirty.value && !saving.value) save()
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 async function unschedule() {
 	const status = await unscheduleCall.submit({ issue: props.issueId })
