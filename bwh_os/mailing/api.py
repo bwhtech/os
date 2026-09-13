@@ -51,6 +51,29 @@ def download_lead_magnet(lead_magnet: str, token: str) -> None:
 	frappe.get_doc("Lead Magnet", lead_magnet).send_file(subscriber)
 
 
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def confirm_subscription(form_id: str, token: str) -> None:
+	"""The link in the confirm email. It makes a Pending subscriber Active and sends the welcome email."""
+	subscriber = frappe.db.get_value("Subscriber", {"token": token, "status": ("in", ("Pending", "Active"))})
+	if not subscriber or not frappe.db.exists("Signup Form", form_id):
+		frappe.respond_as_web_page(
+			_("Link not valid"),
+			_("This confirm link is not valid. Sign up again to get a new one."),
+			http_status_code=404,
+			indicator_color="red",
+		)
+		return
+
+	form = frappe.get_doc("Signup Form", form_id)
+	form.confirm(frappe.get_doc("Subscriber", subscriber))
+	# Confirm links are GET requests, which Frappe does not commit by default.
+	frappe.local.flags.commit = True
+	message = _("Thanks for confirming.")
+	if form.welcome_subject:
+		message += " " + _("Check your inbox for the welcome email.")
+	frappe.respond_as_web_page(_("You are subscribed"), message, indicator_color="green")
+
+
 @frappe.whitelist(methods=["GET"])
 def get_signup_counts() -> dict[str, int]:
 	"""Subscriber count per signup form."""

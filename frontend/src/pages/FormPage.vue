@@ -31,6 +31,11 @@
 					label="Collect first name"
 					description="Adds a first name field to the embed snippet."
 				/>
+				<Switch
+					v-model="draft.doubleOptIn"
+					label="Double opt-in"
+					description="People confirm by email before they join. Ask them to check their inbox in the success message."
+				/>
 			</section>
 
 			<section class="space-y-4">
@@ -47,6 +52,12 @@
 				/>
 			</section>
 
+			<ConfirmEmailSection
+				v-if="draft.doubleOptIn"
+				v-model:subject="draft.confirmSubject"
+				v-model:body="draft.confirmBody"
+			/>
+
 			<WelcomeEmailSection
 				v-model:lead-magnet="draft.leadMagnet"
 				v-model:subject="draft.welcomeSubject"
@@ -59,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, watch } from "vue";
 import {
 	Breadcrumbs,
 	Button,
@@ -71,56 +82,67 @@ import {
 	Textarea,
 	toast,
 	useDoc,
-} from 'frappe-ui'
-import EmbedSnippet from '@/components/forms/EmbedSnippet.vue'
-import WelcomeEmailSection from '@/components/forms/WelcomeEmailSection.vue'
-import TagPicker from '@/components/tags/TagPicker.vue'
-import { errorMessage } from '@/lib/errors'
-import type { SignupForm } from '@/types'
+} from "frappe-ui";
+import ConfirmEmailSection from "@/components/forms/ConfirmEmailSection.vue";
+import EmbedSnippet from "@/components/forms/EmbedSnippet.vue";
+import WelcomeEmailSection from "@/components/forms/WelcomeEmailSection.vue";
+import TagPicker from "@/components/tags/TagPicker.vue";
+import { errorMessage } from "@/lib/errors";
+import type { SignupForm } from "@/types";
 
-const props = defineProps<{ formId: string }>()
+const props = defineProps<{ formId: string }>();
 
 const form = useDoc<SignupForm>({
-	doctype: 'Signup Form',
+	doctype: "Signup Form",
 	name: computed(() => props.formId),
-})
+});
 
 const draft = reactive({
-	title: '',
+	title: "",
 	isActive: true,
 	collectName: false,
+	doubleOptIn: false,
+	confirmSubject: "",
+	confirmBody: "",
 	tags: [] as string[],
-	successMessage: '',
-	leadMagnet: '',
-	welcomeSubject: '',
-	welcomeBody: '',
-})
+	successMessage: "",
+	leadMagnet: "",
+	welcomeSubject: "",
+	welcomeBody: "",
+});
 
 const breadcrumbs = computed(() => [
-	{ label: 'Forms', route: '/forms' },
+	{ label: "Forms", route: "/forms" },
 	{ label: form.doc?.title ?? props.formId },
-])
+]);
 
 /** The saved document in draft shape, so the two compare field by field. */
 const saved = computed(() => {
-	const doc = form.doc
-	if (!doc) return null
+	const doc = form.doc;
+	if (!doc) return null;
 	return {
 		title: doc.title,
 		isActive: Boolean(doc.is_active),
 		collectName: Boolean(doc.collect_name),
+		doubleOptIn: Boolean(doc.double_opt_in),
+		confirmSubject: doc.confirm_subject ?? "",
+		confirmBody: doc.confirm_body ?? "",
 		tags: doc.tags.map((row) => row.tag),
 		successMessage: doc.success_message,
-		leadMagnet: doc.lead_magnet ?? '',
-		welcomeSubject: doc.welcome_subject ?? '',
-		welcomeBody: doc.welcome_body ?? '',
-	}
-})
+		leadMagnet: doc.lead_magnet ?? "",
+		welcomeSubject: doc.welcome_subject ?? "",
+		welcomeBody: doc.welcome_body ?? "",
+	};
+});
 
-const dirty = computed(() => Boolean(saved.value) && JSON.stringify(saved.value) !== JSON.stringify(draft))
+const dirty = computed(
+	() => Boolean(saved.value) && JSON.stringify(saved.value) !== JSON.stringify(draft)
+);
 
 // Load the draft on first fetch and again after each save.
-watch(saved, (value) => value && Object.assign(draft, structuredClone(value)), { immediate: true })
+watch(saved, (value) => value && Object.assign(draft, structuredClone(value)), {
+	immediate: true,
+});
 
 async function save() {
 	try {
@@ -128,15 +150,18 @@ async function save() {
 			title: draft.title,
 			is_active: draft.isActive ? 1 : 0,
 			collect_name: draft.collectName ? 1 : 0,
+			double_opt_in: draft.doubleOptIn ? 1 : 0,
+			confirm_subject: draft.confirmSubject,
+			confirm_body: draft.confirmBody,
 			success_message: draft.successMessage,
 			tags: draft.tags.map((tag) => ({ tag })),
 			lead_magnet: draft.leadMagnet || null,
 			welcome_subject: draft.welcomeSubject,
 			welcome_body: draft.welcomeBody,
-		})
-		toast.success('Form saved')
+		});
+		toast.success("Form saved");
 	} catch (error) {
-		toast.error(errorMessage(error as Error))
+		toast.error(errorMessage(error as Error));
 	}
 }
 </script>

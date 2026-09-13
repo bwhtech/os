@@ -45,6 +45,13 @@ class Subscriber(Document):
 		self.email = normalize_email(self.email)
 		validate_email_address(self.email, throw=True)
 
+	def activate(self) -> bool:
+		"""Make the subscriber Active. True the first time, when the welcome email is due."""
+		first_time = not self.confirmed_on
+		self.status = "Active"
+		self.confirmed_on = self.confirmed_on or now_datetime()
+		return first_time
+
 	def add_tags(self, tag_names: list[str]):
 		"""Append tags the subscriber does not have yet, creating missing ones.
 

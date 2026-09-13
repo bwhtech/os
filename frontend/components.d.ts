@@ -14,6 +14,8 @@ declare module 'vue' {
     AddSubscriberDialog: typeof import('./src/components/subscribers/AddSubscriberDialog.vue')['default']
     AppShell: typeof import('./src/components/shell/AppShell.vue')['default']
     AppSidebar: typeof import('./src/components/shell/AppSidebar.vue')['default']
+    ConfirmEmailSection: typeof import('./src/components/forms/ConfirmEmailSection.vue')['default']
+    EmailBodyEditor: typeof import('./src/components/forms/EmailBodyEditor.vue')['default']
     EmbedSnippet: typeof import('./src/components/forms/EmbedSnippet.vue')['default']
     LeadMagnetFileInput: typeof import('./src/components/lead-magnets/LeadMagnetFileInput.vue')['default']
     NewFormDialog: typeof import('./src/components/forms/NewFormDialog.vue')['default']

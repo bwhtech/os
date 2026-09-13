@@ -25,6 +25,9 @@ export interface SignupForm {
 	form_id: string
 	is_active: 0 | 1
 	collect_name: 0 | 1
+	double_opt_in: 0 | 1
+	confirm_subject: string | null
+	confirm_body: string | null
 	success_message: string
 	tags: TagRow[]
 	lead_magnet: string | null
