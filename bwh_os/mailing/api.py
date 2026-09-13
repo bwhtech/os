@@ -46,10 +46,13 @@ def preview_subscriber_import(content: str, mapping: dict | None = None, tags: l
 
 
 @frappe.whitelist(methods=["POST"])
-def import_subscribers(content: str, mapping: dict, tags: list[str] | None = None) -> dict[str, int]:
-	"""Import CSV text. New emails become Active. Known emails only get the tags."""
+def import_subscribers(content: str, mapping: dict, tags: list[str] | None = None) -> dict:
+	"""Start a background import of CSV text. Progress comes as `subscriber_import_progress` events.
+
+	New emails become Active. Known emails only get the tags.
+	"""
 	frappe.only_for("System Manager")
-	return SubscriberImport(content, mapping, tags).run()
+	return SubscriberImport(content, mapping, tags).enqueue()
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])

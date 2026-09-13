@@ -9,9 +9,14 @@ from frappe.utils import validate_email_address
 
 from bwh_os.mailing.doctype.subscriber.subscriber import clean_tag_names, normalize_email
 
-# The import runs in the web request, so a big file must not hit the request timeout.
-MAX_ROWS = 5000
+# The CSV text travels to the worker inside the job, so keep it to a sane size.
+MAX_ROWS = 50000
 PREVIEW_ROWS = 10
+# Rows between a commit and a progress event
+BATCH_SIZE = 100
+PROGRESS_EVENT = "subscriber_import_progress"
+
+ACTIONS = ("New", "Existing", "Invalid", "Duplicate", "Failed")
 
 TARGET_FIELDS = ("email", "first_name", "full_name", "tags")
 
@@ -29,7 +34,7 @@ class ImportRow:
 	email: str
 	first_name: str | None
 	tags: list[str] = field(default_factory=list)
-	# New, Existing, Invalid, or Duplicate (an earlier row has the same email)
+	# New, Existing, Invalid, Duplicate (an earlier row has the same email), or Failed (on import)
 	action: str = "New"
 
 
@@ -37,6 +42,7 @@ class SubscriberImport:
 	"""Import subscribers from CSV text. New emails become Active. Known emails only get the tags."""
 
 	def __init__(self, content: str, mapping: dict | None = None, tags: list[str] | None = None):
+		self.content = content
 		self.headers, self.records = parse_csv(content)
 		self.mapping = self.clean_mapping(mapping) if mapping else self.suggest_mapping()
 		self.tags = clean_tag_names(tags or [])
@@ -51,17 +57,56 @@ class SubscriberImport:
 			"rows": [asdict(row) for row in rows[:PREVIEW_ROWS]],
 		}
 
-	def run(self) -> dict:
-		if not self.mapping.get("email"):
-			frappe.throw(_("Pick the column that has the email address"))
+	def enqueue(self) -> dict:
+		"""Check the file and mapping now, so the user sees mistakes at once, then import in a worker."""
+		self.check_mapping()
+		import_id = frappe.generate_hash(length=12)
+		frappe.enqueue(
+			run_import_job,
+			queue="long",
+			timeout=60 * 60,
+			enqueue_after_commit=True,
+			import_id=import_id,
+			content=self.content,
+			mapping=self.mapping,
+			tags=self.tags,
+		)
+		return {"import_id": import_id, "total": len(self.records)}
 
+	def run(self, progress: "ImportProgress") -> dict:
+		"""Commit every batch, so a failed row or a crash keeps the rows before it."""
+		self.check_mapping()
 		rows = self.plan()
-		for row in rows:
+		progress.start(len(rows))
+		for index, row in enumerate(rows, start=1):
+			if row.action in ("New", "Existing"):
+				self.apply(row, progress)
+			progress.count(row.action)
+			if index % BATCH_SIZE == 0:
+				frappe.db.commit()
+				progress.publish("Running", done=index)
+		frappe.db.commit()
+		progress.publish("Done", done=len(rows))
+		return progress.counts
+
+	def apply(self, row: ImportRow, progress: "ImportProgress"):
+		# One bad row must not undo the other rows in its batch.
+		frappe.db.savepoint("import_row")
+		try:
 			if row.action == "New":
 				self.insert(row)
-			elif row.action == "Existing":
+			else:
 				self.add_tags(row)
-		return count_actions(rows)
+		except Exception as e:
+			frappe.db.rollback(save_point="import_row")
+			row.action = "Failed"
+			progress.fail(row, e)
+		else:
+			frappe.db.release_savepoint("import_row")
+
+	def check_mapping(self):
+		if not self.mapping.get("email"):
+			frappe.throw(_("Pick the column that has the email address"))
 
 	def plan(self) -> list[ImportRow]:
 		known = set(frappe.get_all("Subscriber", pluck="name"))
@@ -128,6 +173,56 @@ class SubscriberImport:
 		return [value for value in values if value][:3]
 
 
+class ImportProgress:
+	"""Counts rows as they import and tells the user's open tabs over socket.io."""
+
+	MAX_ERRORS = 20
+
+	def __init__(self, import_id: str, user: str):
+		self.import_id = import_id
+		self.user = user
+		self.total = 0
+		self.counts = dict.fromkeys(ACTIONS, 0)
+		self.errors: list[dict] = []
+
+	def start(self, total: int):
+		self.total = total
+		self.publish("Running", done=0)
+
+	def count(self, action: str):
+		self.counts[action] += 1
+
+	def fail(self, row: ImportRow, error: Exception):
+		if len(self.errors) < self.MAX_ERRORS:
+			self.errors.append({"email": row.email, "error": frappe.utils.strip_html(str(error))})
+
+	def publish(self, status: str, done: int, message: str | None = None):
+		frappe.publish_realtime(
+			PROGRESS_EVENT,
+			{
+				"import_id": self.import_id,
+				# Running, Done, or Failed
+				"status": status,
+				"done": done,
+				"total": self.total,
+				"counts": self.counts,
+				"errors": self.errors,
+				"message": message,
+			},
+			user=self.user,
+		)
+
+
+def run_import_job(import_id: str, content: str, mapping: dict, tags: list[str]):
+	progress = ImportProgress(import_id, frappe.session.user)
+	try:
+		SubscriberImport(content, mapping, tags).run(progress)
+	except Exception as e:
+		frappe.db.rollback()
+		progress.publish("Failed", done=sum(progress.counts.values()), message=str(e))
+		raise
+
+
 def parse_csv(content: str) -> tuple[list[str], list[list[str]]]:
 	content = (content or "").lstrip("\ufeff")
 	try:
@@ -148,7 +243,7 @@ def parse_csv(content: str) -> tuple[list[str], list[list[str]]]:
 
 
 def count_actions(rows: list[ImportRow]) -> dict[str, int]:
-	counts = dict.fromkeys(("New", "Existing", "Invalid", "Duplicate"), 0)
+	counts = dict.fromkeys(ACTIONS[:-1], 0)
 	for row in rows:
 		counts[row.action] += 1
 	return counts

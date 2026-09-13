@@ -60,3 +60,16 @@ export interface ImportPreview {
 	/** The first rows of the file, as they will import */
 	rows: { email: string; first_name: string | null; tags: string[]; action: ImportAction }[]
 }
+
+/** Payload of the `subscriber_import_progress` realtime event */
+export interface ImportProgressEvent {
+	import_id: string
+	status: 'Running' | 'Done' | 'Failed'
+	done: number
+	total: number
+	counts: ImportCounts & { Failed: number }
+	/** The first failed rows */
+	errors: { email: string; error: string }[]
+	/** Why the whole import failed */
+	message: string | null
+}

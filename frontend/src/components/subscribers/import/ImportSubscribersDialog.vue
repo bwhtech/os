@@ -1,17 +1,11 @@
 <template>
-	<Dialog
-		:open="open"
-		:title="STEPS[step].title"
-		size="2xl"
-		:dismissible="!importCall.loading"
-		@update:open="emit('update:open', $event)"
-	>
+	<Dialog :open="open" :title="title" size="2xl" @update:open="emit('update:open', $event)">
 		<div class="mb-5 flex items-center gap-1.5" aria-hidden="true">
 			<span
-				v-for="(_, index) in STEPS"
+				v-for="index in STEP_COUNT"
 				:key="index"
 				class="h-1 flex-1 rounded-full transition-colors"
-				:class="index <= step ? 'bg-surface-gray-10' : 'bg-surface-gray-3'"
+				:class="index - 1 <= step ? 'bg-surface-gray-10' : 'bg-surface-gray-3'"
 			/>
 		</div>
 
@@ -30,19 +24,28 @@
 			:columns="preview.columns"
 		/>
 		<ImportReviewStep v-else-if="step === 2 && preview" v-model:tags="tags" :preview="preview" />
+		<ImportProgressStep v-else-if="step === 3 && progress" :progress="progress" />
 
 		<ErrorMessage
-			v-if="step > 0"
+			v-if="step === 1 || step === 2"
 			class="mt-4"
 			:message="errorMessage(previewCall.error || importCall.error)"
 		/>
 
 		<template #actions="{ close }">
-			<div class="flex w-full justify-between gap-2">
-				<Button v-if="step > 0" label="Back" :disabled="importCall.loading" @click="step -= 1" />
+			<div v-if="step === 3" class="flex w-full justify-end gap-2">
+				<Button
+					v-if="progress?.status === 'Running'"
+					label="Close"
+					@click="close"
+				/>
+				<Button v-else variant="solid" theme="gray" label="Done" @click="close" />
+			</div>
+			<div v-else class="flex w-full justify-between gap-2">
+				<Button v-if="step > 0" label="Back" @click="step -= 1" />
 				<span v-else />
 				<div class="flex gap-2">
-					<Button label="Cancel" :disabled="importCall.loading" @click="close" />
+					<Button label="Cancel" @click="close" />
 					<Button
 						v-if="step === 1"
 						variant="solid"
@@ -59,7 +62,7 @@
 						:label="importLabel"
 						:loading="importCall.loading"
 						:disabled="!importableCount"
-						@click="runImport(close)"
+						@click="startImport"
 					/>
 				</div>
 			</div>
@@ -72,18 +75,18 @@ import { computed, reactive, ref, watch } from 'vue'
 import { Button, Dialog, ErrorMessage, toast, useCall } from 'frappe-ui'
 import ColumnMappingStep from '@/components/subscribers/import/ColumnMappingStep.vue'
 import CsvFileStep from '@/components/subscribers/import/CsvFileStep.vue'
+import ImportProgressStep from '@/components/subscribers/import/ImportProgressStep.vue'
 import ImportReviewStep from '@/components/subscribers/import/ImportReviewStep.vue'
 import { errorMessage } from '@/lib/errors'
-import type { ImportCounts, ImportMapping, ImportPreview } from '@/types'
+import { onRealtime } from '@/lib/socket'
+import type { ImportMapping, ImportPreview, ImportProgressEvent } from '@/types'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [open: boolean]; imported: [] }>()
 
-const STEPS = [
-	{ title: 'Import Subscribers' },
-	{ title: 'Map Columns' },
-	{ title: 'Review Import' },
-]
+const STEP_COUNT = 4
+const STEP_TITLES = ['Import Subscribers', 'Map Columns', 'Review Import']
+const PROGRESS_TITLES = { Running: 'Importing…', Done: 'Import Done', Failed: 'Import Failed' }
 
 type ImportParams = { content: string; mapping?: ImportMapping; tags?: string[] }
 
@@ -92,6 +95,11 @@ const file = reactive({ name: '', content: '' })
 const preview = ref<ImportPreview | null>(null)
 const mapping = ref<ImportMapping>(emptyMapping())
 const tags = ref<string[]>([])
+const importId = ref<string | null>(null)
+const progress = ref<ImportProgressEvent | null>(null)
+
+/** Events can arrive before the enqueue reply, so keep the latest one for each import. */
+const earlyEvents = new Map<string, ImportProgressEvent>()
 
 const previewCall = useCall<ImportPreview, ImportParams>({
 	url: '/api/v2/method/bwh_os.mailing.api.preview_subscriber_import',
@@ -99,11 +107,17 @@ const previewCall = useCall<ImportPreview, ImportParams>({
 	immediate: false,
 })
 
-const importCall = useCall<ImportCounts, ImportParams>({
+const importCall = useCall<{ import_id: string; total: number }, ImportParams>({
 	url: '/api/v2/method/bwh_os.mailing.api.import_subscribers',
 	method: 'POST',
 	immediate: false,
 })
+
+const title = computed(() =>
+	step.value === 3 && progress.value
+		? PROGRESS_TITLES[progress.value.status]
+		: STEP_TITLES[step.value],
+)
 
 const importableCount = computed(() =>
 	preview.value ? preview.value.counts.New + preview.value.counts.Existing : 0,
@@ -114,17 +128,30 @@ const importLabel = computed(() => {
 	return `Import ${count} ${count === 1 ? 'row' : 'rows'}`
 })
 
-// Start each opening at the first step.
+const isRunning = computed(() => progress.value?.status === 'Running')
+
+// The listener lives with the page, so the toast still comes after the dialog closes.
+onRealtime<ImportProgressEvent>('subscriber_import_progress', (event) => {
+	if (event.import_id !== importId.value) {
+		earlyEvents.set(event.import_id, event)
+		return
+	}
+	applyProgress(event)
+})
+
+// Start each opening at the first step, unless an import is still running.
 watch(
 	() => props.open,
 	(open) => {
-		if (!open) return
+		if (!open || isRunning.value) return
 		step.value = 0
 		file.name = ''
 		file.content = ''
 		preview.value = null
 		mapping.value = emptyMapping()
 		tags.value = []
+		importId.value = null
+		progress.value = null
 		previewCall.reset()
 		importCall.reset()
 	},
@@ -148,24 +175,52 @@ async function review() {
 	step.value = 2
 }
 
-async function runImport(close: () => void) {
-	const counts = await importCall.submit({
+async function startImport() {
+	const job = await importCall.submit({
 		content: file.content,
 		mapping: mapping.value,
 		tags: tags.value,
 	})
-	if (!counts) return
-	toast.success(summary(counts))
-	emit('imported')
-	close()
+	if (!job) return
+	importId.value = job.import_id
+	progress.value = queuedProgress(job.import_id, job.total)
+	step.value = 3
+	const early = earlyEvents.get(job.import_id)
+	if (early) applyProgress(early)
 }
 
-function summary(counts: ImportCounts) {
+function applyProgress(event: ImportProgressEvent) {
+	// socket.io keeps order, but an early event must not undo a later one.
+	if (progress.value && event.status === 'Running' && event.done < progress.value.done) return
+	progress.value = event
+	if (event.status === 'Done') {
+		toast.success(summary(event))
+		emit('imported')
+	} else if (event.status === 'Failed') {
+		toast.error('Subscriber import failed')
+		emit('imported')
+	}
+}
+
+function summary({ counts }: ImportProgressEvent) {
 	const parts = [`${counts.New} added`]
-	if (counts.Existing) parts.push(`${counts.Existing} already on the list`)
+	if (counts.Existing) parts.push(`${counts.Existing} tagged`)
 	const skipped = counts.Invalid + counts.Duplicate
 	if (skipped) parts.push(`${skipped} skipped`)
-	return parts.join(', ')
+	if (counts.Failed) parts.push(`${counts.Failed} failed`)
+	return `Import done: ${parts.join(', ')}`
+}
+
+function queuedProgress(id: string, total: number): ImportProgressEvent {
+	return {
+		import_id: id,
+		status: 'Running',
+		done: 0,
+		total,
+		counts: { New: 0, Existing: 0, Invalid: 0, Duplicate: 0, Failed: 0 },
+		errors: [],
+		message: null,
+	}
 }
 
 function emptyMapping(): ImportMapping {

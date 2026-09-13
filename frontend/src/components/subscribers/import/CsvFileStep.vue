@@ -14,7 +14,7 @@
 				{{ fileName || 'Drop a CSV file here' }}
 			</p>
 			<p class="text-p-sm text-ink-gray-5">
-				The first row must have the column names. Up to 5,000 rows.
+				The first row must have the column names. Up to 50,000 rows.
 			</p>
 			<Button
 				class="mt-2"

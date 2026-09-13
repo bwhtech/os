@@ -30,5 +30,7 @@ def get_boot() -> frappe._dict:
 			"site_name": frappe.local.site,
 			"read_only_mode": frappe.flags.read_only,
 			"system_timezone": get_system_timezone(),
+			# Dev serves socket.io on its own port. Production proxies it on the site origin.
+			"socketio_port": frappe.conf.socketio_port,
 		}
 	)

@@ -19,6 +19,7 @@ declare module 'vue' {
     CsvFileStep: typeof import('./src/components/subscribers/import/CsvFileStep.vue')['default']
     EmailBodyEditor: typeof import('./src/components/forms/EmailBodyEditor.vue')['default']
     EmbedSnippet: typeof import('./src/components/forms/EmbedSnippet.vue')['default']
+    ImportProgressStep: typeof import('./src/components/subscribers/import/ImportProgressStep.vue')['default']
     ImportReviewStep: typeof import('./src/components/subscribers/import/ImportReviewStep.vue')['default']
     ImportSubscribersDialog: typeof import('./src/components/subscribers/import/ImportSubscribersDialog.vue')['default']
     LeadMagnetFileInput: typeof import('./src/components/lead-magnets/LeadMagnetFileInput.vue')['default']
