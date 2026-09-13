@@ -118,7 +118,7 @@ make_email_body_message = ["bwh_os.mailing.emails.rename_list_headers"]
 # ------------
 
 # before_install = "bwh_os.install.before_install"
-# after_install = "bwh_os.install.after_install"
+after_install = "bwh_os.install.after_install"
 after_migrate = "bwh_os.install.after_migrate"
 
 # Uninstallation

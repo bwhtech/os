@@ -3,6 +3,10 @@ import frappe
 from bwh_os.mailing.api import SIGNUP_API_ROLE
 
 
+def after_install():
+	ensure_signup_api_role()
+
+
 def after_migrate():
 	ensure_signup_api_role()
 
