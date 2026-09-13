@@ -18,6 +18,12 @@
 		<ErrorMessage v-else-if="leadMagnet.error" :message="errorMessage(leadMagnet.error)" />
 
 		<template v-else>
+			<ActivityCards
+				method="bwh_os.mailing.api.get_lead_magnet_activity"
+				:params="{ lead_magnet: leadMagnetId }"
+				label="Downloads"
+			/>
+
 			<section class="space-y-4">
 				<TextInput v-model="draft.title" label="Title" required />
 				<Textarea
@@ -50,6 +56,7 @@ import {
 } from 'frappe-ui'
 import LeadMagnetDownloads from '@/components/lead-magnets/LeadMagnetDownloads.vue'
 import LeadMagnetFileInput from '@/components/lead-magnets/LeadMagnetFileInput.vue'
+import ActivityCards from '@/components/stats/ActivityCards.vue'
 import { errorMessage } from '@/lib/errors'
 import type { LeadMagnet } from '@/types'
 

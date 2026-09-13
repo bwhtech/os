@@ -3,6 +3,7 @@ from frappe import _
 from frappe.query_builder.functions import Count
 from frappe.utils import validate_email_address
 
+from bwh_os.mailing import stats
 from bwh_os.mailing.subscriber_import import SubscriberImport
 
 SIGNUP_API_ROLE = "OS Signup API"
@@ -157,6 +158,27 @@ def get_signup_counts() -> dict[str, int]:
 def get_download_counts() -> dict[str, int]:
 	"""Download count per lead magnet."""
 	return count_by("Lead Magnet Download", "lead_magnet")
+
+
+@frappe.whitelist(methods=["GET"])
+def get_list_overview() -> dict:
+	"""Subscriber, unsubscribe and download activity for the dashboard."""
+	frappe.only_for("System Manager")
+	return stats.list_overview()
+
+
+@frappe.whitelist(methods=["GET"])
+def get_lead_magnet_activity(lead_magnet: str) -> dict:
+	"""Download activity for one lead magnet."""
+	frappe.only_for("System Manager")
+	return stats.activity("Lead Magnet Download", "downloaded_on", {"lead_magnet": lead_magnet})
+
+
+@frappe.whitelist(methods=["GET"])
+def get_form_activity(form_id: str) -> dict:
+	"""Signup activity for one signup form."""
+	frappe.only_for("System Manager")
+	return stats.activity("Subscriber", "subscribed_on", {"source_form": form_id})
 
 
 def count_by(doctype: str, field: str) -> dict[str, int]:

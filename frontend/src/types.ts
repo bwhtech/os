@@ -102,3 +102,23 @@ export interface MailingSettings {
 	gstin: string | null
 	postal_address: string | null
 }
+
+/** Counts from `bwh_os.mailing.stats.activity` */
+export interface Activity {
+	total: number
+	/** The last 30 days, today included */
+	last_period: number
+	/** The 30 days before that */
+	previous_period: number
+	/** The last 12 weeks, oldest first. `week` is the Monday. */
+	weekly: { week: string; count: number }[]
+}
+
+export interface ListOverview {
+	subscribers: Activity
+	/** Unsubscribed subscribers, dated by `unsubscribed_on` */
+	unsubscribes: Activity
+	downloads: Activity
+	by_status: { value: SubscriberStatus; count: number }[]
+	by_form: { form: string; count: number }[]
+}

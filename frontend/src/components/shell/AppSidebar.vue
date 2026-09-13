@@ -56,6 +56,7 @@ const SECTIONS = [
 	{
 		label: 'Email List',
 		items: [
+			{ to: '/dashboard', label: 'Dashboard', icon: 'lucide-layout-dashboard' },
 			{ to: '/subscribers', label: 'Subscribers', icon: 'lucide-users' },
 			{ to: '/forms', label: 'Forms', icon: 'lucide-clipboard-list' },
 			{ to: '/lead-magnets', label: 'Lead Magnets', icon: 'lucide-gift' },

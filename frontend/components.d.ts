@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActivityCards: typeof import('./src/components/stats/ActivityCards.vue')['default']
     AddSubscriberDialog: typeof import('./src/components/subscribers/AddSubscriberDialog.vue')['default']
     AppShell: typeof import('./src/components/shell/AppShell.vue')['default']
     AppSidebar: typeof import('./src/components/shell/AppSidebar.vue')['default']

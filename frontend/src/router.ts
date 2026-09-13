@@ -2,7 +2,12 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { resolveLoggedUser } from '@/composables/useSession'
 
 const routes: RouteRecordRaw[] = [
-	{ path: '/', redirect: '/subscribers' },
+	{ path: '/', redirect: '/dashboard' },
+	{
+		path: '/dashboard',
+		name: 'Dashboard',
+		component: () => import('@/pages/DashboardPage.vue'),
+	},
 	{
 		path: '/subscribers',
 		name: 'Subscribers',

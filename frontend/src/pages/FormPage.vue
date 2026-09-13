@@ -18,6 +18,12 @@
 		<ErrorMessage v-else-if="form.error" :message="errorMessage(form.error)" />
 
 		<template v-else>
+			<ActivityCards
+				method="bwh_os.mailing.api.get_form_activity"
+				:params="{ form_id: formId }"
+				label="Signups"
+			/>
+
 			<section class="space-y-4">
 				<h2 class="text-lg-semibold text-ink-gray-8">Details</h2>
 				<TextInput v-model="draft.title" label="Title" required />
@@ -85,6 +91,7 @@ import {
 } from "frappe-ui";
 import ConfirmEmailSection from "@/components/forms/ConfirmEmailSection.vue";
 import EmbedSnippet from "@/components/forms/EmbedSnippet.vue";
+import ActivityCards from "@/components/stats/ActivityCards.vue";
 import WelcomeEmailSection from "@/components/forms/WelcomeEmailSection.vue";
 import TagPicker from "@/components/tags/TagPicker.vue";
 import { errorMessage } from "@/lib/errors";
