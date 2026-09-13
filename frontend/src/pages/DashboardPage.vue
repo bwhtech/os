@@ -152,7 +152,15 @@ const formsChart = computed<BarChartProps>(() => ({
 	y2Axis: { min: 0, max: 100, format: percent },
 	seriesConfig: {
 		signups: { label: 'Signups' },
-		confirm_rate: { label: 'Confirm rate', type: 'line', axis: 'y2', showDataPoints: true, showDataLabels: true },
+		confirm_rate: {
+			label: 'Confirm rate',
+			type: 'line',
+			axis: 'y2',
+			showDataPoints: true,
+			showDataLabels: true,
+			// Data labels do not use the axis format.
+			echartOptions: { label: { formatter: ({ value }: { value: [string, number] }) => percent(value[1]) } },
+		},
 	},
 	palette: 'categorical',
 	title: 'Signups by form',
