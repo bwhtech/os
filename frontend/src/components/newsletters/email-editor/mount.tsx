@@ -2,8 +2,12 @@ import { createRoot } from 'react-dom/client'
 import type { JSONContent } from '@tiptap/core'
 import { EmailEditor, type EmailEditorRef } from '@react-email/editor'
 import { composeReactEmail } from '@react-email/editor/core'
+import { StarterKit } from '@react-email/editor/extensions'
+import { EmailTheming } from '@react-email/editor/plugins'
+import { Placeholder } from '@tiptap/extension-placeholder'
 import themeCss from '@react-email/editor/themes/default.css?inline'
 import type { NewsletterTheme } from '@/types'
+import { extraStylesCss, extraThemeStyles } from './extraStyles'
 import { EMAIL_THEMES } from './themes'
 
 export interface EmailEditorApi {
@@ -71,14 +75,20 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 	shadow.append(style, container)
 	const stopMirror = mirrorThemeStyles(shadow)
 
+	const extraCss = document.createElement('style')
+	shadow.append(extraCss)
+
 	const root = createRoot(container)
 	let editorRef: EmailEditorRef | null = null
-	const render = (theme: NewsletterTheme, content: JSONContent | null) => {
+	const render = (themeName: NewsletterTheme, content: JSONContent | null) => {
+		const theme = EMAIL_THEMES[themeName]
+		extraCss.textContent = extraStylesCss(theme.extra)
 		root.render(
 			<EmailEditor
 				content={content ?? undefined}
 				// A new theme object gives a new editor, so the theme applies to the whole document.
-				theme={EMAIL_THEMES[theme]}
+				theme={theme.config}
+				extensions={editorExtensions(theme)}
 				onUpdate={(ref) => options.onChange(ref.getJSON())}
 				onReady={(ref) => {
 					editorRef = ref
@@ -101,6 +111,20 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 			root.unmount()
 		},
 	}
+}
+
+/** The extensions that EmailEditor uses by default, and the extra theme styles after EmailTheming. */
+function editorExtensions(theme: (typeof EMAIL_THEMES)[NewsletterTheme]) {
+	return [
+		StarterKit.configure(),
+		Placeholder.configure({
+			placeholder: ({ node }) =>
+				node.type.name === 'heading' ? `Heading ${node.attrs.level}` : "Press '/' for commands",
+			includeChildren: true,
+		}),
+		EmailTheming.configure({ theme: theme.config }),
+		extraThemeStyles(theme.extra),
+	]
 }
 
 /**

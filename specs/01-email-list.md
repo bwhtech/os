@@ -224,6 +224,8 @@ Spike result (slice 7): passed. A YouTube `EmailNode` with `renderToReactEmail` 
 - The editor puts some styles in `document.head` and its menus in `document.body`. The wrapper copies the node styles into the shadow root and loads the menu theme on the page.
 - The code block loads Prism CSS from `/styles/prism/`, which OS does not serve. Code blocks show no syntax colors in the editor.
 - The editor chunk is about 720 KB gzip. It loads only on the newsletter page.
+- `extendTheme` drops the styles for `blockquote`, `hr`, bold text, and other keys that have no inspector panel. The Frappe UI theme adds them with a small extension after `EmailTheming`, because `composeReactEmail` uses the serializer plugin of the last extension that has one.
+- The editor converts px font sizes in theme panels against a 14px base, so the container font size is an extra style.
 
 ## Slices
 

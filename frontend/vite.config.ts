@@ -25,8 +25,6 @@ export default defineConfig({
 		alias: {
 			'@': path.resolve(__dirname, 'src'),
 		},
-		// @react-email/editor pins a newer TipTap than frappe-ui. Two copies break ProseMirror.
-		dedupe: ['@tiptap/core', '@tiptap/pm'],
 	},
 	optimizeDeps: {
 		// frappe-ui ships unbuilt source with `~icons/lucide/*` virtual imports
