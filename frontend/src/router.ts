@@ -8,6 +8,17 @@ const routes: RouteRecordRaw[] = [
 		name: 'Subscribers',
 		component: () => import('@/pages/SubscribersPage.vue'),
 	},
+	{
+		path: '/forms',
+		name: 'Forms',
+		component: () => import('@/pages/FormsPage.vue'),
+	},
+	{
+		path: '/forms/:formId',
+		name: 'Form',
+		component: () => import('@/pages/FormPage.vue'),
+		props: true,
+	},
 	{ path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

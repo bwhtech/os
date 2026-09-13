@@ -14,10 +14,12 @@ declare module 'vue' {
     AddSubscriberDialog: typeof import('./src/components/subscribers/AddSubscriberDialog.vue')['default']
     AppShell: typeof import('./src/components/shell/AppShell.vue')['default']
     AppSidebar: typeof import('./src/components/shell/AppSidebar.vue')['default']
+    EmbedSnippet: typeof import('./src/components/forms/EmbedSnippet.vue')['default']
+    NewFormDialog: typeof import('./src/components/forms/NewFormDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SubscriberEmptyState: typeof import('./src/components/subscribers/SubscriberEmptyState.vue')['default']
     SubscriberList: typeof import('./src/components/subscribers/SubscriberList.vue')['default']
-    TagPicker: typeof import('./src/components/subscribers/TagPicker.vue')['default']
+    TagPicker: typeof import('./src/components/tags/TagPicker.vue')['default']
   }
 }

@@ -6,7 +6,7 @@
 				<TextInput v-model="firstName" label="First Name" />
 				<TagPicker v-model="tags" />
 
-				<ErrorMessage :message="errorMessage" />
+				<ErrorMessage :message="errorMessage(addSubscriber.error)" />
 
 				<div class="flex justify-end gap-2 pt-2">
 					<Button label="Cancel" @click="close" />
@@ -25,9 +25,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { Button, Dialog, ErrorMessage, FrappeResponseError, TextInput, toast, useCall } from 'frappe-ui'
-import TagPicker from '@/components/subscribers/TagPicker.vue'
+import { ref, watch } from 'vue'
+import { Button, Dialog, ErrorMessage, TextInput, toast, useCall } from 'frappe-ui'
+import TagPicker from '@/components/tags/TagPicker.vue'
+import { errorMessage } from '@/lib/errors'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [open: boolean]; created: [name: string] }>()
@@ -40,14 +41,6 @@ const addSubscriber = useCall<string, { email: string; first_name: string; tags:
 	url: '/api/v2/method/bwh_os.mailing.api.add_subscriber',
 	method: 'POST',
 	immediate: false,
-})
-
-// frappe-ui prefixes the message with the exception type, e.g. "DuplicateEntryError: ".
-const errorMessage = computed(() => {
-	const error = addSubscriber.error
-	if (!error) return ''
-	if (!(error instanceof FrappeResponseError)) return error.message
-	return error.message.replace(`${error.type}: `, '')
 })
 
 // Start each opening with an empty form.

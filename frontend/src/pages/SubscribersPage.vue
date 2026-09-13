@@ -67,7 +67,7 @@ watch(
 
 const subscribers = useList<Subscriber>({
 	doctype: 'Subscriber',
-	fields: ['name', 'email', 'first_name', 'status', 'subscribed_on', { tags: ['tag'] }],
+	fields: ['name', 'email', 'first_name', 'status', 'source_form', 'subscribed_on', { tags: ['tag'] }],
 	filters: () => searchFilters(debouncedSearch.value),
 	orderBy: 'creation desc',
 	limit: 500,

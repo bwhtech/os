@@ -113,6 +113,7 @@ website_route_rules = [
 
 # before_install = "bwh_os.install.before_install"
 # after_install = "bwh_os.install.after_install"
+after_migrate = "bwh_os.install.after_migrate"
 
 # Uninstallation
 # ------------

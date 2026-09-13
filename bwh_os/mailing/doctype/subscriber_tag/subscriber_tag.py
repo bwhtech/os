@@ -20,6 +20,7 @@ class SubscriberTag(Document):
 	@staticmethod
 	def ensure(tag_name: str) -> str:
 		"""Return the tag name, creating the tag first if it does not exist."""
-		if not frappe.db.exists("Subscriber Tag", tag_name):
-			frappe.get_doc({"doctype": "Subscriber Tag", "tag_name": tag_name}).insert()
+		if tag_name and not frappe.db.exists("Subscriber Tag", tag_name):
+			# Public signups create tags too, through a user with no tag permissions.
+			frappe.get_doc({"doctype": "Subscriber Tag", "tag_name": tag_name}).insert(ignore_permissions=True)
 		return tag_name

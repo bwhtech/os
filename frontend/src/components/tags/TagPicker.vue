@@ -1,5 +1,11 @@
 <template>
-	<MultiSelect v-model="model" label="Tags" placeholder="Pick or create tags" :options="options">
+	<MultiSelect
+		v-model="model"
+		:label="label"
+		:description="description"
+		placeholder="Pick or create tags"
+		:options="options"
+	>
 		<template #footer="{ query, setOpen }">
 			<div class="border-t border-outline-gray-1 px-2 py-1.5">
 				<Button
@@ -7,6 +13,7 @@
 					variant="ghost"
 					icon-left="lucide-plus"
 					:label="`Create “${query.trim()}”`"
+					:loading="createTag.loading"
 					class="w-full justify-start"
 					@click="create(query, setOpen)"
 				/>
@@ -17,24 +24,31 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { Button, MultiSelect, useList } from 'frappe-ui'
+import { computed } from 'vue'
+import { Button, MultiSelect, toast, useCall, useList } from 'frappe-ui'
 import type { SubscriberTag } from '@/types'
+
+withDefaults(defineProps<{ label?: string; description?: string }>(), { label: 'Tags' })
 
 const model = defineModel<string[]>({ required: true })
 
 const savedTags = useList<SubscriberTag>({
 	doctype: 'Subscriber Tag',
-	fields: ['name', 'tag_name'],
+	fields: ['name'],
 	orderBy: 'tag_name asc',
 	limit: 1000,
 })
 
-// New tags exist only here until the subscriber is saved. The server creates them.
-const draftTags = ref<string[]>([])
+// Create the tag right away: Frappe checks links before a parent document's save hooks run.
+const createTag = useCall<SubscriberTag, { tag_name: string }>({
+	url: '/api/v2/document/Subscriber Tag',
+	method: 'POST',
+	immediate: false,
+	onError: (error) => toast.error(error.message),
+})
 
 const options = computed(() => {
-	const names = new Set([...(savedTags.data ?? []).map((tag) => tag.name), ...draftTags.value])
+	const names = new Set([...(savedTags.data ?? []).map((tag) => tag.name), ...model.value])
 	return [...names].map((name) => ({ label: name, value: name }))
 })
 
@@ -43,10 +57,11 @@ function canCreate(query: string) {
 	return Boolean(name) && !options.value.some((option) => option.value === name)
 }
 
-function create(query: string, setOpen: (open: boolean) => void) {
-	const name = query.trim()
-	draftTags.value.push(name)
-	model.value = [...model.value, name]
+async function create(query: string, setOpen: (open: boolean) => void) {
+	const tag = await createTag.submit({ tag_name: query.trim() })
+	if (!tag) return
+	savedTags.reload()
+	model.value = [...model.value, tag.name]
 	setOpen(false)
 }
 </script>

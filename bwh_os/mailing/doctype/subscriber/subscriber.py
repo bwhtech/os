@@ -24,7 +24,8 @@ class Subscriber(Document):
 		consent_ip: DF.Data | None
 		email: DF.Data
 		first_name: DF.Data | None
-		source_url: DF.Data | None
+		source_form: DF.Link | None
+		source_url: DF.SmallText | None
 		status: DF.Literal["Pending", "Active", "Unsubscribed", "Bounced"]
 		subscribed_on: DF.Datetime | None
 		tags: DF.TableMultiSelect[SubscriberTagItem]
@@ -35,31 +36,35 @@ class Subscriber(Document):
 
 	# Runs before naming, so the document name is the normalized email.
 	def before_insert(self):
-		self.normalize_email()
+		self.email = normalize_email(self.email)
 		self.ensure_not_on_list()
 		self.token = frappe.generate_hash(length=32)
 		self.subscribed_on = self.subscribed_on or now_datetime()
 
 	def validate(self):
-		self.normalize_email()
+		self.email = normalize_email(self.email)
 		validate_email_address(self.email, throw=True)
 
 	def add_tags(self, tag_names: list[str]):
-		"""Append tags, creating missing ones. Skips tags the subscriber already has."""
+		"""Append tags the subscriber does not have yet, creating missing ones.
+
+		Frappe checks links before any save hook runs, so tags must exist before the save.
+		"""
 		existing = {row.tag for row in self.tags}
-		for tag_name in _clean_tag_names(tag_names):
+		for tag_name in clean_tag_names(tag_names):
 			if tag_name in existing:
 				continue
 			self.append("tags", {"tag": SubscriberTag.ensure(tag_name)})
 			existing.add(tag_name)
-
-	def normalize_email(self):
-		self.email = (self.email or "").strip().lower()
 
 	def ensure_not_on_list(self):
 		if frappe.db.exists("Subscriber", self.email):
 			frappe.throw(_("{0} is already on the list").format(self.email), frappe.DuplicateEntryError)
 
 
-def _clean_tag_names(tag_names: list[str]) -> list[str]:
+def normalize_email(email: str | None) -> str:
+	return (email or "").strip().lower()
+
+
+def clean_tag_names(tag_names: list[str]) -> list[str]:
 	return [name.strip() for name in tag_names if name and name.strip()]

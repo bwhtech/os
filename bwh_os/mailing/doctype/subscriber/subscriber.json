@@ -11,6 +11,7 @@
   "status",
   "tags",
   "source_section",
+  "source_form",
   "source_url",
   "utm",
   "column_break_source",
@@ -66,10 +67,17 @@
    "label": "Source"
   },
   {
+   "fieldname": "source_form",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Source Form",
+   "options": "Signup Form"
+  },
+  {
+   "description": "The page where the person signed up",
    "fieldname": "source_url",
-   "fieldtype": "Data",
-   "label": "Source URL",
-   "options": "URL"
+   "fieldtype": "Small Text",
+   "label": "Source URL"
   },
   {
    "fieldname": "utm",

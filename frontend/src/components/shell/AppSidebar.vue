@@ -10,6 +10,7 @@
 					:icon="item.icon"
 					:label="item.label"
 					:to="item.to"
+					:active="route.path.startsWith(item.to)"
 				/>
 			</SidebarSection>
 		</ScrollArea>
@@ -41,6 +42,7 @@ import {
 	SidebarSection,
 	type DropdownOptions,
 } from 'frappe-ui'
+import { useRoute } from 'vue-router'
 import { useSession } from '@/composables/useSession'
 
 const LOGO_URL = '/assets/bwh_os/images/os-logo.svg'
@@ -49,10 +51,14 @@ const LOGO_URL = '/assets/bwh_os/images/os-logo.svg'
 const SECTIONS = [
 	{
 		label: 'Email List',
-		items: [{ to: '/subscribers', label: 'Subscribers', icon: 'lucide-users' }],
+		items: [
+			{ to: '/subscribers', label: 'Subscribers', icon: 'lucide-users' },
+			{ to: '/forms', label: 'Forms', icon: 'lucide-clipboard-list' },
+		],
 	},
 ]
 
+const route = useRoute()
 const { user, logout } = useSession()
 
 const workspaceMenu = [

@@ -2,14 +2,15 @@
 	<!-- Fixed tracks need a floor. Below it the list scrolls sideways in its own box. -->
 	<div class="overflow-x-auto">
 		<List
-			class="min-w-[48rem] list-row-px-0"
-			:columns="['minmax(14rem,1fr)', '10rem', '7rem', 'minmax(10rem,14rem)', '8rem']"
+			class="min-w-[56rem] list-row-px-0"
+			:columns="['minmax(14rem,1fr)', '10rem', '7rem', '9rem', 'minmax(10rem,14rem)', '8rem']"
 			:row-height="44"
 		>
 			<ListHeader>
 				<ListHeaderCell>Email</ListHeaderCell>
 				<ListHeaderCell>Name</ListHeaderCell>
 				<ListHeaderCell>Status</ListHeaderCell>
+				<ListHeaderCell>Source</ListHeaderCell>
 				<ListHeaderCell>Tags</ListHeaderCell>
 				<ListHeaderCell class="justify-end">Subscribed</ListHeaderCell>
 			</ListHeader>
@@ -24,6 +25,12 @@
 						</ListCell>
 						<ListCell>
 							<Badge :label="item.status" :theme="statusTheme(item.status)" variant="subtle" />
+						</ListCell>
+						<ListCell>
+							<code v-if="item.source_form" class="truncate font-mono text-sm text-ink-gray-6">
+								{{ item.source_form }}
+							</code>
+							<span v-else class="text-sm text-ink-gray-5">Manual</span>
 						</ListCell>
 						<ListCell class="gap-1 overflow-hidden">
 							<Badge

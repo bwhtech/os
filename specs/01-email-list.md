@@ -66,8 +66,8 @@ All doctypes go in a new module, `Mailing`.
 | first_name | Data | |
 | status | Select | Pending, Active, Unsubscribed, Bounced |
 | tags | Table MultiSelect | Rows of `Subscriber Tag Item`, a child table that links to `Subscriber Tag` |
-| source_form | Link: Signup Form | Empty for manual add and import |
-| source_url | Data | The page where the person signed up |
+| source_form | Link: Signup Form | The first form the person used. Empty for manual add and import. |
+| source_url | Small Text | The page where the person signed up. Data is too short for long URLs. |
 | utm | JSON | UTM parameters and referrer |
 | consent_ip | Data | |
 | subscribed_on | Datetime | |
@@ -84,7 +84,7 @@ All doctypes go in a new module, `Mailing`.
 | title | Data | |
 | form_id | Data, unique | Slug that the Astro component uses |
 | is_active | Check | |
-| collect_name | Check | Show the first name field |
+| collect_name | Check | Adds `collectName` to the embed snippet. The site does not read this field. |
 | double_opt_in | Check | |
 | tags | Table MultiSelect | Tags to add on signup |
 | lead_magnet | Link: Lead Magnet | Optional |
@@ -124,14 +124,17 @@ The name `Newsletter Issue` prevents a clash with the separate Frappe `newslette
 
 Put the methods in `bwh_os/mailing/api.py`.
 
-`subscribe(form_id, email, first_name=None, source_url=None, utm=None)`
+`subscribe(form_id, email, first_name=None, source_url=None, utm=None, consent_ip=None)`
 
 - The Netlify function calls this method with the API key of a restricted user. That user has only the role `OS Signup API`.
-- The method also has a Frappe `@rate_limit`.
+- There is no Frappe `@rate_limit`. All calls come from Netlify, so a per-IP limit in Frappe would block every reader at once. The Netlify function limits by reader IP.
+- `after_migrate` creates the `OS Signup API` role. It has no desk access.
 - If the form has double opt-in, the method makes the subscriber Pending and sends the confirm email.
 - If the form has single opt-in, the method makes the subscriber Active and sends the welcome email.
-- If the email already exists, the method adds the form tags and does not send a second welcome email.
-- The method returns the form success message.
+- If the email already exists, the method adds the form tags and keeps the first `source_form`. It does not send a second welcome email.
+- A signup makes an Unsubscribed person Active again, because the signup is new consent. A Bounced person stays Bounced.
+- A closed form raises `FormClosedError`. The site shows "This signup is closed right now."
+- The method returns `{"message": <success message>}` for a new and a known email alike.
 
 ### Public endpoints
 
@@ -179,8 +182,9 @@ Changes:
 
 1. Replace `netlify/lib/kit.ts` with `netlify/lib/frappe.ts`. It calls `subscribe` on the OS site.
 2. Replace the `KIT_API_KEY` and `KIT_FORM_ID` env vars with `FRAPPE_URL` and `FRAPPE_API_TOKEN`.
-3. Give `NewsletterForm.vue` a `formId` prop. Keep sending `source_url` and UTM values.
-4. Show the first name field when the form sets `collect_name`.
+3. Give `NewsletterForm.vue` a `formId` prop. Send the page URL and UTM values with each signup.
+4. Give `NewsletterForm.vue` a `collectName` prop that shows a first name field. The OS form page shows the snippet with this prop when `collect_name` is on.
+5. Show the success message that OS returns.
 
 The Netlify CSP stays strict because the browser only calls the Netlify function.
 
