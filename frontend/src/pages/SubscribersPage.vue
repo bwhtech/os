@@ -19,18 +19,25 @@
 	<div class="space-y-4 px-3 py-5 pb-10 sm:px-5">
 		<SubscriberFilters ref="filtersRef" v-model="filters" />
 
-		<LoadingText v-if="subscribers.loading && !subscribers.data" :lines="4" />
-		<ErrorMessage v-else-if="subscribers.error" :message="subscribers.error.message" />
+		<LoadingText v-if="rows.loading && !rows.data" :lines="4" />
+		<ErrorMessage v-else-if="rows.error" :message="rows.error.message" />
 		<SubscriberEmptyState
-			v-else-if="!subscribers.data?.length"
+			v-else-if="!rows.data?.length && page === 1"
 			:filtered="isFiltered"
 			@add="addOpen = true"
 			@import="importOpen = true"
 		/>
-		<SubscriberList v-else :subscribers="subscribers.data" />
+		<template v-else>
+			<!-- Dim the old page while the next one loads, so the pager does not jump. -->
+			<SubscriberList
+				:subscribers="rows.data ?? []"
+				:class="{ 'opacity-60 transition-opacity': rows.loading }"
+			/>
+			<ListPagination v-model:page="page" v-model:page-length="pageLength" :total="total" />
+		</template>
 	</div>
 
-	<AddSubscriberDialog v-model:open="addOpen" @created="subscribers.reload()" />
+	<AddSubscriberDialog v-model:open="addOpen" @created="reload()" />
 	<ImportSubscribersDialog v-model:open="importOpen" @imported="onImported" />
 </template>
 
@@ -43,8 +50,8 @@ import {
 	PageHeader,
 	PageHeaderTitle,
 	debounce,
-	useList,
 } from 'frappe-ui'
+import ListPagination from '@/components/list/ListPagination.vue'
 import AddSubscriberDialog from '@/components/subscribers/AddSubscriberDialog.vue'
 import SubscriberEmptyState from '@/components/subscribers/SubscriberEmptyState.vue'
 import SubscriberFilters, {
@@ -52,6 +59,7 @@ import SubscriberFilters, {
 } from '@/components/subscribers/SubscriberFilters.vue'
 import SubscriberList from '@/components/subscribers/SubscriberList.vue'
 import ImportSubscribersDialog from '@/components/subscribers/import/ImportSubscribersDialog.vue'
+import { usePagedList } from '@/composables/usePagedList'
 import type { Subscriber } from '@/types'
 
 const addOpen = ref(false)
@@ -71,13 +79,11 @@ const isFiltered = computed(() =>
 	Boolean(debouncedSearch.value || filters.value.status || filters.value.tag || filters.value.form),
 )
 
-const subscribers = useList<Subscriber>({
+const { rows, page, pageLength, total, reload } = usePagedList<Subscriber>({
 	doctype: 'Subscriber',
 	fields: ['name', 'email', 'first_name', 'status', 'source_form', 'subscribed_on', { tags: ['tag'] }],
 	filters: () => listFilters(),
 	orderBy: 'creation desc',
-	limit: 500,
-	refetch: true,
 })
 
 function listFilters() {
@@ -92,7 +98,7 @@ function listFilters() {
 }
 
 function onImported() {
-	subscribers.reload()
+	reload()
 	filtersRef.value?.reload()
 }
 </script>
