@@ -4,7 +4,7 @@ import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from 
 import { EmailNode } from '@react-email/editor/core'
 import { ImageIcon, PanelBottomIcon, defaultSlashCommands, type SlashCommandItem } from '@react-email/editor/ui'
 import { FOOTER_ATTRIBUTE, loadFooterHtml } from '@/lib/emailFooter'
-import { getMethod } from '@/lib/getMethod'
+import { postMethod } from '@/lib/serverMethod'
 
 /** Custom blocks for every email in OS. See slice 13 in specs/01-email-list.md. */
 export const blockExtensions = () => [youTubeVideoExtension(), footerExtension()]
@@ -135,7 +135,7 @@ function YouTubeVideoView({ node, updateAttributes, selected }: ReactNodeViewPro
 		setLoading(true)
 		setError(null)
 		try {
-			const video = await getMethod<Video>('bwh_os.mailing.api.get_youtube_video', { url })
+			const video = await postMethod<Video>('bwh_os.mailing.api.get_youtube_video', { url })
 			updateAttributes({ url: video.url, videoId: video.video_id, title: video.title, thumbnail: video.thumbnail })
 		} catch (err) {
 			setError((err as Error).message)

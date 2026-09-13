@@ -271,9 +271,12 @@ def get_form_activity(form_id: str) -> dict:
 	return stats.activity("Subscriber", "subscribed_on", {"source_form": form_id})
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist(methods=["POST"])
 def get_youtube_video(url: str) -> dict:
-	"""The title, link, and thumbnail for the YouTube video block in the email editor."""
+	"""The title, link, and thumbnail for the YouTube video block in the email editor.
+
+	POST, because the first call for a video saves its thumbnail file.
+	"""
 	frappe.only_for("System Manager")
 	return youtube_video.get_video(url)
 

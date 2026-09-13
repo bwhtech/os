@@ -1,4 +1,4 @@
-import { getMethod } from '@/lib/getMethod'
+import { getMethod } from '@/lib/serverMethod'
 
 /**
  * The Footer block. The editor saves it as an empty marker, and the server puts the company footer
