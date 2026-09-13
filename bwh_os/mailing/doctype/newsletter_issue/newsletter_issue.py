@@ -10,6 +10,7 @@ from frappe.utils import get_url
 
 FOOTER_TEMPLATE = "bwh_os/templates/emails/newsletter_footer.html"
 BODY_END = re.compile(r"</body\s*>", re.IGNORECASE)
+CELL_END = re.compile(r"</td\s*>", re.IGNORECASE)
 
 
 class NewsletterIssue(Document):
@@ -21,11 +22,12 @@ class NewsletterIssue(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		content_html: DF.LongText | None
+		content_html: DF.Code | None
 		content_json: DF.JSON | None
 		preview_text: DF.Data | None
 		status: DF.Literal["Draft", "Scheduled", "Sending", "Sent", "Failed"]
 		subject: DF.Data
+		theme: DF.Literal["Frappe UI", "Basic", "Minimal"]
 	# end: auto-generated types
 
 	def send_test(self, recipient: str):
@@ -56,13 +58,19 @@ class NewsletterIssue(Document):
 			)
 
 	def get_email_html(self, unsubscribe_url: str) -> str:
-		"""The content with the company footer and the unsubscribe link before </body>."""
+		"""The content with the company footer and the unsubscribe link at the end of the email."""
 		footer = frappe.render_template(
 			FOOTER_TEMPLATE,
 			{"settings": frappe.get_cached_doc("Mailing Settings"), "unsubscribe_url": unsubscribe_url},
 		)
-		ends = list(BODY_END.finditer(self.content_html))
-		if not ends:
-			return self.content_html + footer
-		at = ends[-1].start()
-		return self.content_html[:at] + footer + self.content_html[at:]
+		html = self.content_html
+		body_ends = list(BODY_END.finditer(html))
+		if not body_ends:
+			return html + footer
+
+		# The editor puts the email in one outer table cell that has the theme background.
+		# Its closing tag is the last </td>, so the footer goes before it.
+		body_end = body_ends[-1].start()
+		cell_ends = list(CELL_END.finditer(html, 0, body_end))
+		at = cell_ends[-1].start() if cell_ends else body_end
+		return html[:at] + footer + html[at:]

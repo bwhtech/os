@@ -7,9 +7,8 @@ from frappe.tests import IntegrationTestCase
 from bwh_os.mailing.api import send_test_newsletter
 from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import last_email_to, use_test_email_account
 
-EDITOR_EMAIL = "test-newsletter-editor@example.com"
 CONTENT_HTML = (
-	"<!DOCTYPE html><html><head></head><body>"
+	'<!DOCTYPE html><html><head></head><body style="background-color:#f3f3f3">'
 	'<table><tr><td><p>Hello readers</p></td></tr></table>'
 	"</body></html>"
 )
@@ -26,22 +25,27 @@ class IntegrationTestNewsletterIssue(IntegrationTestCase):
 	def test_new_issue_is_a_draft(self):
 		self.assertEqual(make_issue().status, "Draft")
 
-	def test_test_send_goes_to_current_user_with_footer(self):
+	def test_test_send_goes_to_given_address_with_footer(self):
 		issue = make_issue()
-		frappe.set_user(make_editor())
 
-		recipient = send_test_newsletter(issue.name)
+		recipient = send_test_newsletter(issue.name, " reader-test@example.com ")
 
-		self.assertEqual(recipient, EDITOR_EMAIL)
+		self.assertEqual(recipient, "reader-test@example.com")
 		email = last_email_to(recipient)
 		self.assertEqual(email["Subject"], "[Test] Issue #1")
 		html = email.get_body(("html",)).get_content()
 		self.assertIn("Hello readers", html)
 		self.assertIn("Test Company LLP", html)
 		self.assertIn("bwh_os.mailing.api.unsubscribe", html)
-		# The footer goes inside the document, and Frappe does not wrap it in a second one.
-		self.assertLess(html.index("Test Company LLP"), html.lower().index("</body>"))
+		# The footer goes in the outer cell of the email, and Frappe does not wrap it in a second document.
+		self.assertLess(html.index("Hello readers"), html.index("Test Company LLP"))
+		self.assertLess(html.index("Test Company LLP"), html.lower().rindex("</td>"))
 		self.assertEqual(html.lower().count("<body"), 1)
+
+	def test_saved_html_keeps_the_full_document(self):
+		issue = make_issue()
+
+		self.assertEqual(frappe.db.get_value("Newsletter Issue", issue.name, "content_html"), CONTENT_HTML)
 
 	def test_footer_is_added_when_html_has_no_body_tag(self):
 		issue = make_issue(content_html="<p>Just a fragment</p>")
@@ -55,34 +59,27 @@ class IntegrationTestNewsletterIssue(IntegrationTestCase):
 		issue = make_issue(content_html="")
 
 		with self.assertRaises(frappe.ValidationError):
-			send_test_newsletter(issue.name)
+			send_test_newsletter(issue.name, "reader-test@example.com")
 
-	def test_unsubscribed_user_gets_an_error_instead_of_nothing(self):
+	def test_invalid_address_is_rejected(self):
+		with self.assertRaises(frappe.ValidationError):
+			send_test_newsletter(make_issue().name, "not-an-email")
+
+	def test_unsubscribed_address_gets_an_error_instead_of_nothing(self):
 		issue = make_issue()
-		frappe.set_user(make_editor())
-		frappe.get_doc({"doctype": "Email Unsubscribe", "email": EDITOR_EMAIL, "global_unsubscribe": 1}).insert(
-			ignore_permissions=True
-		)
+		frappe.get_doc(
+			{"doctype": "Email Unsubscribe", "email": "gone-test@example.com", "global_unsubscribe": 1}
+		).insert(ignore_permissions=True)
 
 		with self.assertRaises(frappe.ValidationError):
-			send_test_newsletter(issue.name)
+			send_test_newsletter(issue.name, "gone-test@example.com")
 
 	def test_only_system_manager_can_send_test(self):
 		issue = make_issue()
 		frappe.set_user("Guest")
 
 		with self.assertRaises(frappe.PermissionError):
-			send_test_newsletter(issue.name)
-
-
-def make_editor() -> str:
-	if not frappe.db.exists("User", EDITOR_EMAIL):
-		user = frappe.get_doc(
-			{"doctype": "User", "email": EDITOR_EMAIL, "first_name": "Editor", "send_welcome_email": 0}
-		)
-		user.append("roles", {"role": "System Manager"})
-		user.insert(ignore_permissions=True)
-	return EDITOR_EMAIL
+			send_test_newsletter(issue.name, "reader-test@example.com")
 
 
 def make_issue(content_html: str = CONTENT_HTML):

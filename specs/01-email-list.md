@@ -96,7 +96,7 @@ The form page in OS also shows the signup count, the confirm rate, and the embed
 
 **Lead Magnet**: title, description, file (private Attach).
 
-**Lead Magnet Download**: lead_magnet, subscriber, downloaded_on.
+**Lead Magnet Download**: lead_magnet, subscriber, downloaded_on. The lead magnet page lists the last 100 downloads with the subscriber.
 
 **Newsletter Issue**
 
@@ -105,7 +105,8 @@ The form page in OS also shows the signup count, the confirm rate, and the embed
 | subject | Data | |
 | preview_text | Data | |
 | content_json | JSON | Editor document |
-| content_html | Long Text | Email-safe HTML. The editor makes it in the browser and OS saves it with `content_json`. |
+| content_html | Code (HTML) | Email-safe HTML. The editor makes it in the browser and OS saves it with `content_json`. Code, because Frappe sanitizes Long Text and removes `<html>`, `<head>`, and `<body>`. |
+| theme | Select | Frappe UI (default), Basic, Minimal. Frappe UI uses the frappe-ui light tokens as hex colors. |
 | audience | Select | All Active, Tags |
 | tags | Table MultiSelect | Used when audience is Tags |
 | status | Select | Draft, Scheduled, Sending, Sent, Failed |
@@ -275,7 +276,8 @@ Each slice goes through all layers. Merge each slice alone.
 
 - Do the editor spike and build `EmailEditor.vue`.
 - Add `Newsletter Issue` and the Newsletters page with the editor and the iframe preview.
-- Add a test send to the current user.
+- Add a test send to an address. The dialog starts with the current user's address.
+- Add a theme picker. The default theme uses frappe-ui tokens.
 - Demo: write an issue, preview it at mobile width, send a test, read it in Gmail.
 
 ### 8. Send to audience

@@ -3,14 +3,17 @@
 		<PageHeaderTitle class="min-w-0 flex-1">
 			<h1 class="truncate">Subscribers</h1>
 		</PageHeaderTitle>
-		<Button icon-left="lucide-upload" label="Import" @click="importOpen = true" />
-		<Button
-			variant="solid"
-			theme="gray"
-			icon-left="lucide-plus"
-			label="Add Subscriber"
-			@click="addOpen = true"
-		/>
+		<!-- PageHeader puts no gap between its children. -->
+		<div class="flex shrink-0 gap-2">
+			<Button icon-left="lucide-upload" label="Import" @click="importOpen = true" />
+			<Button
+				variant="solid"
+				theme="gray"
+				icon-left="lucide-plus"
+				label="Add Subscriber"
+				@click="addOpen = true"
+			/>
+		</div>
 	</PageHeader>
 
 	<div class="space-y-4 px-3 py-5 pb-10 sm:px-5">

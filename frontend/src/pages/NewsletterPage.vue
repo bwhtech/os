@@ -7,9 +7,8 @@
 			<Button
 				label="Send Test"
 				icon-left="lucide-send"
-				:loading="sendTest.loading"
 				:disabled="!issue.doc"
-				@click="sendTestEmail"
+				@click="sendTestOpen = true"
 			/>
 			<Button
 				variant="solid"
@@ -36,13 +35,23 @@
 				/>
 			</section>
 
-			<TabButtons v-model="tab" :options="TABS" />
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<TabButtons v-model="tab" :options="TABS" />
+				<Select v-model="draft.theme" :options="THEMES" class="w-36" aria-label="Theme" />
+			</div>
 
 			<!-- v-show keeps the editor and its undo history while the preview is open. -->
-			<EmailEditor v-show="tab === 'write'" ref="editor" v-model="draft.content" />
+			<EmailEditor
+				v-show="tab === 'write'"
+				ref="editor"
+				v-model="draft.content"
+				:theme="draft.theme"
+			/>
 			<EmailPreview v-if="tab === 'preview'" :html="previewHtml" />
 		</template>
 	</div>
+
+	<SendTestDialog v-model:open="sendTestOpen" :issue-id="issueId" :save="saveIfDirty" />
 </template>
 
 <script setup lang="ts">
@@ -53,16 +62,17 @@ import {
 	ErrorMessage,
 	LoadingText,
 	PageHeader,
+	Select,
 	TabButtons,
 	TextInput,
 	toast,
-	useCall,
 	useDoc,
 } from 'frappe-ui'
 import EmailEditor from '@/components/newsletters/EmailEditor.vue'
 import EmailPreview from '@/components/newsletters/EmailPreview.vue'
+import SendTestDialog from '@/components/newsletters/SendTestDialog.vue'
 import { errorMessage } from '@/lib/errors'
-import type { EmailDocument, NewsletterIssue } from '@/types'
+import type { EmailDocument, NewsletterIssue, NewsletterTheme } from '@/types'
 
 const props = defineProps<{ issueId: string }>()
 
@@ -71,27 +81,25 @@ const TABS = [
 	{ label: 'Preview', value: 'preview' },
 ]
 
+const THEMES: NewsletterTheme[] = ['Frappe UI', 'Basic', 'Minimal']
+
 const issue = useDoc<NewsletterIssue>({
 	doctype: 'Newsletter Issue',
 	name: computed(() => props.issueId),
-})
-
-const sendTest = useCall<string, { issue: string }>({
-	url: '/api/v2/method/bwh_os.mailing.api.send_test_newsletter',
-	method: 'POST',
-	immediate: false,
 })
 
 const editor = useTemplateRef<InstanceType<typeof EmailEditor>>('editor')
 const tab = ref<'write' | 'preview'>('write')
 const previewHtml = ref<string | null>(null)
 const saving = ref(false)
+const sendTestOpen = ref(false)
 /** The editor reads its content once, so it mounts only after the first fetch. */
 const loaded = ref(false)
 
 const draft = reactive({
 	subject: '',
 	previewText: '',
+	theme: 'Frappe UI' as NewsletterTheme,
 	content: null as EmailDocument | null,
 })
 
@@ -106,6 +114,7 @@ const saved = computed(() => {
 	return {
 		subject: doc.subject,
 		previewText: doc.preview_text ?? '',
+		theme: doc.theme,
 		content: parseContent(doc.content_json),
 	}
 })
@@ -136,6 +145,7 @@ async function save() {
 		await issue.setValue.submit({
 			subject: draft.subject,
 			preview_text: draft.previewText,
+			theme: draft.theme,
 			content_json: JSON.stringify(draft.content),
 			content_html: (await editor.value?.getHtml(draft.previewText)) ?? '',
 		})
@@ -148,12 +158,9 @@ async function save() {
 }
 
 /** The test uses the saved HTML, so unsaved changes are saved first. */
-async function sendTestEmail() {
+async function saveIfDirty() {
 	if (dirty.value) await save()
-	if (dirty.value) return
-	const recipient = await sendTest.submit({ issue: props.issueId })
-	if (recipient) toast.success(`Test sent to ${recipient}`)
-	else if (sendTest.error) toast.error(errorMessage(sendTest.error))
+	return !dirty.value
 }
 
 function parseContent(value: NewsletterIssue['content_json']): EmailDocument | null {

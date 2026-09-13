@@ -29,13 +29,7 @@
 				<LeadMagnetFileInput v-model="draft.file" />
 			</section>
 
-			<section class="space-y-1">
-				<h2 class="text-lg-semibold text-ink-gray-8">Downloads</h2>
-				<p class="text-p-base text-ink-gray-6">
-					<span class="tabular-nums">{{ downloadCount }}</span>
-					{{ downloadCount === 1 ? 'download' : 'downloads' }} from welcome email links.
-				</p>
-			</section>
+			<LeadMagnetDownloads :lead-magnet-id="leadMagnetId" :count="downloadCount" />
 		</template>
 	</div>
 </template>
@@ -54,6 +48,7 @@ import {
 	useCall,
 	useDoc,
 } from 'frappe-ui'
+import LeadMagnetDownloads from '@/components/lead-magnets/LeadMagnetDownloads.vue'
 import LeadMagnetFileInput from '@/components/lead-magnets/LeadMagnetFileInput.vue'
 import { errorMessage } from '@/lib/errors'
 import type { LeadMagnet } from '@/types'

@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
+from frappe.utils import validate_email_address
 
 from bwh_os.mailing.subscriber_import import SubscriberImport
 
@@ -56,10 +57,12 @@ def import_subscribers(content: str, mapping: dict, tags: list[str] | None = Non
 
 
 @frappe.whitelist(methods=["POST"])
-def send_test_newsletter(issue: str) -> str:
-	"""Send the saved issue to the current user. Returns the address."""
+def send_test_newsletter(issue: str, email: str) -> str:
+	"""Send the saved issue to one address. Returns the address."""
 	frappe.only_for("System Manager")
-	recipient = frappe.db.get_value("User", frappe.session.user, "email")
+	recipient = validate_email_address(email.strip())
+	if not recipient:
+		frappe.throw(_("Enter a valid email address"))
 	frappe.get_doc("Newsletter Issue", issue).send_test(recipient)
 	return recipient
 

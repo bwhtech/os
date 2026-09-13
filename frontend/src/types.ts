@@ -81,11 +81,14 @@ export type EmailDocument = JSONContent
 
 export type NewsletterStatus = 'Draft' | 'Scheduled' | 'Sending' | 'Sent' | 'Failed'
 
+export type NewsletterTheme = 'Frappe UI' | 'Basic' | 'Minimal'
+
 export interface NewsletterIssue {
 	name: string
 	subject: string
 	preview_text: string | null
 	status: NewsletterStatus
+	theme: NewsletterTheme
 	/** The API returns JSON fields as a string */
 	content_json: string | EmailDocument | null
 	content_html: string | null

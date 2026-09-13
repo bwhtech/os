@@ -8,6 +8,7 @@
   "subject",
   "preview_text",
   "status",
+  "theme",
   "content_section",
   "content_json",
   "content_html"
@@ -37,6 +38,14 @@
    "read_only": 1
   },
   {
+   "default": "Frappe UI",
+   "description": "Colors, fonts, and spacing of the email",
+   "fieldname": "theme",
+   "fieldtype": "Select",
+   "label": "Theme",
+   "options": "Frappe UI\nBasic\nMinimal"
+  },
+  {
    "fieldname": "content_section",
    "fieldtype": "Section Break",
    "label": "Content"
@@ -50,14 +59,15 @@
   {
    "description": "Email HTML that the OS editor makes from the content JSON",
    "fieldname": "content_html",
-   "fieldtype": "Long Text",
+   "fieldtype": "Code",
    "label": "Content HTML",
-   "read_only": 1
+   "read_only": 1,
+   "options": "HTML"
   }
  ],
  "grid_page_length": 50,
  "links": [],
- "modified": "2026-09-13 16:00:00.000000",
+ "modified": "2026-09-13 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Newsletter Issue",

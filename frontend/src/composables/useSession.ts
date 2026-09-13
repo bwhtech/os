@@ -4,6 +4,7 @@ import { call, useCall, useDoc } from 'frappe-ui'
 interface SessionUser {
 	name: string
 	full_name: string
+	email: string
 	user_image: string | null
 }
 

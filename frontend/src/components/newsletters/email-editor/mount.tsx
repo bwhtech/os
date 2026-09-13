@@ -3,6 +3,8 @@ import type { JSONContent } from '@tiptap/core'
 import { EmailEditor, type EmailEditorRef } from '@react-email/editor'
 import { composeReactEmail } from '@react-email/editor/core'
 import themeCss from '@react-email/editor/themes/default.css?inline'
+import type { NewsletterTheme } from '@/types'
+import { EMAIL_THEMES } from './themes'
 
 export interface EmailEditorApi {
 	/** Email-safe HTML for the current document, as a full HTML document. */
@@ -11,6 +13,7 @@ export interface EmailEditorApi {
 
 interface MountOptions {
 	content: JSONContent | null
+	theme: NewsletterTheme
 	onChange: (json: JSONContent) => void
 	onReady: (api: EmailEditorApi) => void
 	uploadImage: (file: File) => Promise<{ url: string }>
@@ -22,7 +25,7 @@ interface MountOptions {
  */
 const PAGE_CSS = `
 :root:root {
-	--re-bg: var(--surface-elevated, var(--surface-base));
+	--re-bg: var(--surface-elevation-2);
 	--re-bg-active: var(--surface-gray-3);
 	--re-border: var(--outline-gray-2);
 	--re-separator: var(--outline-gray-2);
@@ -69,18 +72,43 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 	const stopMirror = mirrorThemeStyles(shadow)
 
 	const root = createRoot(container)
-	root.render(
-		<EmailEditor
-			content={options.content ?? undefined}
-			onUpdate={(ref) => options.onChange(ref.getJSON())}
-			onReady={(ref) => options.onReady(toApi(ref))}
-			onUploadImage={options.uploadImage}
-		/>,
-	)
-	return () => {
-		stopMirror()
-		root.unmount()
+	let editorRef: EmailEditorRef | null = null
+	const render = (theme: NewsletterTheme, content: JSONContent | null) => {
+		root.render(
+			<EmailEditor
+				content={content ?? undefined}
+				// A new theme object gives a new editor, so the theme applies to the whole document.
+				theme={EMAIL_THEMES[theme]}
+				onUpdate={(ref) => options.onChange(ref.getJSON())}
+				onReady={(ref) => {
+					editorRef = ref
+					options.onReady(toApi(ref))
+				}}
+				onUploadImage={options.uploadImage}
+			/>,
+		)
 	}
+	render(options.theme, options.content && withoutThemeStyles(options.content))
+
+	return {
+		/** Restyle the current content. The undo history starts again. */
+		setTheme(theme: NewsletterTheme) {
+			const content = editorRef ? withoutThemeStyles(editorRef.getJSON()) : options.content
+			render(theme, content)
+		},
+		unmount() {
+			stopMirror()
+			root.unmount()
+		},
+	}
+}
+
+/**
+ * The editor saves the theme styles in a globalContent node and uses the theme only when that node
+ * is missing. Remove the node, so the theme of the issue always wins.
+ */
+function withoutThemeStyles(json: JSONContent): JSONContent {
+	return { ...json, content: json.content?.filter((node) => node.type !== 'globalContent') }
 }
 
 /** The editor writes the styles for headings, buttons, and other nodes to document.head. */
