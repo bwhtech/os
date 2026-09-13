@@ -29,6 +29,13 @@
 							:options="accountOptions"
 							description="Only accounts with outgoing email on. Set up accounts in the desk."
 						/>
+						<TextInput
+							v-model.number="draft.defaultHourlyLimit"
+							type="number"
+							:min="1"
+							label="Default hourly limit"
+							description="Most newsletter emails per hour. New newsletters copy this value."
+						/>
 						<p class="text-p-sm text-ink-gray-5">
 							From address:
 							<span class="text-ink-gray-7">{{ senderAddress || 'the default outgoing account' }}</span>
@@ -109,13 +116,20 @@ const senderAddress = computed(
 	() => accounts.data?.find((account) => account.name === draft.emailAccount)?.email_id,
 )
 
-const draft = reactive({ emailAccount: '', companyName: '', gstin: '', postalAddress: '' })
+const draft = reactive({
+	emailAccount: '',
+	defaultHourlyLimit: 500,
+	companyName: '',
+	gstin: '',
+	postalAddress: '',
+})
 
 const saved = computed(() => {
 	const doc = settings.doc
 	if (!doc) return null
 	return {
 		emailAccount: doc.email_account ?? '',
+		defaultHourlyLimit: doc.default_hourly_limit,
 		companyName: doc.company_name ?? '',
 		gstin: doc.gstin ?? '',
 		postalAddress: doc.postal_address ?? '',
@@ -135,6 +149,7 @@ async function save() {
 	try {
 		await settings.setValue.submit({
 			email_account: draft.emailAccount || null,
+			default_hourly_limit: draft.defaultHourlyLimit,
 			company_name: draft.companyName,
 			gstin: draft.gstin,
 			postal_address: draft.postalAddress,

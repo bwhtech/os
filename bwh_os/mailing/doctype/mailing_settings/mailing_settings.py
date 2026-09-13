@@ -15,6 +15,7 @@ class MailingSettings(Document):
 		from frappe.types import DF
 
 		company_name: DF.Data | None
+		default_hourly_limit: DF.Int
 		email_account: DF.Link | None
 		gstin: DF.Data | None
 		postal_address: DF.SmallText | None

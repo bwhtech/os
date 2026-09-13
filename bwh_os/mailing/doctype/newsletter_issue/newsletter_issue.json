@@ -9,9 +9,22 @@
   "preview_text",
   "status",
   "theme",
+  "audience_section",
+  "audience",
+  "tags",
+  "column_break_audience",
+  "hourly_limit",
   "content_section",
   "content_json",
-  "content_html"
+  "content_html",
+  "send_section",
+  "sent_at",
+  "completed_at",
+  "recipient_count",
+  "column_break_send",
+  "sent_count",
+  "failed_count",
+  "skipped_count"
  ],
  "fields": [
   {
@@ -63,11 +76,93 @@
    "label": "Content HTML",
    "read_only": 1,
    "options": "HTML"
+  },
+  {
+   "fieldname": "audience_section",
+   "fieldtype": "Section Break",
+   "label": "Audience"
+  },
+  {
+   "default": "All Active",
+   "fieldname": "audience",
+   "fieldtype": "Select",
+   "label": "Audience",
+   "options": "All Active\nTags"
+  },
+  {
+   "depends_on": "eval:doc.audience === 'Tags'",
+   "description": "Active subscribers with any of these tags get the newsletter",
+   "fieldname": "tags",
+   "fieldtype": "Table MultiSelect",
+   "label": "Tags",
+   "mandatory_depends_on": "eval:doc.audience === 'Tags'",
+   "options": "Subscriber Tag Item"
+  },
+  {
+   "fieldname": "column_break_audience",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Most emails per hour. The rest wait for the next hour.",
+   "fieldname": "hourly_limit",
+   "fieldtype": "Int",
+   "label": "Hourly Limit",
+   "non_negative": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "send_section",
+   "fieldtype": "Section Break",
+   "label": "Send"
+  },
+  {
+   "fieldname": "sent_at",
+   "fieldtype": "Datetime",
+   "label": "Sent At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completed_at",
+   "fieldtype": "Datetime",
+   "label": "Completed At",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "recipient_count",
+   "fieldtype": "Int",
+   "label": "Recipients",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_send",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "sent_count",
+   "fieldtype": "Int",
+   "label": "Sent",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "failed_count",
+   "fieldtype": "Int",
+   "label": "Failed",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "skipped_count",
+   "fieldtype": "Int",
+   "label": "Skipped",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "links": [],
- "modified": "2026-09-13 18:00:00.000000",
+ "modified": "2026-09-13 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Newsletter Issue",

@@ -312,3 +312,10 @@ require_type_annotated_api_methods = True
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
+
+scheduler_events = {
+	"cron": {
+		# Follows newsletters that are Sending. See bwh_os.mailing.newsletter_send.
+		"*/2 * * * *": ["bwh_os.mailing.newsletter_send.sync_sending_issues"],
+	},
+}

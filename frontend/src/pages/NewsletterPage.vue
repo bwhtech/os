@@ -1,23 +1,31 @@
 <template>
 	<PageHeader>
-		<div class="min-w-0 flex-1">
+		<div class="flex min-w-0 flex-1 items-center gap-2">
 			<Breadcrumbs :items="breadcrumbs" />
+			<Badge
+				v-if="issue.doc && !isDraft"
+				:label="issue.doc.status"
+				:theme="STATUS_THEMES[issue.doc.status]"
+				variant="subtle"
+			/>
 		</div>
 		<div class="flex shrink-0 gap-2">
 			<Button
 				label="Send Test"
-				icon-left="lucide-send"
+				icon-left="lucide-flask-conical"
 				:disabled="!issue.doc"
 				@click="sendTestOpen = true"
 			/>
-			<Button
-				variant="solid"
-				theme="gray"
-				label="Save"
-				:loading="saving"
-				:disabled="!dirty"
-				@click="save"
-			/>
+			<template v-if="isDraft">
+				<Button label="Save" :loading="saving" :disabled="!dirty" @click="save" />
+				<Button
+					variant="solid"
+					theme="gray"
+					icon-left="lucide-send"
+					label="Send"
+					@click="sendOpen = true"
+				/>
+			</template>
 		</div>
 	</PageHeader>
 
@@ -25,6 +33,19 @@
 	<div class="mx-auto max-w-5xl space-y-6 px-3 py-6 pb-20 sm:px-5">
 		<LoadingText v-if="!issue.doc && !issue.error" :lines="6" />
 		<ErrorMessage v-else-if="issue.error" :message="errorMessage(issue.error)" />
+
+		<template v-else-if="issue.doc && !isDraft">
+			<div class="space-y-1">
+				<h1 class="text-xl-semibold text-ink-gray-9">{{ issue.doc.subject }}</h1>
+				<p v-if="issue.doc.preview_text" class="text-p-base text-ink-gray-6">
+					{{ issue.doc.preview_text }}
+				</p>
+			</div>
+
+			<TabButtons v-model="sentTab" :options="SENT_TABS" />
+			<NewsletterReport v-if="sentTab === 'report'" :issue="issue.doc" @refresh="issue.reload()" />
+			<EmailPreview v-else :html="issue.doc.content_html" />
+		</template>
 
 		<template v-else-if="loaded">
 			<section class="space-y-4">
@@ -35,6 +56,13 @@
 					description="Inbox apps show it after the subject."
 				/>
 			</section>
+
+			<NewsletterAudience
+				v-model:audience="draft.audience"
+				v-model:tags="draft.tags"
+				v-model:hourly-limit="draft.hourlyLimit"
+				:preview="audience"
+			/>
 
 			<div class="flex flex-wrap items-center justify-between gap-2">
 				<TabButtons v-model="tab" :options="TABS" />
@@ -53,11 +81,20 @@
 	</div>
 
 	<SendTestDialog v-model:open="sendTestOpen" :issue-id="issueId" :save="saveIfDirty" />
+	<SendNewsletterDialog
+		v-if="isDraft"
+		v-model:open="sendOpen"
+		:issue-id="issueId"
+		:preview="audience"
+		:save="saveIfDirty"
+		@sent="issue.reload()"
+	/>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
 import {
+	Badge,
 	Breadcrumbs,
 	Button,
 	ErrorMessage,
@@ -71,15 +108,25 @@ import {
 } from 'frappe-ui'
 import EmailEditor from '@/components/newsletters/EmailEditor.vue'
 import EmailPreview from '@/components/newsletters/EmailPreview.vue'
+import NewsletterAudience from '@/components/newsletters/NewsletterAudience.vue'
+import NewsletterReport from '@/components/newsletters/NewsletterReport.vue'
+import SendNewsletterDialog from '@/components/newsletters/SendNewsletterDialog.vue'
 import SendTestDialog from '@/components/newsletters/SendTestDialog.vue'
+import { useAudiencePreview } from '@/composables/useAudiencePreview'
 import { errorMessage } from '@/lib/errors'
-import type { EmailDocument, NewsletterIssue, NewsletterTheme } from '@/types'
+import { STATUS_THEMES } from '@/lib/newsletters'
+import type { EmailDocument, NewsletterAudience as Audience, NewsletterIssue, NewsletterTheme } from '@/types'
 
 const props = defineProps<{ issueId: string }>()
 
 const TABS = [
 	{ label: 'Write', value: 'write' },
 	{ label: 'Preview', value: 'preview' },
+]
+
+const SENT_TABS = [
+	{ label: 'Report', value: 'report' },
+	{ label: 'Email', value: 'email' },
 ]
 
 const THEMES: NewsletterTheme[] = ['Frappe UI', 'Basic', 'Minimal']
@@ -91,18 +138,31 @@ const issue = useDoc<NewsletterIssue>({
 
 const editor = useTemplateRef<InstanceType<typeof EmailEditor>>('editor')
 const tab = ref<'write' | 'preview'>('write')
+const sentTab = ref<'report' | 'email'>('report')
 const previewHtml = ref<string | null>(null)
 const saving = ref(false)
 const sendTestOpen = ref(false)
+const sendOpen = ref(false)
 /** The editor reads its content once, so it mounts only after the first fetch. */
 const loaded = ref(false)
+
+const isDraft = computed(() => issue.doc?.status === 'Draft')
 
 const draft = reactive({
 	subject: '',
 	previewText: '',
 	theme: 'Frappe UI' as NewsletterTheme,
+	audience: 'All Active' as Audience,
+	tags: [] as string[],
+	hourlyLimit: 0,
 	content: null as EmailDocument | null,
 })
+
+const audience = useAudiencePreview(() => ({
+	audience: draft.audience,
+	tags: draft.tags,
+	hourlyLimit: draft.hourlyLimit,
+}))
 
 const breadcrumbs = computed(() => [
 	{ label: 'Newsletters', route: '/newsletters' },
@@ -116,6 +176,9 @@ const saved = computed(() => {
 		subject: doc.subject,
 		previewText: doc.preview_text ?? '',
 		theme: doc.theme,
+		audience: doc.audience,
+		tags: doc.tags.map((row) => row.tag),
+		hourlyLimit: doc.hourly_limit,
 		content: parseContent(doc.content_json),
 	}
 })
@@ -147,6 +210,9 @@ async function save() {
 			subject: draft.subject,
 			preview_text: draft.previewText,
 			theme: draft.theme,
+			audience: draft.audience,
+			tags: draft.tags.map((tag) => ({ tag })),
+			hourly_limit: draft.hourlyLimit,
 			content_json: JSON.stringify(draft.content),
 			content_html: (await editor.value?.getHtml(draft.previewText)) ?? '',
 		})
@@ -158,7 +224,7 @@ async function save() {
 	}
 }
 
-/** The test uses the saved HTML, so unsaved changes are saved first. */
+/** A test and a send use the saved HTML, so unsaved changes are saved first. */
 async function saveIfDirty() {
 	if (dirty.value) await save()
 	return !dirty.value

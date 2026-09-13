@@ -92,12 +92,50 @@ export interface NewsletterIssue {
 	/** The API returns JSON fields as a string */
 	content_json: string | EmailDocument | null
 	content_html: string | null
+	audience: NewsletterAudience
+	tags: TagRow[]
+	hourly_limit: number
+	sent_at: string | null
+	completed_at: string | null
+	recipient_count: number
+	sent_count: number
+	failed_count: number
+	skipped_count: number
 	modified: string
+}
+
+export type NewsletterAudience = 'All Active' | 'Tags'
+
+/** Who a send would reach, from `get_newsletter_audience` */
+export interface AudiencePreview {
+	recipients: number
+	/** Subscribers who match the audience but are not Active, by status */
+	left_out: Partial<Record<SubscriberStatus, number>>
+	hourly_limit: number
+	/** Emails in each hourly batch, first batch first */
+	batches: number[]
+}
+
+export type DeliveryStatus = 'Queued' | 'Sent' | 'Failed' | 'Skipped'
+
+export interface NewsletterDelivery {
+	name: string
+	email: string
+	status: DeliveryStatus
+	batch: number
+	error: string | null
+}
+
+/** From `get_newsletter_progress` */
+export interface NewsletterProgress {
+	counts: Record<DeliveryStatus, number>
+	batches: ({ batch: number; sends_at: string | null } & Record<DeliveryStatus, number>)[]
 }
 
 export interface MailingSettings {
 	name: 'Mailing Settings'
 	email_account: string | null
+	default_hourly_limit: number
 	company_name: string | null
 	gstin: string | null
 	postal_address: string | null

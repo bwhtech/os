@@ -1,0 +1,106 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-09-13 20:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "issue",
+  "subscriber",
+  "email",
+  "column_break_main",
+  "status",
+  "batch",
+  "queued_at",
+  "email_queue",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "issue",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Newsletter Issue",
+   "options": "Newsletter Issue",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "subscriber",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Subscriber",
+   "options": "Subscriber",
+   "reqd": 1
+  },
+  {
+   "description": "The address at send time",
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Email",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Queued",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Queued\nSent\nFailed\nSkipped",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Hour of the send, from 0",
+   "fieldname": "batch",
+   "fieldtype": "Int",
+   "label": "Batch",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "queued_at",
+   "fieldtype": "Datetime",
+   "label": "Queued At"
+  },
+  {
+   "description": "Frappe deletes old queue records, so this is not a link",
+   "fieldname": "email_queue",
+   "fieldtype": "Data",
+   "label": "Email Queue"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error"
+  }
+ ],
+ "grid_page_length": 50,
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-09-13 20:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Mailing",
+ "name": "Newsletter Delivery",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "email"
+}

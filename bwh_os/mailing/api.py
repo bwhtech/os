@@ -4,6 +4,7 @@ from frappe.query_builder.functions import Count
 from frappe.utils import validate_email_address
 
 from bwh_os.mailing import stats
+from bwh_os.mailing.newsletter_send import Audience, NewsletterSend
 from bwh_os.mailing.subscriber_import import SubscriberImport
 
 SIGNUP_API_ROLE = "OS Signup API"
@@ -66,6 +67,36 @@ def send_test_newsletter(issue: str, email: str) -> str:
 		frappe.throw(_("Enter a valid email address"))
 	frappe.get_doc("Newsletter Issue", issue).send_test(recipient)
 	return recipient
+
+
+@frappe.whitelist(methods=["GET"])
+def get_newsletter_audience(
+	audience: str, tags: list[str] | str | None = None, hourly_limit: int | None = None
+) -> dict:
+	"""Who a send would reach now. Takes the unsaved values from the issue page.
+
+	A GET request carries `tags` as a JSON array string.
+	"""
+	frappe.only_for("System Manager")
+	if isinstance(tags, str):
+		tags = frappe.parse_json(tags)
+	return Audience(audience, tags or [], hourly_limit or 0).preview()
+
+
+@frappe.whitelist(methods=["POST"])
+def send_newsletter(issue: str) -> str:
+	"""Start sending the saved issue to its audience. Returns the new status."""
+	frappe.only_for("System Manager")
+	doc = frappe.get_doc("Newsletter Issue", issue)
+	doc.send()
+	return doc.status
+
+
+@frappe.whitelist(methods=["GET"])
+def get_newsletter_progress(issue: str) -> dict:
+	"""Delivery counts in total and per hourly batch."""
+	frappe.only_for("System Manager")
+	return NewsletterSend(frappe.get_doc("Newsletter Issue", issue)).progress()
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])

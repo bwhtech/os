@@ -8,9 +8,21 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import get_url
 
+from bwh_os.mailing.newsletter_send import DEFAULT_HOURLY_LIMIT, NewsletterSend
+
 FOOTER_TEMPLATE = "bwh_os/templates/emails/newsletter_footer.html"
 BODY_END = re.compile(r"</body\s*>", re.IGNORECASE)
 CELL_END = re.compile(r"</td\s*>", re.IGNORECASE)
+# What the reader gets. Tags are compared on their own, because they are a table.
+LOCKED_FIELDS = (
+	"subject",
+	"preview_text",
+	"theme",
+	"content_json",
+	"content_html",
+	"audience",
+	"hourly_limit",
+)
 
 
 class NewsletterIssue(Document):
@@ -22,13 +34,48 @@ class NewsletterIssue(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		from bwh_os.mailing.doctype.subscriber_tag_item.subscriber_tag_item import SubscriberTagItem
+
+		audience: DF.Literal["All Active", "Tags"]
+		completed_at: DF.Datetime | None
 		content_html: DF.Code | None
 		content_json: DF.JSON | None
+		failed_count: DF.Int
+		hourly_limit: DF.Int
 		preview_text: DF.Data | None
+		recipient_count: DF.Int
+		sent_at: DF.Datetime | None
+		sent_count: DF.Int
+		skipped_count: DF.Int
 		status: DF.Literal["Draft", "Scheduled", "Sending", "Sent", "Failed"]
 		subject: DF.Data
+		tags: DF.TableMultiSelect[SubscriberTagItem]
 		theme: DF.Literal["Frappe UI", "Basic", "Minimal"]
 	# end: auto-generated types
+
+	def before_insert(self):
+		self.hourly_limit = (
+			self.hourly_limit
+			or frappe.get_cached_doc("Mailing Settings").default_hourly_limit
+			or DEFAULT_HOURLY_LIMIT
+		)
+
+	def validate(self):
+		self.ensure_unchanged_after_send()
+
+	def send(self):
+		"""Send to the audience in hourly batches. See NewsletterSend."""
+		NewsletterSend(self).start()
+
+	def ensure_unchanged_after_send(self):
+		before = self.get_doc_before_save()
+		if not before or before.status == "Draft":
+			return
+		changed = [field for field in LOCKED_FIELDS if self.get(field) != before.get(field)]
+		if [row.tag for row in self.tags] != [row.tag for row in before.tags]:
+			changed.append("tags")
+		if changed:
+			frappe.throw(_("A newsletter cannot change after the send starts"))
 
 	def send_test(self, recipient: str):
 		"""Send the saved content to one address, with "[Test]" before the subject."""
@@ -52,9 +99,9 @@ class NewsletterIssue(Document):
 		# Frappe drops an address with a global Email Unsubscribe record and raises nothing.
 		if not queued:
 			frappe.throw(
-				_("{0} is unsubscribed from all email in Frappe. Remove its Email Unsubscribe record.").format(
-					recipient
-				)
+				_(
+					"{0} is unsubscribed from all email in Frappe. Remove its Email Unsubscribe record."
+				).format(recipient)
 			)
 
 	def get_email_html(self, unsubscribe_url: str) -> str:

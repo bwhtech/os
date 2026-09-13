@@ -30,6 +30,9 @@ Kit did not fit. BWH wants its own list with no third-party tool for now.
 | Forms | A `Signup Form` record with an id. The Astro component takes the id. There is no drag-and-drop form builder. |
 | Incentive | An email with a download link that has a token. The link serves a private file. Each download is logged. |
 | Segments | One list with tags. Unsubscribe removes the person from all sends. |
+| Audience | The audience is fixed when the send starts. A person who subscribes during a send does not get the issue. |
+| Delivery | One `Newsletter Delivery` row for each issue and subscriber. Stats come from these rows, because Frappe deletes old Email Queue records. |
+| Issue failure | An issue is Failed only when no email went out. Otherwise it is Sent, and the page shows the failed count. |
 | Import | CSV rows import as Active, with tags. |
 | Editor | An `EmailEditor.vue` wrapper around `@react-email/editor`. The spike in slice 7 passed. See [Editor](#editor). |
 
@@ -40,6 +43,7 @@ Kit did not fit. BWH wants its own list with no third-party tool for now.
 - Captcha (for example Cloudflare Turnstile). The Netlify function already has a honeypot and a rate limit.
 - Live sync of new LMS users.
 - Segments based on opens or clicks.
+- Resend to people who did not open. `Newsletter Delivery` makes this possible later.
 - More than one list.
 
 ## How?
@@ -108,18 +112,39 @@ The form page in OS also shows the signup count, the confirm rate, and the embed
 | content_html | Code (HTML) | Email-safe HTML. The editor makes it in the browser and OS saves it with `content_json`. Code, because Frappe sanitizes Long Text and removes `<html>`, `<head>`, and `<body>`. |
 | theme | Select | Frappe UI (default), Basic, Minimal. Frappe UI uses the frappe-ui light tokens as hex colors. |
 | audience | Select | All Active, Tags |
-| tags | Table MultiSelect | Used when audience is Tags |
+| tags | Table MultiSelect | Used when audience is Tags. A subscriber with any of the tags gets the issue. |
 | status | Select | Draft, Scheduled, Sending, Sent, Failed |
 | scheduled_at | Datetime | |
 | hourly_limit | Int | Max emails per hour for this issue. Copied from `Mailing Settings` on create. |
-| sent_at | Datetime | |
-| recipient_count | Int | |
+| sent_at | Datetime | When the send started |
+| completed_at | Datetime | When the last email left the queue |
+| recipient_count | Int | Delivery rows made when the send started |
+| sent_count, failed_count, skipped_count | Int | Counts of delivery rows. The sync job keeps them current. |
+| opened_count, clicked_count, unsubscribed_count | Int | Slice 10. Subscribers who opened, clicked, or unsubscribed from this issue. |
 | is_public | Check | Show in the web archive |
 | route | Data | Slug for the web archive |
 
 The name `Newsletter Issue` prevents a clash with the separate Frappe `newsletter` app.
 
-**Newsletter Event**: issue, subscriber, type (Open, Click), url, timestamp.
+After the send starts, the subject, content, and audience cannot change.
+
+**Newsletter Delivery**: one row for each issue and subscriber. The name is a random hash. Tracking links carry it.
+
+| Field | Type | Notes |
+|---|---|---|
+| issue | Link: Newsletter Issue | Unique with `subscriber` |
+| subscriber | Link: Subscriber | |
+| email | Data | The address at send time |
+| batch | Int | Hour of the send, from 0. Batch N sends at `sent_at + N hours`. |
+| status | Select | Queued, Sent, Failed, Skipped. Skipped means the subscriber was not Active when the email was due to queue. |
+| email_queue | Data | Name of the Email Queue record. Data, not Link, because Frappe deletes old queue records. |
+| error | Small Text | Why the email failed or was skipped |
+| queued_at | Datetime | |
+| first_opened_at, open_count | Datetime, Int | Slice 10 |
+| first_clicked_at, click_count | Datetime, Int | Slice 10. A click also counts as an open. |
+| unsubscribed_at | Datetime | Slice 10. Set when the unsubscribe link in this issue is used. |
+
+**Newsletter Event**: delivery, issue, type (Open, Click, Unsubscribe), url, timestamp. Slice 10. The raw log for opens and clicks over time and for top links.
 
 ### API
 
@@ -159,8 +184,18 @@ These endpoints allow guests. Each one checks the subscriber token.
   - `send_after` paces the send.
   - `unsubscribe_method` and `unsubscribe_params` point the unsubscribe link at our endpoint.
   - `email_headers` adds `List-Unsubscribe` and `List-Unsubscribe-Post`. Frappe does not add these headers itself, and it puts `X-` before custom header names. A `make_email_body_message` hook removes the `X-`.
-  - `email_read_tracker_url` can carry the open pixel. Check in slice 10 if it fits, else add our own pixel.
-- A background job queues the emails for an issue in hourly batches. Batch N gets `send_after = start + N hours`, and each batch has at most `hourly_limit` emails.
+- `email_read_tracker_url` does not fit. Frappe adds its pixel only through its own email wrapper, and issues use `raw_html`. Slice 10 adds our own pixel with the delivery name in the URL.
+- Frappe sets the Email Queue status with `frappe.db.set_value`, so no document hook runs when an email goes out. A sync job copies the status to the delivery rows.
+
+Send flow:
+
+1. Before the send, the issue page shows the audience: how many subscribers get the issue, how many have the tags but are not Active, and the hourly batches.
+2. Send checks that the issue is a Draft, has content, and has at least one recipient. It sets the status to Sending and `sent_at`, then starts a background job.
+3. The job makes one `Newsletter Delivery` row for each subscriber in the audience and sets `recipient_count`. A second run finds the rows and does not make them again.
+4. The job queues each Queued row that has no `email_queue`, one `sendmail` call per row. Row N gets `batch = N // hourly_limit` and `send_after = sent_at + batch hours`. It commits every 100 rows.
+5. A row whose subscriber is no longer Active becomes Skipped. A row that Frappe does not queue (for example a global `Email Unsubscribe`) becomes Failed.
+6. A scheduler job runs every 2 minutes for each Sending issue. It copies the Email Queue status to the rows (Sent to Sent, Error to Failed) and updates the counts on the issue. If rows still wait for a queue record and no send job runs, it starts the job again.
+7. When no row is Queued, the issue becomes Sent and gets `completed_at`. It becomes Failed if no row is Sent.
 - The Email Queue flush also has a site-wide batch size (`email_queue_batch_size`, default 500 per run).
 - Build every public link (confirm, unsubscribe, download, pixel, click, archive) with `frappe.utils.get_url`.
 - Every email has an unsubscribe link and a footer with the company name, GSTIN, and postal address from `Mailing Settings`.
@@ -196,7 +231,7 @@ The Netlify CSP stays strict because the browser only calls the Netlify function
 | Subscribers | `frappe-ui/list`, `Dialog`, `FormControl` | Filter by status, tag, and form. Add a subscriber. Import a CSV. |
 | Forms | `frappe-ui/list`, `FormControl`, `frappe-ui/editor` | Edit a form, see counts, copy the embed snippet |
 | Lead Magnets | `frappe-ui/list`, `FileUploader` | Upload the file, see download counts |
-| Newsletters | `frappe-ui/list`, `EmailEditor.vue`, `DatePicker`, `TabButtons` | Write, preview, test send, schedule, see stats |
+| Newsletters | `frappe-ui/list`, `EmailEditor.vue`, `DatePicker`, `TabButtons`, `frappe-ui/charts` | Write, preview, test send, pick the audience, send, schedule, see stats |
 | Dashboard | `frappe-ui/charts` | Subscriber growth, signups per form, last issue stats |
 
 ### Editor
@@ -286,8 +321,12 @@ Each slice goes through all layers. Merge each slice alone.
 
 - Send to all Active subscribers or to subscribers with the chosen tags.
 - Add `default_hourly_limit` to `Mailing Settings` and `hourly_limit` to the issue.
-- Queue the emails in a background job in hourly batches with `send_after`. Show progress and set the status to Sent.
-- Skip Unsubscribed and Bounced subscribers.
+- Add `Newsletter Delivery` with the send fields. See [Sending](#sending) for the flow.
+- Queue the emails in a background job in hourly batches with `send_after`. The sync job sets the status to Sent.
+- Skip Unsubscribed, Bounced, and Pending subscribers.
+- Draft issue page: an Audience section with a live recipient count. The send dialog shows number cards (recipients, not Active with the tags, estimated finish) and a bar chart of emails per hourly batch.
+- Sending and Sent issue page: a Report tab with number cards (recipients, sent, failed, skipped), a stacked bar chart of each batch by status, and the recipient list with a status filter. The page refreshes while the issue is Sending.
+- Add a Recipients column to the Newsletters list.
 - Demo: send an issue to a test tag with three subscribers. All three get it.
 
 ### 9. Schedule send
@@ -297,8 +336,10 @@ Each slice goes through all layers. Merge each slice alone.
 
 ### 10. Open and click tracking
 
-- Add the open pixel and rewrite links to the click redirect at send time.
-- Show opens, clicks, and top links on the issue page.
+- Add the open, click, and unsubscribe fields to `Newsletter Delivery`, and add `Newsletter Event`.
+- Add the open pixel and rewrite links to the click redirect at send time. Both carry the delivery name.
+- Report tab: number cards for open rate, click rate, and unsubscribes, each against the previous issue. A funnel chart (recipients, sent, opened, clicked), an area chart of opens and clicks per hour for the first 72 hours, and a bar chart of top links.
+- Add Open % and Click % columns to the Newsletters list.
 - Note: Apple Mail Privacy Protection loads pixels, so the open count is higher than the real count.
 - Demo: open a sent issue and click a link. The stats change.
 
@@ -311,6 +352,7 @@ Each slice goes through all layers. Merge each slice alone.
 ### 12. Dashboard
 
 - Show subscriber growth over time, signups and confirm rate per form, and stats for the last issue.
+- After slice 10: a line chart of open rate and click rate for the last 10 issues.
 - Demo: open the dashboard and see numbers that match the lists.
 
 ### 13. Custom editor blocks

@@ -38,13 +38,14 @@
 		<!-- Rows are links, so the hover surface bleeds into the gutter. -->
 		<div v-else class="-mx-3 overflow-x-auto">
 			<List
-				class="min-w-[32rem] list-row-px-3"
-				:columns="['minmax(14rem,1fr)', '6rem', '8rem']"
+				class="min-w-[38rem] list-row-px-3"
+				:columns="['minmax(14rem,1fr)', '6rem', '6rem', '8rem']"
 				:row-height="44"
 			>
 				<ListHeader>
 					<ListHeaderCell>Subject</ListHeaderCell>
 					<ListHeaderCell>Status</ListHeaderCell>
+					<ListHeaderCell class="justify-end">Recipients</ListHeaderCell>
 					<ListHeaderCell class="justify-end">Updated</ListHeaderCell>
 				</ListHeader>
 				<ListRows :items="issues.data" row-key="name">
@@ -55,6 +56,11 @@
 							</ListCell>
 							<ListCell>
 								<Badge :label="item.status" :theme="STATUS_THEMES[item.status]" variant="subtle" />
+							</ListCell>
+							<ListCell class="justify-end">
+								<span v-if="item.status !== 'Draft'" class="text-sm tabular-nums text-ink-gray-6">
+									{{ item.recipient_count }}
+								</span>
 							</ListCell>
 							<ListCell class="justify-end">
 								<span class="text-sm tabular-nums text-ink-gray-6">
@@ -85,21 +91,14 @@ import {
 } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import NewNewsletterDialog from '@/components/newsletters/NewNewsletterDialog.vue'
-import type { NewsletterIssue, NewsletterStatus } from '@/types'
-
-const STATUS_THEMES: Record<NewsletterStatus, 'gray' | 'blue' | 'amber' | 'green' | 'red'> = {
-	Draft: 'gray',
-	Scheduled: 'blue',
-	Sending: 'amber',
-	Sent: 'green',
-	Failed: 'red',
-}
+import { STATUS_THEMES } from '@/lib/newsletters'
+import type { NewsletterIssue } from '@/types'
 
 const newOpen = ref(false)
 
 const issues = useList<NewsletterIssue>({
 	doctype: 'Newsletter Issue',
-	fields: ['name', 'subject', 'status', 'modified'],
+	fields: ['name', 'subject', 'status', 'recipient_count', 'modified'],
 	orderBy: 'creation desc',
 	limit: 200,
 })

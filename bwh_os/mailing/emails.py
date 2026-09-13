@@ -33,11 +33,7 @@ class ListEmail:
 			reference_name=self.subscriber.name,
 			# Frappe's own link needs an Email Unsubscribe record. Ours uses the subscriber token.
 			add_unsubscribe_link=0,
-			# Frappe puts "X-" before these names. See rename_list_headers.
-			email_headers={
-				"List-Unsubscribe": f"<{unsubscribe_url}>",
-				"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-			},
+			email_headers=list_headers(unsubscribe_url),
 		)
 
 	def render(self, text: str) -> str:
@@ -46,6 +42,14 @@ class ListEmail:
 
 
 LIST_HEADERS = ("List-Unsubscribe", "List-Unsubscribe-Post")
+
+
+def list_headers(unsubscribe_url: str) -> dict[str, str]:
+	"""One-click unsubscribe headers (RFC 8058). Frappe puts "X-" before these names. See rename_list_headers."""
+	return {
+		"List-Unsubscribe": f"<{unsubscribe_url}>",
+		"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+	}
 
 
 def rename_list_headers(mail):
