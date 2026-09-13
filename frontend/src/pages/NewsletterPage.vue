@@ -34,6 +34,22 @@
 		<LoadingText v-if="!issue.doc && !issue.error" :lines="6" />
 		<ErrorMessage v-else-if="issue.error" :message="errorMessage(issue.error)" />
 
+		<template v-else-if="issue.doc?.status === 'Scheduled'">
+			<Alert
+				theme="blue"
+				icon="lucide-calendar-clock"
+				:title="`Sends on ${dayjs(issue.doc.scheduled_at).format('D MMM YYYY, h:mm A')}`"
+				description="A scheduled newsletter cannot change. Unschedule it to edit."
+				:primary-action="{
+					label: 'Unschedule',
+					loading: unscheduleCall.loading,
+					onClick: unschedule,
+				}"
+			/>
+			<h1 class="text-xl-semibold text-ink-gray-9">{{ issue.doc.subject }}</h1>
+			<EmailPreview :html="issue.doc.content_html" />
+		</template>
+
 		<template v-else-if="issue.doc && !isDraft">
 			<div class="space-y-1">
 				<h1 class="text-xl-semibold text-ink-gray-9">{{ issue.doc.subject }}</h1>
@@ -94,6 +110,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
 import {
+	Alert,
 	Badge,
 	Breadcrumbs,
 	Button,
@@ -103,7 +120,9 @@ import {
 	Select,
 	TabButtons,
 	TextInput,
+	dayjs,
 	toast,
+	useCall,
 	useDoc,
 } from 'frappe-ui'
 import EmailEditor from '@/components/newsletters/EmailEditor.vue'
@@ -115,7 +134,13 @@ import SendTestDialog from '@/components/newsletters/SendTestDialog.vue'
 import { useAudiencePreview } from '@/composables/useAudiencePreview'
 import { errorMessage } from '@/lib/errors'
 import { STATUS_THEMES } from '@/lib/newsletters'
-import type { EmailDocument, NewsletterAudience as Audience, NewsletterIssue, NewsletterTheme } from '@/types'
+import type {
+	EmailDocument,
+	NewsletterAudience as Audience,
+	NewsletterIssue,
+	NewsletterStatus,
+	NewsletterTheme,
+} from '@/types'
 
 const props = defineProps<{ issueId: string }>()
 
@@ -134,6 +159,12 @@ const THEMES: NewsletterTheme[] = ['Frappe UI', 'Basic', 'Minimal']
 const issue = useDoc<NewsletterIssue>({
 	doctype: 'Newsletter Issue',
 	name: computed(() => props.issueId),
+})
+
+const unscheduleCall = useCall<NewsletterStatus, { issue: string }>({
+	url: '/api/v2/method/bwh_os.mailing.api.unschedule_newsletter',
+	method: 'POST',
+	immediate: false,
 })
 
 const editor = useTemplateRef<InstanceType<typeof EmailEditor>>('editor')
@@ -222,6 +253,16 @@ async function save() {
 	} finally {
 		saving.value = false
 	}
+}
+
+async function unschedule() {
+	const status = await unscheduleCall.submit({ issue: props.issueId })
+	if (!status) {
+		toast.error(errorMessage(unscheduleCall.error))
+		return
+	}
+	await issue.reload()
+	toast.success('Newsletter is a draft again')
 }
 
 /** A test and a send use the saved HTML, so unsaved changes are saved first. */

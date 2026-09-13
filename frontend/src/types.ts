@@ -95,6 +95,7 @@ export interface NewsletterIssue {
 	audience: NewsletterAudience
 	tags: TagRow[]
 	hourly_limit: number
+	scheduled_at: string | null
 	sent_at: string | null
 	completed_at: string | null
 	recipient_count: number

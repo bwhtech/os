@@ -88,19 +88,23 @@ class NewsletterSend:
 
 	def start(self):
 		"""Check the issue, mark it Sending, and queue the emails in a worker."""
-		if self.issue.status != "Draft":
+		if self.issue.status not in ("Draft", "Scheduled"):
 			frappe.throw(_("This newsletter is already {0}").format(_(self.issue.status).lower()))
+		self.check()
+
+		self.issue.status = "Sending"
+		self.issue.sent_at = now_datetime()
+		self.issue.save()
+		self.enqueue()
+
+	def check(self):
+		"""Raise if the issue cannot go out now. A schedule runs the same check up front."""
 		if not self.issue.content_html:
 			frappe.throw(_("Write the newsletter before you send it"))
 		if self.issue.audience == "Tags" and not self.issue.tags:
 			frappe.throw(_("Pick at least one tag, or send to all Active subscribers"))
 		if not Audience.of(self.issue).subscribers():
 			frappe.throw(_("No Active subscriber is in the audience"))
-
-		self.issue.status = "Sending"
-		self.issue.sent_at = now_datetime()
-		self.issue.save()
-		self.enqueue()
 
 	def enqueue(self):
 		frappe.enqueue(

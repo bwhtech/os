@@ -8,6 +8,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import get_url
 
+from bwh_os.mailing.newsletter_schedule import NewsletterSchedule
 from bwh_os.mailing.newsletter_send import DEFAULT_HOURLY_LIMIT, NewsletterSend
 
 FOOTER_TEMPLATE = "bwh_os/templates/emails/newsletter_footer.html"
@@ -44,6 +45,7 @@ class NewsletterIssue(Document):
 		hourly_limit: DF.Int
 		preview_text: DF.Data | None
 		recipient_count: DF.Int
+		scheduled_at: DF.Datetime | None
 		sent_at: DF.Datetime | None
 		sent_count: DF.Int
 		skipped_count: DF.Int
@@ -66,6 +68,13 @@ class NewsletterIssue(Document):
 	def send(self):
 		"""Send to the audience in hourly batches. See NewsletterSend."""
 		NewsletterSend(self).start()
+
+	def schedule(self, at: str):
+		"""Send at a later time. See NewsletterSchedule."""
+		NewsletterSchedule(self).schedule(at)
+
+	def unschedule(self):
+		NewsletterSchedule(self).cancel()
 
 	def ensure_unchanged_after_send(self):
 		before = self.get_doc_before_save()

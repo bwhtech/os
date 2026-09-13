@@ -92,6 +92,24 @@ def send_newsletter(issue: str) -> str:
 	return doc.status
 
 
+@frappe.whitelist(methods=["POST"])
+def schedule_newsletter(issue: str, scheduled_at: str) -> str:
+	"""Send the saved issue at `scheduled_at`, in system time. Returns the new status."""
+	frappe.only_for("System Manager")
+	doc = frappe.get_doc("Newsletter Issue", issue)
+	doc.schedule(scheduled_at)
+	return doc.status
+
+
+@frappe.whitelist(methods=["POST"])
+def unschedule_newsletter(issue: str) -> str:
+	"""Make a Scheduled issue a Draft again, so it can change. Returns the new status."""
+	frappe.only_for("System Manager")
+	doc = frappe.get_doc("Newsletter Issue", issue)
+	doc.unschedule()
+	return doc.status
+
+
 @frappe.whitelist(methods=["GET"])
 def get_newsletter_progress(issue: str) -> dict:
 	"""Delivery counts in total and per hourly batch."""

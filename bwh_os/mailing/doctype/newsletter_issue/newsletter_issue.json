@@ -18,6 +18,7 @@
   "content_json",
   "content_html",
   "send_section",
+  "scheduled_at",
   "sent_at",
   "completed_at",
   "recipient_count",
@@ -116,6 +117,13 @@
    "label": "Send"
   },
   {
+   "description": "The scheduler starts the send at this time",
+   "fieldname": "scheduled_at",
+   "fieldtype": "Datetime",
+   "label": "Scheduled At",
+   "read_only": 1
+  },
+  {
    "fieldname": "sent_at",
    "fieldtype": "Datetime",
    "label": "Sent At",
@@ -162,7 +170,7 @@
  ],
  "grid_page_length": 50,
  "links": [],
- "modified": "2026-09-13 20:00:00.000000",
+ "modified": "2026-09-13 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Newsletter Issue",

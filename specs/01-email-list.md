@@ -331,7 +331,11 @@ Each slice goes through all layers. Merge each slice alone.
 
 ### 9. Schedule send
 
-- Add a scheduler job that sends Scheduled issues when `scheduled_at` is due.
+- Add a scheduler job that sends Scheduled issues when `scheduled_at` is due. It runs every minute.
+- The send dialog has "Send now" and "Schedule" options. Schedule runs the same checks as a send and needs a time in the future.
+- A Scheduled issue cannot change. The issue page shows the send time, the email, and an Unschedule button that makes the issue a Draft again.
+- The picker sends the browser time, and the server reads it as system time. They are the same for BWH (Asia/Kolkata).
+- If a due issue cannot send (for example, no Active subscriber is left), it becomes Failed and the job logs an Error Log.
 - Demo: schedule an issue five minutes ahead. It sends without other action.
 
 ### 10. Open and click tracking

@@ -315,6 +315,8 @@ require_type_annotated_api_methods = True
 
 scheduler_events = {
 	"cron": {
+		# Starts Scheduled newsletters. See bwh_os.mailing.newsletter_schedule.
+		"* * * * *": ["bwh_os.mailing.newsletter_schedule.send_due_issues"],
 		# Follows newsletters that are Sending. See bwh_os.mailing.newsletter_send.
 		"*/2 * * * *": ["bwh_os.mailing.newsletter_send.sync_sending_issues"],
 	},
