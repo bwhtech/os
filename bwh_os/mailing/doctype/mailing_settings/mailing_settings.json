@@ -10,7 +10,13 @@
   "company_name",
   "gstin",
   "column_break_footer",
-  "postal_address"
+  "postal_address",
+  "social_section",
+  "youtube_url",
+  "x_url",
+  "linkedin_url",
+  "github_url",
+  "discord_url"
  ],
  "fields": [
   {
@@ -52,12 +58,48 @@
    "fieldname": "postal_address",
    "fieldtype": "Small Text",
    "label": "Postal Address"
+  },
+  {
+   "description": "Shown in the email footer. Empty links are left out.",
+   "fieldname": "social_section",
+   "fieldtype": "Section Break",
+   "label": "Social Links"
+  },
+  {
+   "fieldname": "youtube_url",
+   "fieldtype": "Data",
+   "label": "YouTube",
+   "options": "URL"
+  },
+  {
+   "fieldname": "x_url",
+   "fieldtype": "Data",
+   "label": "X",
+   "options": "URL"
+  },
+  {
+   "fieldname": "linkedin_url",
+   "fieldtype": "Data",
+   "label": "LinkedIn",
+   "options": "URL"
+  },
+  {
+   "fieldname": "github_url",
+   "fieldtype": "Data",
+   "label": "GitHub",
+   "options": "URL"
+  },
+  {
+   "fieldname": "discord_url",
+   "fieldtype": "Data",
+   "label": "Discord",
+   "options": "URL"
   }
  ],
  "grid_page_length": 50,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-13 20:00:00.000000",
+ "modified": "2026-09-13 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Mailing Settings",

@@ -4,7 +4,8 @@ from frappe.query_builder.functions import Count
 from frappe.utils import validate_email_address
 from werkzeug.utils import redirect
 
-from bwh_os.mailing import stats
+from bwh_os.mailing import stats, youtube_video
+from bwh_os.mailing.emails import render_footer
 from bwh_os.mailing.newsletter_engagement import NewsletterEngagement
 from bwh_os.mailing.newsletter_send import Audience, NewsletterSend
 from bwh_os.mailing.newsletter_tracking import is_signed, pixel_response
@@ -268,6 +269,20 @@ def get_form_activity(form_id: str) -> dict:
 	"""Signup activity for one signup form."""
 	frappe.only_for("System Manager")
 	return stats.activity("Subscriber", "subscribed_on", {"source_form": form_id})
+
+
+@frappe.whitelist(methods=["GET"])
+def get_youtube_video(url: str) -> dict:
+	"""The title, link, and thumbnail for the YouTube video block in the email editor."""
+	frappe.only_for("System Manager")
+	return youtube_video.get_video(url)
+
+
+@frappe.whitelist(methods=["GET"])
+def get_email_footer() -> str:
+	"""The company footer for the Footer block in the editor and preview, with a sample unsubscribe link."""
+	frappe.only_for("System Manager")
+	return render_footer(unsubscribe_url="#")
 
 
 def count_by(doctype: str, field: str) -> dict[str, int]:

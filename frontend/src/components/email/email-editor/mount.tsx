@@ -9,6 +9,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import themeCss from '@react-email/editor/themes/default.css?inline'
 import inspectorCss from './inspector.css?inline'
 import type { NewsletterTheme } from '@/types'
+import { BLOCK_NODES, addBlockSlashCommands, blockExtensions } from './blocks'
 import { extraStylesCss, extraThemeStyles } from './extraStyles'
 import { EMAIL_THEMES } from './themes'
 import { variableExtension } from './variables'
@@ -112,6 +113,18 @@ const EDITOR_CSS = `
 }
 .email-variable::before { content: "{ }"; margin-right: 4px; font-size: 0.8em; opacity: 0.6; }
 .ProseMirror-selectednode .email-variable, .email-variable.ProseMirror-selectednode { outline: 2px solid #0b5ecf; }
+.email-block { position: relative; margin: 8px 0; border-radius: 8px; outline: 1px dashed transparent; outline-offset: 4px; }
+.email-block:hover { outline-color: #d4d4d4; }
+.email-block.is-selected { outline: 2px solid #0b5ecf; }
+.email-block a { pointer-events: none; }
+.email-block-badge { position: absolute; top: 20px; right: 0; padding: 0 6px; border-radius: 6px; background: #f3f3f3; color: #6b6b6b; font-size: 11px; line-height: 1.6; }
+.email-block-form { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa; font-size: 14px; }
+.email-block-label { font-weight: 600; }
+.email-block-row { display: flex; gap: 8px; }
+.email-block-row input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid #d4d4d4; border-radius: 6px; font: inherit; color: inherit; background: #fff; }
+.email-block-row button { padding: 6px 12px; border: 0; border-radius: 6px; background: #1c1c1c; color: #fff; font: inherit; font-weight: 500; cursor: pointer; }
+.email-block-row button:disabled { opacity: 0.5; cursor: default; }
+.email-block-error { margin: 0; color: #dc2626; font-size: 13px; }
 .ProseMirror p.is-empty::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: #a3a3a3; }
 `
 
@@ -121,6 +134,7 @@ const EDITOR_CSS = `
  */
 export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 	addPageTheme()
+	addBlockSlashCommands()
 	const style = document.createElement('style')
 	style.textContent = themeCss + inspectorCss + EDITOR_CSS
 	const container = document.createElement('div')
@@ -143,6 +157,8 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 				// A new theme object gives a new editor, so the theme applies to the whole document.
 				theme={theme.config}
 				extensions={editorExtensions(theme, options.variables)}
+				// The defaults, and our blocks, which have no text to format.
+				bubbleMenu={{ hideWhenActiveNodes: ['button', 'horizontalRule', ...BLOCK_NODES] }}
 				onUpdate={(ref) => options.onChange(ref.getJSON())}
 				onReady={(ref) => {
 					editorRef = ref
@@ -175,11 +191,12 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 	}
 }
 
-/** The extensions that EmailEditor uses by default, and the extra theme styles after EmailTheming. */
+/** The extensions that EmailEditor uses by default, our blocks, and the extra theme styles after EmailTheming. */
 function editorExtensions(theme: (typeof EMAIL_THEMES)[NewsletterTheme], variables: EmailVariable[]) {
 	return [
 		...(variables.length ? [variableExtension(variables)] : []),
 		StarterKit.configure(),
+		...blockExtensions(),
 		Placeholder.configure({
 			placeholder: ({ node }) =>
 				node.type.name === 'heading'

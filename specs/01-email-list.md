@@ -61,6 +61,7 @@ All doctypes go in a new module, `Mailing`.
 | company_name | Data | BWH Technologies LLP |
 | gstin | Data | |
 | postal_address | Small Text | Shown in the email footer |
+| youtube_url, x_url, linkedin_url, github_url, discord_url | Data (URL) | Social links in the email footer. Empty links are left out. |
 
 **Subscriber**
 
@@ -266,7 +267,7 @@ The spike passes only if we can add a custom block that serializes to email HTML
 Spike result (slice 7): passed. A YouTube `EmailNode` with `renderToReactEmail` serialized to table HTML, and typing and slash commands work in the shadow root. Notes for later slices:
 
 - The serializer (`composeReactEmail`) runs in the browser, so the server cannot make `content_html` from `content_json`.
-- `EmailEditor` always adds the default slash commands. Custom blocks (slice 13) need our own `EditorProvider` with `SlashCommand items`.
+- `EmailEditor` always adds its own slash menu, which reads `defaultSlashCommands`. Slice 13 adds the custom blocks to that list.
 - The editor puts some styles in `document.head` and its menus in `document.body`. The wrapper copies the node styles into the shadow root and loads the menu theme on the page.
 - The code block loads Prism CSS from `/styles/prism/`, which OS does not serve. Code blocks show no syntax colors in the editor.
 - The editor chunk is about 720 KB gzip. It loads only on the newsletter page.
@@ -380,8 +381,9 @@ Each slice goes through all layers. Merge each slice alone.
 
 ### 13. Custom editor blocks
 
-- Add the Footer block. It reads `Mailing Settings`.
-- Add the YouTube video block: thumbnail, play button, title, and a link to YouTube.
+- Add the Footer block. It saves as an empty `data-email-footer` marker. When the email goes out, the server puts the footer from `Mailing Settings` (social links, company details, unsubscribe link) in its place. An email with no Footer block gets the footer at the end, as before.
+- Add the YouTube video block: thumbnail, play button, title, and a link to YouTube. Add it from the slash menu, or paste a YouTube link on its own line.
+- The server gets the title from YouTube oEmbed and draws the play button into the thumbnail, because many email clients drop overlays. The image is a public file, made once for each video.
 - Demo: paste a video URL, preview the issue, click the thumbnail in Mailpit. YouTube opens.
 
 ## Open questions

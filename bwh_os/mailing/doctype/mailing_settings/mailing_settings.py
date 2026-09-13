@@ -4,6 +4,8 @@
 import frappe
 from frappe.model.document import Document
 
+SOCIAL_LINK_FIELDS = ("youtube_url", "x_url", "linkedin_url", "github_url", "discord_url")
+
 
 class MailingSettings(Document):
 	# begin: auto-generated types
@@ -16,10 +18,23 @@ class MailingSettings(Document):
 
 		company_name: DF.Data | None
 		default_hourly_limit: DF.Int
+		discord_url: DF.Data | None
 		email_account: DF.Link | None
+		github_url: DF.Data | None
 		gstin: DF.Data | None
+		linkedin_url: DF.Data | None
 		postal_address: DF.SmallText | None
+		x_url: DF.Data | None
+		youtube_url: DF.Data | None
 	# end: auto-generated types
+
+	def get_social_links(self) -> list[dict]:
+		"""The social links that are set, in the order of the form."""
+		return [
+			{"label": self.meta.get_label(field), "url": self.get(field)}
+			for field in SOCIAL_LINK_FIELDS
+			if self.get(field)
+		]
 
 	def get_sender(self) -> str | None:
 		"""The From address. None lets Frappe use the default outgoing account."""

@@ -42,6 +42,17 @@
 				<TextInput v-model="draft.companyName" label="Company name" />
 				<TextInput v-model="draft.gstin" label="GSTIN" />
 				<Textarea v-model="draft.postalAddress" label="Postal address" :rows="3" />
+				<p class="text-p-sm text-ink-gray-5">
+					Social links show above the company details. Leave a link empty to hide it.
+				</p>
+				<TextInput
+					v-for="link in SOCIAL_LINKS"
+					:key="link.key"
+					v-model="draft[link.key]"
+					type="url"
+					:label="link.label"
+					:placeholder="link.placeholder"
+				/>
 			</div>
 		</SettingsBody>
 	</SettingsPanel>
@@ -89,13 +100,28 @@ const senderAddress = computed(
 	() => accounts.data?.find((account) => account.name === draft.emailAccount)?.email_id,
 )
 
+const SOCIAL_LINKS = [
+	{ key: 'youtube_url', label: 'YouTube', placeholder: 'https://www.youtube.com/@buildwithhussain' },
+	{ key: 'x_url', label: 'X', placeholder: 'https://x.com/...' },
+	{ key: 'linkedin_url', label: 'LinkedIn', placeholder: 'https://www.linkedin.com/company/...' },
+	{ key: 'github_url', label: 'GitHub', placeholder: 'https://github.com/...' },
+	{ key: 'discord_url', label: 'Discord', placeholder: 'https://discord.gg/...' },
+] as const
+
+type SocialLinkField = (typeof SOCIAL_LINKS)[number]['key']
+
 const draft = reactive({
 	emailAccount: '',
 	defaultHourlyLimit: 500,
 	companyName: '',
 	gstin: '',
 	postalAddress: '',
+	...socialLinks(() => ''),
 })
+
+function socialLinks(value: (key: SocialLinkField) => string) {
+	return Object.fromEntries(SOCIAL_LINKS.map((link) => [link.key, value(link.key)])) as Record<SocialLinkField, string>
+}
 
 const saved = computed(() => {
 	const doc = settings.doc
@@ -106,6 +132,7 @@ const saved = computed(() => {
 		companyName: doc.company_name ?? '',
 		gstin: doc.gstin ?? '',
 		postalAddress: doc.postal_address ?? '',
+		...socialLinks((key) => doc[key] ?? ''),
 	}
 })
 
@@ -126,6 +153,7 @@ async function save() {
 			company_name: draft.companyName,
 			gstin: draft.gstin,
 			postal_address: draft.postalAddress,
+			...socialLinks((key) => draft[key]),
 		})
 		toast.success('Email settings saved')
 	} catch (error) {

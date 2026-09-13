@@ -172,6 +172,11 @@ export interface MailingSettings {
 	company_name: string | null
 	gstin: string | null
 	postal_address: string | null
+	youtube_url: string | null
+	x_url: string | null
+	linkedin_url: string | null
+	github_url: string | null
+	discord_url: string | null
 }
 
 /** Counts from `bwh_os.mailing.stats.activity` */

@@ -31,6 +31,7 @@ import { Badge, Select, TabButtons, Tooltip } from 'frappe-ui'
 import EmailEditor from '@/components/email/EmailEditor.vue'
 import EmailPreview from '@/components/email/EmailPreview.vue'
 import { describe } from '@/components/email/email-editor/variables'
+import { fillFooter } from '@/lib/emailFooter'
 import { fillSamples, type EmailVariable } from '@/lib/emailVariables'
 import type { EmailDocument, NewsletterTheme } from '@/types'
 
@@ -61,7 +62,7 @@ const previewHtml = ref<string | null>(null)
 watch(tab, async (value) => {
 	if (value !== 'preview') return
 	previewHtml.value = null
-	previewHtml.value = fillSamples(await getHtml(), props.variables)
+	previewHtml.value = fillSamples(await fillFooter(await getHtml()), props.variables)
 })
 
 function getHtml() {

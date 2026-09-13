@@ -5,6 +5,9 @@ import frappe
 from bwh_os.mailing import email_variables
 
 FOOTER_TEMPLATE = "bwh_os/templates/emails/newsletter_footer.html"
+BLOCK_FOOTER_TEMPLATE = "bwh_os/templates/emails/list_footer.html"
+# The Footer block from the editor. Keep in step with frontend/src/lib/emailFooter.ts.
+FOOTER_BLOCK = re.compile(r"<div[^>]*\bdata-email-footer\b[^>]*>\s*</div\s*>", re.IGNORECASE)
 BODY_END = re.compile(r"</body\s*>", re.IGNORECASE)
 CELL_END = re.compile(r"</td\s*>", re.IGNORECASE)
 
@@ -40,15 +43,33 @@ class ListEmail:
 
 
 def add_footer(html: str, unsubscribe_url: str | None, extra: str = "") -> str:
-	"""Put the company footer, the unsubscribe link, and `extra` at the end of the email.
+	"""Put the company footer and the unsubscribe link in the email, and `extra` at its end.
 
+	The footer takes the place of a Footer block from the editor. With no block, it goes at the end.
 	With no unsubscribe URL, as in the web archive, the footer has no link.
 	"""
-	footer = frappe.render_template(
-		FOOTER_TEMPLATE,
-		{"settings": frappe.get_cached_doc("Mailing Settings"), "unsubscribe_url": unsubscribe_url},
-	)
-	footer += extra
+	if FOOTER_BLOCK.search(html):
+		footer = render_footer(unsubscribe_url)
+		return append_to_body(FOOTER_BLOCK.sub(lambda _: footer, html), extra)
+	return append_to_body(html, frappe.render_template(FOOTER_TEMPLATE, footer_context(unsubscribe_url)) + extra)
+
+
+def render_footer(unsubscribe_url: str | None) -> str:
+	return frappe.render_template(BLOCK_FOOTER_TEMPLATE, footer_context(unsubscribe_url))
+
+
+def footer_context(unsubscribe_url: str | None) -> dict:
+	settings = frappe.get_cached_doc("Mailing Settings")
+	return {
+		"settings": settings,
+		"social_links": settings.get_social_links(),
+		"unsubscribe_url": unsubscribe_url,
+	}
+
+
+def append_to_body(html: str, footer: str) -> str:
+	if not footer:
+		return html
 	body_ends = list(BODY_END.finditer(html))
 	if not body_ends:
 		return html + footer
