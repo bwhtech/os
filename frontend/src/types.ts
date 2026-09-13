@@ -42,3 +42,21 @@ export interface LeadMagnet {
 	/** Private file URL */
 	file: string
 }
+
+export type ImportField = 'email' | 'first_name' | 'full_name' | 'tags'
+
+/** CSV header name per subscriber field. Null means the field is not imported. */
+export type ImportMapping = Record<ImportField, string | null>
+
+export type ImportAction = 'New' | 'Existing' | 'Invalid' | 'Duplicate'
+
+export type ImportCounts = Record<ImportAction, number>
+
+export interface ImportPreview {
+	columns: { name: string; samples: string[] }[]
+	mapping: ImportMapping
+	total: number
+	counts: ImportCounts
+	/** The first rows of the file, as they will import */
+	rows: { email: string; first_name: string | null; tags: string[]; action: ImportAction }[]
+}

@@ -2,6 +2,8 @@ import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
 
+from bwh_os.mailing.subscriber_import import SubscriberImport
+
 SIGNUP_API_ROLE = "OS Signup API"
 
 
@@ -34,6 +36,20 @@ def add_subscriber(email: str, first_name: str | None = None, tags: list[str] | 
 	subscriber.add_tags(tags or [])
 	subscriber.insert()
 	return subscriber.name
+
+
+@frappe.whitelist(methods=["POST"])
+def preview_subscriber_import(content: str, mapping: dict | None = None, tags: list[str] | None = None) -> dict:
+	"""Read CSV text and say what an import would do. With no mapping, the columns are mapped by name."""
+	frappe.only_for("System Manager")
+	return SubscriberImport(content, mapping, tags).preview()
+
+
+@frappe.whitelist(methods=["POST"])
+def import_subscribers(content: str, mapping: dict, tags: list[str] | None = None) -> dict[str, int]:
+	"""Import CSV text. New emails become Active. Known emails only get the tags."""
+	frappe.only_for("System Manager")
+	return SubscriberImport(content, mapping, tags).run()
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
