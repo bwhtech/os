@@ -1,0 +1,392 @@
+/*
+ * The React Email inspector ships layout styles only. These styles give it the look of a shadcn
+ * sidebar with frappe-ui tokens: small labels, filled inputs with a focus ring, and quiet sections.
+ * The token variables come from the page, because CSS variables inherit into the shadow root.
+ */
+
+.email-inspector {
+	flex: 0 0 16rem;
+	box-sizing: border-box;
+	max-height: 48rem;
+	overflow-y: auto;
+	padding: 0 12px 12px;
+	border-left: 1px solid var(--outline-gray-2);
+	background: var(--surface-base);
+	color: var(--ink-gray-8);
+	font-size: 13px;
+	line-height: 1.4;
+	-webkit-font-smoothing: antialiased;
+}
+
+.email-inspector *,
+.email-inspector *::before,
+.email-inspector *::after {
+	box-sizing: border-box;
+}
+
+.email-inspector button,
+.email-inspector input {
+	font: inherit;
+	color: inherit;
+}
+
+/* Breadcrumb: a sticky path at the top */
+
+.email-inspector [data-re-inspector-breadcrumb] {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	margin: 0 -12px;
+	padding: 10px 12px;
+	background: var(--surface-base);
+	border-bottom: 1px solid var(--outline-gray-1);
+}
+
+.email-inspector [data-re-inspector-breadcrumb-list] {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.email-inspector [data-re-inspector-breadcrumb-item] {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.email-inspector [data-re-inspector-breadcrumb-separator] {
+	color: var(--ink-gray-4);
+	padding: 0 2px;
+}
+
+.email-inspector [data-re-inspector-breadcrumb-button] {
+	border: 0;
+	background: transparent;
+	padding: 2px 6px;
+	border-radius: 6px;
+	font-weight: 500;
+	color: var(--ink-gray-8);
+	cursor: default;
+}
+
+.email-inspector [data-re-inspector-breadcrumb-button][data-clickable] {
+	color: var(--ink-gray-5);
+	cursor: pointer;
+}
+
+.email-inspector [data-re-inspector-breadcrumb-button][data-clickable]:hover {
+	background: var(--surface-gray-2);
+	color: var(--ink-gray-8);
+}
+
+/* Sections */
+
+.email-inspector [data-re-inspector-section] {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 14px 0;
+	border-bottom: 1px solid var(--outline-gray-1);
+}
+
+.email-inspector [data-re-inspector-section]:last-child {
+	border-bottom: 0;
+}
+
+.email-inspector [data-re-inspector-section-header] {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.email-inspector [data-re-inspector-section-toggle] {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	border: 0;
+	background: transparent;
+	padding: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--ink-gray-5);
+	cursor: pointer;
+}
+
+.email-inspector [data-re-inspector-section-toggle]:hover {
+	color: var(--ink-gray-8);
+}
+
+.email-inspector [data-re-inspector-section-body] {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+/* Rows and labels */
+
+.email-inspector [data-re-inspector-prop-row],
+.email-inspector [data-re-inspector-field] {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	min-height: 28px;
+}
+
+.email-inspector [data-re-inspector-label],
+.email-inspector [data-re-inspector-field] > label {
+	flex: 0 0 auto;
+	min-width: 4.5rem;
+	font-size: 12px;
+	color: var(--ink-gray-6);
+	white-space: nowrap;
+}
+
+.email-inspector [data-re-inspector-text][data-color='muted'] {
+	color: var(--ink-gray-5);
+}
+
+/* Inputs: filled, 28px tall, ring on focus */
+
+.email-inspector [data-re-inspector-number],
+.email-inspector [data-re-inspector-color-control],
+.email-inspector [data-re-inspector-select] {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 28px;
+	min-width: 0;
+	padding: 0 8px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: var(--surface-gray-2);
+	transition:
+		background-color 0.1s,
+		border-color 0.1s,
+		box-shadow 0.1s;
+}
+
+.email-inspector [data-re-inspector-number]:hover,
+.email-inspector [data-re-inspector-color-control]:hover,
+.email-inspector [data-re-inspector-select]:hover {
+	background: var(--surface-gray-3);
+}
+
+.email-inspector [data-re-inspector-number]:focus-within,
+.email-inspector [data-re-inspector-color-control]:focus-within,
+.email-inspector [data-re-inspector-select]:focus-within {
+	background: var(--surface-base);
+	border-color: var(--outline-gray-4);
+	box-shadow: 0 0 0 2px var(--outline-gray-2);
+}
+
+.email-inspector [data-re-inspector-number] > span[aria-hidden] {
+	display: inline-flex;
+	color: var(--ink-gray-4);
+}
+
+.email-inspector [data-re-inspector-number] svg,
+.email-inspector [data-re-inspector-toggle-item] svg,
+.email-inspector [data-re-inspector-icon-button] svg {
+	width: 14px;
+	height: 14px;
+}
+
+.email-inspector [data-re-inspector-input],
+.email-inspector [data-re-inspector-color-hex] {
+	width: 100%;
+	max-width: 5rem;
+	min-width: 0;
+	border: 0;
+	padding: 0;
+	outline: none;
+	background: transparent;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.email-inspector [data-re-inspector-color-hex] {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	text-align: left;
+	text-transform: lowercase;
+}
+
+.email-inspector [data-re-inspector-input]::placeholder,
+.email-inspector [data-re-inspector-color-hex]::placeholder {
+	color: var(--ink-gray-4);
+}
+
+.email-inspector [data-re-inspector-unit] {
+	flex: 0 0 auto;
+	font-size: 11px;
+	color: var(--ink-gray-5);
+}
+
+.email-inspector [data-re-inspector-color-trigger] {
+	flex: 0 0 auto;
+	width: 16px;
+	height: 16px;
+	padding: 0;
+	border: 1px solid var(--outline-gray-3);
+	border-radius: 999px;
+	background: transparent;
+	cursor: pointer;
+	appearance: none;
+	-webkit-appearance: none;
+	overflow: hidden;
+}
+
+.email-inspector [data-re-inspector-color-trigger]::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+.email-inspector [data-re-inspector-color-trigger]::-webkit-color-swatch {
+	border: 0;
+	border-radius: 999px;
+}
+
+.email-inspector [data-re-inspector-color-trigger]::-moz-color-swatch {
+	border: 0;
+	border-radius: 999px;
+}
+
+/* Per-side padding and radius: two columns of inputs */
+
+.email-inspector [data-re-inspector-section-body] > div:not([data-re-inspector-prop-row]) > div:not([data-re-inspector-prop-row]) {
+	display: grid !important;
+	grid-template-columns: 1fr 1fr;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+.email-inspector [data-re-inspector-section-body] > div:not([data-re-inspector-prop-row]) > div:not([data-re-inspector-prop-row]) > div {
+	display: contents !important;
+}
+
+/* Segmented toggle, like the shadcn ToggleGroup */
+
+.email-inspector [data-re-inspector-toggle-group] {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	border: 0;
+	border-radius: 8px;
+	background: var(--surface-gray-2);
+}
+
+.email-inspector [data-re-inspector-toggle-item] {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	height: 24px;
+	padding: 0 6px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--ink-gray-5);
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.email-inspector [data-re-inspector-toggle-item] + [data-re-inspector-toggle-item] {
+	border-left: 0;
+}
+
+.email-inspector [data-re-inspector-toggle-item]:hover {
+	color: var(--ink-gray-8);
+}
+
+.email-inspector [data-re-inspector-toggle-item][data-active] {
+	background: var(--surface-base);
+	color: var(--ink-gray-9);
+	box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+/* Buttons */
+
+.email-inspector [data-re-inspector-button] {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	height: 28px;
+	padding: 0 10px;
+	border: 0;
+	border-radius: 8px;
+	background: var(--surface-gray-2);
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.email-inspector [data-re-inspector-button]:hover {
+	background: var(--surface-gray-3);
+}
+
+.email-inspector [data-re-inspector-icon-button] {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--ink-gray-6);
+	cursor: pointer;
+}
+
+.email-inspector [data-re-inspector-icon-button]:hover {
+	background: var(--surface-gray-2);
+	color: var(--ink-gray-9);
+}
+
+/* Tooltip */
+
+.email-inspector [data-re-inspector-tooltip] {
+	position: relative;
+	display: inline-flex;
+}
+
+.email-inspector [data-re-inspector-tooltip-content] {
+	display: none;
+	position: absolute;
+	bottom: calc(100% + 6px);
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 10;
+	padding: 4px 8px;
+	border-radius: 6px;
+	background: var(--surface-gray-10, #171717);
+	color: var(--ink-base, #fff);
+	font-size: 11px;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+.email-inspector [data-re-inspector-tooltip]:hover [data-re-inspector-tooltip-content] {
+	display: block;
+}
+
+/* A number with a toggle group, like Border and Rounded, stays on one line. */
+
+.email-inspector [data-re-inspector-prop-row] > div {
+	display: flex !important;
+	flex-wrap: nowrap !important;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 4px;
+	min-width: 0;
+}
+
+.email-inspector [data-re-inspector-prop-row] > div > [data-re-inspector-number] {
+	width: 4.5rem;
+}

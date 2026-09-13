@@ -7,6 +7,7 @@ import { EmailTheming } from '@react-email/editor/plugins'
 import { Inspector } from '@react-email/editor/ui'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import themeCss from '@react-email/editor/themes/default.css?inline'
+import inspectorCss from './inspector.css?inline'
 import type { NewsletterTheme } from '@/types'
 import { extraStylesCss, extraThemeStyles } from './extraStyles'
 import { EMAIL_THEMES } from './themes'
@@ -44,7 +45,7 @@ const PAGE_CSS = `
 `
 
 // The email is white in both themes. CSS variables and color inherit into the shadow root, so the
-// canvas sets them. The inspector keeps the page variables, so it follows the OS theme.
+// canvas sets them. The inspector uses the page tokens, so it follows the OS theme. See inspector.css.
 // ProseMirror also needs its base styles, which the shadow root does not get from the page.
 const EDITOR_CSS = `
 .editor-layout { display: flex; flex-wrap: wrap; align-items: stretch; }
@@ -65,19 +66,6 @@ const EDITOR_CSS = `
 	--re-pressed: rgba(0, 0, 0, 0.06);
 	--re-danger: #dc2626;
 }
-.email-inspector {
-	flex: 0 0 15rem;
-	box-sizing: border-box;
-	max-height: 48rem;
-	overflow-y: auto;
-	padding: 12px;
-	border-left: 1px solid var(--re-border);
-	color: var(--re-text);
-	background: var(--re-bg);
-	font-size: 13px;
-}
-/* The inspector theme leaves the browser's white input background. */
-.email-inspector input, .email-inspector select { background: transparent; color: inherit; }
 .ProseMirror { white-space: pre-wrap; word-wrap: break-word; outline: none; min-height: 24rem; }
 .ProseMirror p.is-empty::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: #a3a3a3; }
 `
@@ -89,7 +77,7 @@ const EDITOR_CSS = `
 export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 	addPageTheme()
 	const style = document.createElement('style')
-	style.textContent = themeCss + EDITOR_CSS
+	style.textContent = themeCss + inspectorCss + EDITOR_CSS
 	const container = document.createElement('div')
 	// EmailEditor renders its children as siblings of the editor content, so the inspector sits beside it.
 	container.className = 'editor-layout'
