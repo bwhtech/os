@@ -13,7 +13,14 @@
   "batch",
   "queued_at",
   "email_queue",
-  "error"
+  "error",
+  "engagement_section",
+  "first_opened_at",
+  "open_count",
+  "unsubscribed_at",
+  "column_break_engagement",
+  "first_clicked_at",
+  "click_count"
  ],
  "fields": [
   {
@@ -79,12 +86,56 @@
    "fieldname": "error",
    "fieldtype": "Small Text",
    "label": "Error"
+  },
+  {
+   "fieldname": "engagement_section",
+   "fieldtype": "Section Break",
+   "label": "Engagement"
+  },
+  {
+   "fieldname": "first_opened_at",
+   "fieldtype": "Datetime",
+   "label": "First Opened At",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "open_count",
+   "fieldtype": "Int",
+   "label": "Opens",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "unsubscribed_at",
+   "fieldtype": "Datetime",
+   "label": "Unsubscribed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_engagement",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "A click also counts as an open",
+   "fieldname": "first_clicked_at",
+   "fieldtype": "Datetime",
+   "label": "First Clicked At",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "click_count",
+   "fieldtype": "Int",
+   "label": "Clicks",
+   "non_negative": 1,
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "in_create": 1,
  "links": [],
- "modified": "2026-09-13 20:00:00.000000",
+ "modified": "2026-09-13 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Newsletter Delivery",

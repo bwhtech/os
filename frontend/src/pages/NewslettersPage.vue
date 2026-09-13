@@ -38,14 +38,16 @@
 		<!-- Rows are links, so the hover surface bleeds into the gutter. -->
 		<div v-else class="-mx-3 overflow-x-auto">
 			<List
-				class="min-w-[38rem] list-row-px-3"
-				:columns="['minmax(14rem,1fr)', '6rem', '6rem', '8rem']"
+				class="min-w-[48rem] list-row-px-3"
+				:columns="['minmax(14rem,1fr)', '6rem', '6rem', '5rem', '5rem', '8rem']"
 				:row-height="44"
 			>
 				<ListHeader>
 					<ListHeaderCell>Subject</ListHeaderCell>
 					<ListHeaderCell>Status</ListHeaderCell>
 					<ListHeaderCell class="justify-end">Recipients</ListHeaderCell>
+					<ListHeaderCell class="justify-end">Open %</ListHeaderCell>
+					<ListHeaderCell class="justify-end">Click %</ListHeaderCell>
 					<ListHeaderCell class="justify-end">Updated</ListHeaderCell>
 				</ListHeader>
 				<ListRows :items="issues.data" row-key="name">
@@ -61,6 +63,12 @@
 								<span v-if="item.status !== 'Draft'" class="text-sm tabular-nums text-ink-gray-6">
 									{{ item.recipient_count }}
 								</span>
+							</ListCell>
+							<ListCell class="justify-end">
+								<span class="text-sm tabular-nums text-ink-gray-6">{{ rate(item.opened_count, item.sent_count) }}</span>
+							</ListCell>
+							<ListCell class="justify-end">
+								<span class="text-sm tabular-nums text-ink-gray-6">{{ rate(item.clicked_count, item.sent_count) }}</span>
 							</ListCell>
 							<ListCell class="justify-end">
 								<span class="text-sm tabular-nums text-ink-gray-6">
@@ -98,8 +106,12 @@ const newOpen = ref(false)
 
 const issues = useList<NewsletterIssue>({
 	doctype: 'Newsletter Issue',
-	fields: ['name', 'subject', 'status', 'recipient_count', 'modified'],
+	fields: ['name', 'subject', 'status', 'recipient_count', 'sent_count', 'opened_count', 'clicked_count', 'modified'],
 	orderBy: 'creation desc',
 	limit: 200,
 })
+
+function rate(count: number, sent: number) {
+	return sent ? `${Math.round((count / sent) * 100)}%` : ''
+}
 </script>

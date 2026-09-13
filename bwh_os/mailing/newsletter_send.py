@@ -10,6 +10,7 @@ from frappe.utils import add_to_date, get_datetime, now_datetime
 from frappe.utils.background_jobs import is_job_enqueued
 
 from bwh_os.mailing.emails import list_headers
+from bwh_os.mailing.newsletter_tracking import EmailTracking
 
 # Rows between commits in the send job
 COMMIT_EVERY = 100
@@ -175,12 +176,15 @@ class NewsletterSend:
 			)
 			return
 
-		unsubscribe_url = frappe.get_doc("Subscriber", row.subscriber).get_unsubscribe_url()
+		tracking = EmailTracking(row.name)
+		unsubscribe_url = tracking.unsubscribe_url(
+			frappe.get_doc("Subscriber", row.subscriber).get_unsubscribe_url()
+		)
 		queue = frappe.sendmail(
 			recipients=[row.email],
 			sender=frappe.get_cached_doc("Mailing Settings").get_sender(),
 			subject=self.issue.subject,
-			message=self.issue.get_email_html(unsubscribe_url),
+			message=self.issue.get_email_html(unsubscribe_url, tracking),
 			# The editor makes a full HTML document. Frappe's wrapper would nest it.
 			raw_html=True,
 			reference_doctype=self.issue.doctype,

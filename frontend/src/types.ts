@@ -102,6 +102,9 @@ export interface NewsletterIssue {
 	sent_count: number
 	failed_count: number
 	skipped_count: number
+	opened_count: number
+	clicked_count: number
+	unsubscribed_count: number
 	modified: string
 }
 
@@ -131,6 +134,23 @@ export interface NewsletterDelivery {
 export interface NewsletterProgress {
 	counts: Record<DeliveryStatus, number>
 	batches: ({ batch: number; sends_at: string | null } & Record<DeliveryStatus, number>)[]
+}
+
+/** Rates are 0 to 100, or null when nothing was sent */
+export interface EngagementRates {
+	open_rate: number | null
+	click_rate: number | null
+	unsubscribes: number
+}
+
+/** From `get_newsletter_engagement` */
+export interface NewsletterEngagement {
+	rates: EngagementRates
+	previous: ({ name: string; subject: string } & EngagementRates) | null
+	funnel: { stage: string; count: number }[]
+	/** One row per hour from the start of the send, for 72 hours */
+	hourly: { hour: number; Open: number; Click: number }[]
+	top_links: { url: string; clicks: number; readers: number }[]
 }
 
 export interface MailingSettings {

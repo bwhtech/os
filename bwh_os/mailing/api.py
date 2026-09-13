@@ -2,9 +2,12 @@ import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
 from frappe.utils import validate_email_address
+from werkzeug.utils import redirect
 
 from bwh_os.mailing import stats
+from bwh_os.mailing.newsletter_engagement import NewsletterEngagement
 from bwh_os.mailing.newsletter_send import Audience, NewsletterSend
+from bwh_os.mailing.newsletter_tracking import is_signed, pixel_response
 from bwh_os.mailing.subscriber_import import SubscriberImport
 
 SIGNUP_API_ROLE = "OS Signup API"
@@ -117,6 +120,40 @@ def get_newsletter_progress(issue: str) -> dict:
 	return NewsletterSend(frappe.get_doc("Newsletter Issue", issue)).progress()
 
 
+@frappe.whitelist(methods=["GET"])
+def get_newsletter_engagement(issue: str) -> dict:
+	"""Open and click rates against the previous issue, the funnel, opens per hour, and top links."""
+	frappe.only_for("System Manager")
+	return NewsletterEngagement(frappe.get_doc("Newsletter Issue", issue)).report()
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def track_open(delivery: str):
+	"""The open pixel in every newsletter email. It always returns the image."""
+	if frappe.db.exists("Newsletter Delivery", delivery):
+		frappe.get_doc("Newsletter Delivery", delivery).record_open()
+		# Pixel loads are GET requests, which Frappe does not commit by default.
+		frappe.local.flags.commit = True
+	return pixel_response()
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def track_click(delivery: str, url: str, signature: str):
+	"""The click redirect for every link in a newsletter email."""
+	if not is_signed(delivery, url, signature):
+		frappe.respond_as_web_page(
+			_("Link not valid"),
+			_("This link is not valid. Use the link in your email."),
+			http_status_code=404,
+			indicator_color="red",
+		)
+		return
+	if frappe.db.exists("Newsletter Delivery", delivery):
+		frappe.get_doc("Newsletter Delivery", delivery).record_click(url)
+		frappe.local.flags.commit = True
+	return redirect(url)
+
+
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def download_lead_magnet(lead_magnet: str, token: str) -> None:
 	"""The link in the welcome email. The subscriber token stands in for a login."""
@@ -156,11 +193,12 @@ def confirm_subscription(form_id: str, token: str) -> None:
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
-def unsubscribe(token: str) -> None:
+def unsubscribe(token: str, delivery: str | None = None) -> None:
 	"""The unsubscribe link and the List-Unsubscribe header in every list email.
 
 	GET shows a page with a button, so a link scanner cannot unsubscribe anyone. POST unsubscribes.
 	Mail clients send the one-click POST (RFC 8058) with no cookies and no CSRF token.
+	A link in a newsletter also carries the delivery, so the issue report counts the unsubscribe.
 	"""
 	subscriber = frappe.db.get_value("Subscriber", {"token": token})
 	if not subscriber:
@@ -176,6 +214,8 @@ def unsubscribe(token: str) -> None:
 		subscriber = frappe.get_doc("Subscriber", subscriber)
 		subscriber.unsubscribe()
 		subscriber.save(ignore_permissions=True)
+		if delivery and frappe.db.get_value("Newsletter Delivery", delivery, "subscriber") == subscriber.name:
+			frappe.get_doc("Newsletter Delivery", delivery).record_unsubscribe()
 		frappe.respond_as_web_page(
 			_("You are unsubscribed"),
 			_("You will not get more emails from this list."),

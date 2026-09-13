@@ -10,6 +10,7 @@ from frappe.utils import get_url
 
 from bwh_os.mailing.newsletter_schedule import NewsletterSchedule
 from bwh_os.mailing.newsletter_send import DEFAULT_HOURLY_LIMIT, NewsletterSend
+from bwh_os.mailing.newsletter_tracking import EmailTracking
 
 FOOTER_TEMPLATE = "bwh_os/templates/emails/newsletter_footer.html"
 BODY_END = re.compile(r"</body\s*>", re.IGNORECASE)
@@ -38,11 +39,13 @@ class NewsletterIssue(Document):
 		from bwh_os.mailing.doctype.subscriber_tag_item.subscriber_tag_item import SubscriberTagItem
 
 		audience: DF.Literal["All Active", "Tags"]
+		clicked_count: DF.Int
 		completed_at: DF.Datetime | None
 		content_html: DF.Code | None
 		content_json: DF.JSON | None
 		failed_count: DF.Int
 		hourly_limit: DF.Int
+		opened_count: DF.Int
 		preview_text: DF.Data | None
 		recipient_count: DF.Int
 		scheduled_at: DF.Datetime | None
@@ -53,6 +56,7 @@ class NewsletterIssue(Document):
 		subject: DF.Data
 		tags: DF.TableMultiSelect[SubscriberTagItem]
 		theme: DF.Literal["Frappe UI", "Basic", "Minimal"]
+		unsubscribed_count: DF.Int
 	# end: auto-generated types
 
 	def before_insert(self):
@@ -113,13 +117,19 @@ class NewsletterIssue(Document):
 				).format(recipient)
 			)
 
-	def get_email_html(self, unsubscribe_url: str) -> str:
-		"""The content with the company footer and the unsubscribe link at the end of the email."""
+	def get_email_html(self, unsubscribe_url: str, tracking: "EmailTracking | None" = None) -> str:
+		"""The content with the company footer and the unsubscribe link at the end of the email.
+
+		With tracking, the content links go through the click redirect and the footer has the open pixel.
+		"""
 		footer = frappe.render_template(
 			FOOTER_TEMPLATE,
 			{"settings": frappe.get_cached_doc("Mailing Settings"), "unsubscribe_url": unsubscribe_url},
 		)
 		html = self.content_html
+		if tracking:
+			html = tracking.rewrite_links(html)
+			footer += tracking.pixel()
 		body_ends = list(BODY_END.finditer(html))
 		if not body_ends:
 			return html + footer

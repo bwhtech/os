@@ -25,7 +25,11 @@
   "column_break_send",
   "sent_count",
   "failed_count",
-  "skipped_count"
+  "skipped_count",
+  "engagement_section",
+  "opened_count",
+  "clicked_count",
+  "unsubscribed_count"
  ],
  "fields": [
   {
@@ -166,11 +170,41 @@
    "fieldtype": "Int",
    "label": "Skipped",
    "read_only": 1
+  },
+  {
+   "fieldname": "engagement_section",
+   "fieldtype": "Section Break",
+   "label": "Engagement",
+   "collapsible": 1
+  },
+  {
+   "default": "0",
+   "description": "Recipients who opened",
+   "fieldname": "opened_count",
+   "fieldtype": "Int",
+   "label": "Opened Count",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Recipients who clicked a link",
+   "fieldname": "clicked_count",
+   "fieldtype": "Int",
+   "label": "Clicked Count",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Recipients who unsubscribed from this issue",
+   "fieldname": "unsubscribed_count",
+   "fieldtype": "Int",
+   "label": "Unsubscribed Count",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "links": [],
- "modified": "2026-09-13 21:00:00.000000",
+ "modified": "2026-09-13 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Newsletter Issue",

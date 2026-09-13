@@ -13,6 +13,8 @@
 			<NumberCard v-for="card in cards" :key="card.title" v-bind="card" />
 		</div>
 
+		<NewsletterEngagement :issue="issue" :refresh-key="refreshKey" />
+
 		<section class="h-72 rounded-xl border border-outline-gray-1 px-4 py-3">
 			<BarChart
 				:data="batchRows"
@@ -36,6 +38,7 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 import { dayjs, useCall } from 'frappe-ui'
 import { BarChart, NumberCard, useChartTokens, type NumberCardProps } from 'frappe-ui/charts'
 import DeliveryList from '@/components/newsletters/DeliveryList.vue'
+import NewsletterEngagement from '@/components/newsletters/NewsletterEngagement.vue'
 import { errorMessage } from '@/lib/errors'
 import type { DeliveryStatus, NewsletterIssue, NewsletterProgress } from '@/types'
 

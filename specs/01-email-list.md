@@ -144,7 +144,7 @@ After the send starts, the subject, content, and audience cannot change.
 | first_clicked_at, click_count | Datetime, Int | Slice 10. A click also counts as an open. |
 | unsubscribed_at | Datetime | Slice 10. Set when the unsubscribe link in this issue is used. |
 
-**Newsletter Event**: delivery, issue, type (Open, Click, Unsubscribe), url, timestamp. Slice 10. The raw log for opens and clicks over time and for top links.
+**Newsletter Event**: delivery, issue, type (Open, Click, Unsubscribe), url. Slice 10. The raw log for opens and clicks over time and for top links. `creation` is the time of the event.
 
 ### API
 
@@ -345,6 +345,11 @@ Each slice goes through all layers. Merge each slice alone.
 - Report tab: number cards for open rate, click rate, and unsubscribes, each against the previous issue. A funnel chart (recipients, sent, opened, clicked), an area chart of opens and clicks per hour for the first 72 hours, and a bar chart of top links.
 - Add Open % and Click % columns to the Newsletters list.
 - Note: Apple Mail Privacy Protection loads pixels, so the open count is higher than the real count.
+- Only `http` and `https` links are rewritten. `mailto:` and `#` links stay as they are. The footer links are not tracked.
+- The click URL carries the delivery, the target URL, and an HMAC of both with the site secret. A bad signature shows a "Link not valid" page and does not redirect.
+- The unsubscribe link and the `List-Unsubscribe` header carry the delivery, so the issue counts the unsubscribe.
+- The issue counts go up with one `UPDATE ... SET count = count + 1` for the first open, click, or unsubscribe of a delivery.
+- Test sends have no tracking.
 - Demo: open a sent issue and click a link. The stats change.
 
 ### 11. Web archive

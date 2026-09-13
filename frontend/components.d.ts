@@ -33,6 +33,7 @@ declare module 'vue' {
     NewLeadMagnetDialog: typeof import('./src/components/lead-magnets/NewLeadMagnetDialog.vue')['default']
     NewNewsletterDialog: typeof import('./src/components/newsletters/NewNewsletterDialog.vue')['default']
     NewsletterAudience: typeof import('./src/components/newsletters/NewsletterAudience.vue')['default']
+    NewsletterEngagement: typeof import('./src/components/newsletters/NewsletterEngagement.vue')['default']
     NewsletterReport: typeof import('./src/components/newsletters/NewsletterReport.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
