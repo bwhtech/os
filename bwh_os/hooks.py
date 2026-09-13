@@ -15,15 +15,20 @@ use_json_request_body = True
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "bwh_os",
-# 		"logo": "/assets/bwh_os/logo.png",
-# 		"title": "BWH OS",
-# 		"route": "/bwh_os",
-# 		"has_permission": "bwh_os.api.permission.has_app_permission",
-# 	}
-# ]
+add_to_apps_screen = [
+	{
+		"name": "bwh_os",
+		"logo": "/assets/bwh_os/images/os-logo.svg",
+		"title": "BWH OS",
+		"route": "/os",
+		"has_permission": "bwh_os.permissions.has_os_access",
+	}
+]
+
+# The frappe-ui SPA owns every path under /os.
+website_route_rules = [
+	{"from_route": "/os/<path:app_path>", "to_route": "os"},
+]
 
 # The dock, the rail down the left of the desk, is a document rather than a hook. Author it in
 # Manage Dock on a developer-mode site and press Export to App, and it is written to

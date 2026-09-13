@@ -53,3 +53,7 @@ jspm_packages/
 
 # Aider AI Chat
 .aider*
+
+# Frontend build output
+bwh_os/public/frontend/
+bwh_os/www/os.html

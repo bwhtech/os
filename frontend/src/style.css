@@ -1,0 +1,18 @@
+@import 'frappe-ui/style.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	/* The shells size themselves with `h-full`, so the chain to <html> must be explicit. */
+	html,
+	body,
+	#app {
+		height: 100%;
+	}
+
+	body {
+		@apply bg-surface-base text-ink-gray-8 antialiased;
+	}
+}
