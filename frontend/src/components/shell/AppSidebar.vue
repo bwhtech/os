@@ -30,7 +30,7 @@
 		</div>
 	</Sidebar>
 
-	<MailingSettingsDialog v-model:open="settingsOpen" />
+	<AppSettingsDialog v-model:open="settingsOpen" />
 </template>
 
 <script setup lang="ts">
@@ -46,7 +46,7 @@ import {
 } from 'frappe-ui'
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
-import MailingSettingsDialog from '@/components/shell/MailingSettingsDialog.vue'
+import AppSettingsDialog from '@/components/settings/AppSettingsDialog.vue'
 import { useSession } from '@/composables/useSession'
 
 const LOGO_URL = '/assets/bwh_os/images/os-logo.svg'
@@ -78,7 +78,7 @@ const workspaceMenu = [
 		},
 	},
 	{
-		label: 'Mailing Settings',
+		label: 'Settings',
 		icon: 'lucide-settings',
 		onClick: () => {
 			settingsOpen.value = true
