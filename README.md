@@ -12,7 +12,7 @@ The first module is the email list. See [specs/README.md](specs/README.md) for t
 
 The dashboard shows the growth of the list, subscribers by status, and the stats of the last newsletter. It also shows open and click rates for the last 10 newsletters, and signups and the confirm rate for each signup form.
 
-![Dashboard](https://github.com/user-attachments/assets/789c2b50-b2a7-4bdb-ba82-c350d09e3e1f)
+![Dashboard](.github/images/dashboard.png)
 
 ### Subscribers
 
@@ -21,7 +21,7 @@ The dashboard shows the growth of the list, subscribers by status, and the stats
 - Add a subscriber by hand.
 - Import a CSV file. Map the columns, pick tags, and see what the import does before it starts. The import runs in a background job.
 
-![Subscribers](https://github.com/user-attachments/assets/e55482e1-6037-4a75-8dde-a7df97e2e342)
+![Subscribers](.github/images/subscribers.png)
 
 ### Signup forms
 
@@ -31,17 +31,17 @@ The dashboard shows the growth of the list, subscribers by status, and the stats
 - A confirm email and a welcome email for each form, written in the email editor.
 - The form page shows signup counts and the embed snippet.
 
-![Signup form](https://github.com/user-attachments/assets/ac6ef143-aba4-44e8-8c26-06e4f93449ed)
+![Signup form](.github/images/signup-form.png)
 
 ### Lead magnets
 
 A lead magnet is a private file, for example a PDF. The welcome email has a download link with a token. Each download is logged.
 
-![Lead magnet](https://github.com/user-attachments/assets/de3450b1-6457-4b7e-a75e-b4c86d5aef4a)
+![Lead magnet](.github/images/lead-magnet.png)
 
 ### Newsletters
 
-![Newsletters](https://github.com/user-attachments/assets/96fe2cf2-abe0-41f7-98a6-d0bb11533acd)
+![Newsletters](.github/images/newsletters.png)
 
 #### Email editor
 
@@ -54,7 +54,7 @@ Every email in OS uses the same editor. The editor is [React Email editor](https
 - Three themes: Frappe UI, Basic, and Minimal.
 - Press Cmd+S or Ctrl+S to save a draft.
 
-![Newsletter editor](https://github.com/user-attachments/assets/f5077ace-9ae6-4692-980a-81602cd98a78)
+![Newsletter editor](.github/images/newsletter-editor.png)
 
 #### Preview and send
 
@@ -64,7 +64,7 @@ Every email in OS uses the same editor. The editor is [React Email editor](https
 - Emails go out in hourly batches. Each newsletter has an hourly limit.
 - Send now, or schedule the send for later.
 
-![Newsletter preview](https://github.com/user-attachments/assets/c2dd22d9-53bd-426c-b50f-d4e37579b962)
+![Newsletter preview](.github/images/newsletter-preview.png)
 
 #### Report
 
@@ -73,13 +73,13 @@ Every email in OS uses the same editor. The editor is [React Email editor](https
 - A funnel from recipients to clicks, opens and clicks per hour, and the top links.
 - Publish a sent newsletter to the web archive at `/newsletter/<route>`.
 
-![Newsletter report](https://github.com/user-attachments/assets/6903682b-27b7-4aab-b4b2-79a008f89b0c)
+![Newsletter report](.github/images/newsletter-report.png)
 
 ### Settings
 
 The Settings dialog sets the email account that sends list email, the default hourly limit, and the footer: the company name, GSTIN, postal address, and social links.
 
-![Settings](https://github.com/user-attachments/assets/14144989-6e6d-45c8-a962-64527e1cabaf)
+![Settings](.github/images/settings.png)
 
 ## Upcoming
 
