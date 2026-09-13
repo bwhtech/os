@@ -29,7 +29,11 @@
   "engagement_section",
   "opened_count",
   "clicked_count",
-  "unsubscribed_count"
+  "unsubscribed_count",
+  "web_section",
+  "is_public",
+  "column_break_web",
+  "route"
  ],
  "fields": [
   {
@@ -200,11 +204,37 @@
    "fieldtype": "Int",
    "label": "Unsubscribed Count",
    "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "web_section",
+   "fieldtype": "Section Break",
+   "label": "Web Archive"
+  },
+  {
+   "default": "0",
+   "description": "Show the sent newsletter at /newsletter",
+   "fieldname": "is_public",
+   "fieldtype": "Check",
+   "label": "Is Public"
+  },
+  {
+   "fieldname": "column_break_web",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "is_public",
+   "description": "The page is at /newsletter/<route>. Made from the subject when empty.",
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "label": "Route",
+   "unique": 1,
+   "no_copy": 1
   }
  ],
  "grid_page_length": 50,
  "links": [],
- "modified": "2026-09-13 22:00:00.000000",
+ "modified": "2026-09-13 23:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Newsletter Issue",

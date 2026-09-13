@@ -35,6 +35,7 @@ declare module 'vue' {
     NewsletterAudience: typeof import('./src/components/newsletters/NewsletterAudience.vue')['default']
     NewsletterEngagement: typeof import('./src/components/newsletters/NewsletterEngagement.vue')['default']
     NewsletterReport: typeof import('./src/components/newsletters/NewsletterReport.vue')['default']
+    PublishDialog: typeof import('./src/components/newsletters/PublishDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SendNewsletterDialog: typeof import('./src/components/newsletters/SendNewsletterDialog.vue')['default']

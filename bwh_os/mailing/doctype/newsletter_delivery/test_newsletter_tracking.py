@@ -115,7 +115,7 @@ class IntegrationTestNewsletterTracking(IntegrationTestCase):
 		frappe.db.set_value(
 			"Newsletter Issue",
 			previous.name,
-			{"status": "Sent", "sent_count": 2, "opened_count": 1, "sent_at": add_to_date(None, days=-7)},
+			{"status": "Sent", "sent_count": 2, "opened_count": 1, "sent_at": add_to_date(None, minutes=-1)},
 		)
 		issue, deliveries = self.send(2)
 		frappe.db.set_value("Newsletter Issue", issue.name, "sent_count", 2)

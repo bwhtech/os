@@ -121,7 +121,7 @@ The form page in OS also shows the signup count, the confirm rate, and the embed
 | recipient_count | Int | Delivery rows made when the send started |
 | sent_count, failed_count, skipped_count | Int | Counts of delivery rows. The sync job keeps them current. |
 | opened_count, clicked_count, unsubscribed_count | Int | Slice 10. Subscribers who opened, clicked, or unsubscribed from this issue. |
-| is_public | Check | Show in the web archive |
+| is_public | Check | Show in the web archive. Slice 11. |
 | route | Data | Slug for the web archive |
 
 The name `Newsletter Issue` prevents a clash with the separate Frappe `newsletter` app.
@@ -356,6 +356,9 @@ Each slice goes through all layers. Merge each slice alone.
 
 - Add the `/newsletter` index and the `/newsletter/<route>` page for public sent issues.
 - Remove the tracking pixel and the unsubscribe link from the web version.
+- Only a Sent issue can be public. The Publish dialog on the issue page sets `is_public` and `route`.
+- The route is a unique slug. It comes from the subject when it is empty, and it can change after the send.
+- A `page_renderer` hook serves `/newsletter/<route>` as the email document itself, not inside the site template.
 - Demo: mark an issue public and open its URL while logged out.
 
 ### 12. Dashboard

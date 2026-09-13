@@ -55,6 +55,11 @@
 						<ListRow :value="value" :to="`/newsletters/${item.name}`">
 							<ListCell>
 								<span class="truncate text-base text-ink-gray-8">{{ item.subject }}</span>
+								<span
+									v-if="item.is_public"
+									class="lucide-globe ml-2 size-3.5 shrink-0 text-ink-gray-5"
+									aria-label="In the web archive"
+								/>
 							</ListCell>
 							<ListCell>
 								<Badge :label="item.status" :theme="STATUS_THEMES[item.status]" variant="subtle" />
@@ -106,7 +111,7 @@ const newOpen = ref(false)
 
 const issues = useList<NewsletterIssue>({
 	doctype: 'Newsletter Issue',
-	fields: ['name', 'subject', 'status', 'recipient_count', 'sent_count', 'opened_count', 'clicked_count', 'modified'],
+	fields: ['name', 'subject', 'status', 'is_public', 'recipient_count', 'sent_count', 'opened_count', 'clicked_count', 'modified'],
 	orderBy: 'creation desc',
 	limit: 200,
 })

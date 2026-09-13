@@ -4,5 +4,6 @@
 	{% if settings.company_name %}{{ settings.company_name }}<br />{% endif %}
 	{% if settings.gstin %}GSTIN: {{ settings.gstin }}<br />{% endif %}
 	{% if settings.postal_address %}{{ settings.postal_address | e | replace("\n", "<br />") }}<br />{% endif %}
-	<a href="{{ unsubscribe_url }}" style="color: #737373;">Unsubscribe</a>
+	{# The web archive has no reader, so it has no unsubscribe link. #}
+	{% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color: #737373;">Unsubscribe</a>{% endif %}
 </p>

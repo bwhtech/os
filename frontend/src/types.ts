@@ -105,6 +105,9 @@ export interface NewsletterIssue {
 	opened_count: number
 	clicked_count: number
 	unsubscribed_count: number
+	/** Shown in the web archive at /newsletter/<route> */
+	is_public: 0 | 1
+	route: string | null
 	modified: string
 }
 

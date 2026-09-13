@@ -11,6 +11,12 @@
 		</div>
 		<div class="flex shrink-0 gap-2">
 			<Button
+				v-if="issue.doc?.status === 'Sent'"
+				:label="issue.doc.is_public ? 'Public' : 'Publish'"
+				icon-left="lucide-globe"
+				@click="publishOpen = true"
+			/>
+			<Button
 				label="Send Test"
 				icon-left="lucide-flask-conical"
 				:disabled="!issue.doc"
@@ -97,6 +103,12 @@
 	</div>
 
 	<SendTestDialog v-model:open="sendTestOpen" :issue-id="issueId" :save="saveIfDirty" />
+	<PublishDialog
+		v-if="issue.doc?.status === 'Sent'"
+		v-model:open="publishOpen"
+		:issue="issue.doc"
+		:save="(values) => issue.setValue.submit(values)"
+	/>
 	<SendNewsletterDialog
 		v-if="isDraft"
 		v-model:open="sendOpen"
@@ -129,6 +141,7 @@ import EmailEditor from '@/components/newsletters/EmailEditor.vue'
 import EmailPreview from '@/components/newsletters/EmailPreview.vue'
 import NewsletterAudience from '@/components/newsletters/NewsletterAudience.vue'
 import NewsletterReport from '@/components/newsletters/NewsletterReport.vue'
+import PublishDialog from '@/components/newsletters/PublishDialog.vue'
 import SendNewsletterDialog from '@/components/newsletters/SendNewsletterDialog.vue'
 import SendTestDialog from '@/components/newsletters/SendTestDialog.vue'
 import { useAudiencePreview } from '@/composables/useAudiencePreview'
@@ -174,6 +187,7 @@ const previewHtml = ref<string | null>(null)
 const saving = ref(false)
 const sendTestOpen = ref(false)
 const sendOpen = ref(false)
+const publishOpen = ref(false)
 /** The editor reads its content once, so it mounts only after the first fetch. */
 const loaded = ref(false)
 

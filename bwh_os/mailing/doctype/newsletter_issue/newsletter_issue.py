@@ -8,6 +8,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import get_url
 
+from bwh_os.mailing.newsletter_archive import NewsletterRoute
 from bwh_os.mailing.newsletter_schedule import NewsletterSchedule
 from bwh_os.mailing.newsletter_send import DEFAULT_HOURLY_LIMIT, NewsletterSend
 from bwh_os.mailing.newsletter_tracking import EmailTracking
@@ -68,6 +69,7 @@ class NewsletterIssue(Document):
 
 	def validate(self):
 		self.ensure_unchanged_after_send()
+		NewsletterRoute(self).validate()
 
 	def send(self):
 		"""Send to the audience in hourly batches. See NewsletterSend."""
@@ -117,7 +119,11 @@ class NewsletterIssue(Document):
 				).format(recipient)
 			)
 
-	def get_email_html(self, unsubscribe_url: str, tracking: "EmailTracking | None" = None) -> str:
+	def get_web_html(self) -> str:
+		"""The page in the web archive: the content and the company footer, with no pixel and no unsubscribe link."""
+		return self.get_email_html(unsubscribe_url=None)
+
+	def get_email_html(self, unsubscribe_url: str | None, tracking: "EmailTracking | None" = None) -> str:
 		"""The content with the company footer and the unsubscribe link at the end of the email.
 
 		With tracking, the content links go through the click redirect and the footer has the open pixel.

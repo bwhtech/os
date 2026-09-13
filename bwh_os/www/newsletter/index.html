@@ -1,0 +1,26 @@
+{% extends "templates/web.html" %}
+
+{% block page_content %}
+<div style="max-width: 640px; margin: 0 auto; padding: 32px 0;">
+	<h1 style="font-size: 28px; font-weight: 600; margin-bottom: 8px;">Newsletter</h1>
+	<p style="color: #737373; margin-bottom: 32px;">Past issues of the BWH newsletter.</p>
+
+	{% if issues %}
+	<ul style="list-style: none; padding: 0; margin: 0;">
+		{% for issue in issues %}
+		<li style="padding: 16px 0; border-top: 1px solid #e5e5e5;">
+			<a href="{{ issue.url }}" style="font-size: 18px; font-weight: 500; color: #171717;">{{ issue.subject | e }}</a>
+			<div style="font-size: 13px; color: #737373; margin-top: 4px;">
+				{{ frappe.format_date(issue.sent_at, "d MMM yyyy") }}
+			</div>
+			{% if issue.preview_text %}
+			<p style="color: #525252; margin: 8px 0 0;">{{ issue.preview_text | e }}</p>
+			{% endif %}
+		</li>
+		{% endfor %}
+	</ul>
+	{% else %}
+	<p style="color: #737373;">No issues yet.</p>
+	{% endif %}
+</div>
+{% endblock %}
