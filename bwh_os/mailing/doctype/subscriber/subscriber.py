@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import now_datetime, validate_email_address
+from frappe.utils import get_url, now_datetime, validate_email_address
 
 from bwh_os.mailing.doctype.subscriber_tag.subscriber_tag import SubscriberTag
 
@@ -51,6 +51,15 @@ class Subscriber(Document):
 		self.status = "Active"
 		self.confirmed_on = self.confirmed_on or now_datetime()
 		return first_time
+
+	def unsubscribe(self):
+		"""Remove the subscriber from all sends. A Bounced subscriber stays Bounced."""
+		if self.status in ("Pending", "Active"):
+			self.status = "Unsubscribed"
+			self.unsubscribed_on = now_datetime()
+
+	def get_unsubscribe_url(self) -> str:
+		return get_url(f"/api/method/bwh_os.mailing.api.unsubscribe?token={self.token}")
 
 	def add_tags(self, tag_names: list[str]):
 		"""Append tags the subscriber does not have yet, creating missing ones.

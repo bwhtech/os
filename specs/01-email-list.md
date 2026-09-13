@@ -157,7 +157,7 @@ These endpoints allow guests. Each one checks the subscriber token.
 - Frappe v16 `sendmail` has the parameters we need:
   - `send_after` paces the send.
   - `unsubscribe_method` and `unsubscribe_params` point the unsubscribe link at our endpoint.
-  - `email_headers` adds `List-Unsubscribe` and `List-Unsubscribe-Post`. Frappe does not add these headers itself.
+  - `email_headers` adds `List-Unsubscribe` and `List-Unsubscribe-Post`. Frappe does not add these headers itself, and it puts `X-` before custom header names. A `make_email_body_message` hook removes the `X-`.
   - `email_read_tracker_url` can carry the open pixel. Check in slice 10 if it fits, else add our own pixel.
 - A background job queues the emails for an issue in hourly batches. Batch N gets `send_after = start + N hours`, and each batch has at most `hourly_limit` emails.
 - The Email Queue flush also has a site-wide batch size (`email_queue_batch_size`, default 500 per run).

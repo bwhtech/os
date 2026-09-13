@@ -74,6 +74,48 @@ def confirm_subscription(form_id: str, token: str) -> None:
 	frappe.respond_as_web_page(_("You are subscribed"), message, indicator_color="green")
 
 
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+def unsubscribe(token: str) -> None:
+	"""The unsubscribe link and the List-Unsubscribe header in every list email.
+
+	GET shows a page with a button, so a link scanner cannot unsubscribe anyone. POST unsubscribes.
+	Mail clients send the one-click POST (RFC 8058) with no cookies and no CSRF token.
+	"""
+	subscriber = frappe.db.get_value("Subscriber", {"token": token})
+	if not subscriber:
+		frappe.respond_as_web_page(
+			_("Link not valid"),
+			_("This unsubscribe link is not valid. Use the link in your latest email."),
+			http_status_code=404,
+			indicator_color="red",
+		)
+		return
+
+	if frappe.request and frappe.request.method == "POST":
+		subscriber = frappe.get_doc("Subscriber", subscriber)
+		subscriber.unsubscribe()
+		subscriber.save(ignore_permissions=True)
+		frappe.respond_as_web_page(
+			_("You are unsubscribed"),
+			_("You will not get more emails from this list."),
+			indicator_color="green",
+		)
+		return
+
+	frappe.respond_as_web_page(
+		_("Unsubscribe"),
+		frappe.render_template(
+			"bwh_os/templates/includes/unsubscribe_form.html",
+			{
+				"email": subscriber,
+				# A logged-in browser must send the CSRF token with the POST.
+				"csrf_token": frappe.sessions.get_csrf_token() if frappe.session.user != "Guest" else None,
+			},
+		),
+		indicator_color="orange",
+	)
+
+
 @frappe.whitelist(methods=["GET"])
 def get_signup_counts() -> dict[str, int]:
 	"""Subscriber count per signup form."""

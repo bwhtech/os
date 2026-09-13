@@ -1,0 +1,5 @@
+<p>Stop all emails from this list to <strong>{{ email }}</strong>?</p>
+<form method="post">
+	{% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token }}" />{% endif %}
+	<button type="submit" class="btn btn-primary btn-sm btn-block">Unsubscribe</button>
+</form>
