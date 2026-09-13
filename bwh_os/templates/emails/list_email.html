@@ -12,11 +12,5 @@
 	</p>
 	{% endif %}
 
-	<hr style="margin: 32px 0 16px; border: 0; border-top: 1px solid #e5e5e5;" />
-	<p style="margin: 0; font-size: 12px; line-height: 1.5; color: #737373;">
-		{% if settings.company_name %}{{ settings.company_name }}<br />{% endif %}
-		{% if settings.gstin %}GSTIN: {{ settings.gstin }}<br />{% endif %}
-		{% if settings.postal_address %}{{ settings.postal_address | e | replace("\n", "<br />") }}<br />{% endif %}
-		<a href="{{ unsubscribe_url }}" style="color: #737373;">Unsubscribe</a>
-	</p>
+	{% include "bwh_os/templates/emails/list_footer.html" %}
 </div>

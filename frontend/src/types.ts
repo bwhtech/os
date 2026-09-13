@@ -1,3 +1,5 @@
+import type { JSONContent } from '@tiptap/core'
+
 export type SubscriberStatus = 'Pending' | 'Active' | 'Unsubscribed' | 'Bounced'
 
 export interface TagRow {
@@ -72,4 +74,20 @@ export interface ImportProgressEvent {
 	errors: { email: string; error: string }[]
 	/** Why the whole import failed */
 	message: string | null
+}
+
+/** A TipTap document from the newsletter editor */
+export type EmailDocument = JSONContent
+
+export type NewsletterStatus = 'Draft' | 'Scheduled' | 'Sending' | 'Sent' | 'Failed'
+
+export interface NewsletterIssue {
+	name: string
+	subject: string
+	preview_text: string | null
+	status: NewsletterStatus
+	/** The API returns JSON fields as a string */
+	content_json: string | EmailDocument | null
+	content_html: string | null
+	modified: string
 }

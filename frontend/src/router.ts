@@ -30,6 +30,17 @@ const routes: RouteRecordRaw[] = [
 		component: () => import('@/pages/LeadMagnetPage.vue'),
 		props: true,
 	},
+	{
+		path: '/newsletters',
+		name: 'Newsletters',
+		component: () => import('@/pages/NewslettersPage.vue'),
+	},
+	{
+		path: '/newsletters/:issueId',
+		name: 'Newsletter',
+		component: () => import('@/pages/NewsletterPage.vue'),
+		props: true,
+	},
 	{ path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

@@ -1,0 +1,8 @@
+{# Not an <hr>: Frappe's CSS inliner puts border: 0 after border-top, which hides the line. #}
+<div style="margin: 32px 0 16px; border-top: 1px solid #e5e5e5;"></div>
+<p style="margin: 0; font-size: 12px; line-height: 1.5; color: #737373;">
+	{% if settings.company_name %}{{ settings.company_name }}<br />{% endif %}
+	{% if settings.gstin %}GSTIN: {{ settings.gstin }}<br />{% endif %}
+	{% if settings.postal_address %}{{ settings.postal_address | e | replace("\n", "<br />") }}<br />{% endif %}
+	<a href="{{ unsubscribe_url }}" style="color: #737373;">Unsubscribe</a>
+</p>

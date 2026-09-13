@@ -31,7 +31,7 @@ Kit did not fit. BWH wants its own list with no third-party tool for now.
 | Incentive | An email with a download link that has a token. The link serves a private file. Each download is logged. |
 | Segments | One list with tags. Unsubscribe removes the person from all sends. |
 | Import | CSV rows import as Active, with tags. |
-| Editor | An `EmailEditor.vue` wrapper. Slice 7 starts with a spike of `@react-email/editor`. See [Editor](#editor). |
+| Editor | An `EmailEditor.vue` wrapper around `@react-email/editor`. The spike in slice 7 passed. See [Editor](#editor). |
 
 ### Out of scope for v1
 
@@ -105,7 +105,7 @@ The form page in OS also shows the signup count, the confirm rate, and the embed
 | subject | Data | |
 | preview_text | Data | |
 | content_json | JSON | Editor document |
-| content_html | Long Text | Email-safe HTML, made from `content_json` on save |
+| content_html | Long Text | Email-safe HTML. The editor makes it in the browser and OS saves it with `content_json`. |
 | audience | Select | All Active, Tags |
 | tags | Table MultiSelect | Used when audience is Tags |
 | status | Select | Draft, Scheduled, Sending, Sent, Failed |
@@ -215,6 +215,14 @@ The editor must accept custom blocks. We add these blocks after v1 (slice 13):
 - **YouTube video**: paste a YouTube URL. The block shows the video thumbnail (`https://img.youtube.com/vi/<id>/maxresdefault.jpg`) with a play button and the title. The whole block links to the video on YouTube. Email clients do not play embedded video.
 
 The spike passes only if we can add a custom block that serializes to email HTML. Test it with the YouTube block.
+
+Spike result (slice 7): passed. A YouTube `EmailNode` with `renderToReactEmail` serialized to table HTML, and typing and slash commands work in the shadow root. Notes for later slices:
+
+- The serializer (`composeReactEmail`) runs in the browser, so the server cannot make `content_html` from `content_json`.
+- `EmailEditor` always adds the default slash commands. Custom blocks (slice 13) need our own `EditorProvider` with `SlashCommand items`.
+- The editor puts some styles in `document.head` and its menus in `document.body`. The wrapper copies the node styles into the shadow root and loads the menu theme on the page.
+- The code block loads Prism CSS from `/styles/prism/`, which OS does not serve. Code blocks show no syntax colors in the editor.
+- The editor chunk is about 720 KB gzip. It loads only on the newsletter page.
 
 ## Slices
 

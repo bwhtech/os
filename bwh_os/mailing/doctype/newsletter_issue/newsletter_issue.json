@@ -1,0 +1,85 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-09-13 16:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "subject",
+  "preview_text",
+  "status",
+  "content_section",
+  "content_json",
+  "content_html"
+ ],
+ "fields": [
+  {
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Subject",
+   "reqd": 1
+  },
+  {
+   "description": "Inbox apps show it after the subject",
+   "fieldname": "preview_text",
+   "fieldtype": "Data",
+   "label": "Preview Text"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nScheduled\nSending\nSent\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "description": "The editor document",
+   "fieldname": "content_json",
+   "fieldtype": "JSON",
+   "label": "Content JSON"
+  },
+  {
+   "description": "Email HTML that the OS editor makes from the content JSON",
+   "fieldname": "content_html",
+   "fieldtype": "Long Text",
+   "label": "Content HTML",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "links": [],
+ "modified": "2026-09-13 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Mailing",
+ "name": "Newsletter Issue",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "subject",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "subject",
+ "track_changes": 1
+}

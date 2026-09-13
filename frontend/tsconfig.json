@@ -10,10 +10,12 @@
       "#utils/*": ["./node_modules/frappe-ui/src/utils/*"]
     },
     "types": ["vite/client", "node"],
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "jsx": "react-jsx"
   },
   "include": [
     "src/**/*.ts",
+    "src/**/*.tsx",
     "src/**/*.d.ts",
     "src/**/*.vue",
     "vite.config.ts",

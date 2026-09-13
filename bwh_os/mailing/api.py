@@ -55,6 +55,15 @@ def import_subscribers(content: str, mapping: dict, tags: list[str] | None = Non
 	return SubscriberImport(content, mapping, tags).enqueue()
 
 
+@frappe.whitelist(methods=["POST"])
+def send_test_newsletter(issue: str) -> str:
+	"""Send the saved issue to the current user. Returns the address."""
+	frappe.only_for("System Manager")
+	recipient = frappe.db.get_value("User", frappe.session.user, "email")
+	frappe.get_doc("Newsletter Issue", issue).send_test(recipient)
+	return recipient
+
+
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def download_lead_magnet(lead_magnet: str, token: str) -> None:
 	"""The link in the welcome email. The subscriber token stands in for a login."""

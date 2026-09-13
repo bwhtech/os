@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import react from '@vitejs/plugin-react'
 import frappeui from 'frappe-ui/vite'
 
 export default defineConfig({
@@ -17,11 +18,15 @@ export default defineConfig({
 			},
 		}),
 		vue(),
+		// Only the newsletter editor uses React.
+		react({ include: /\.tsx$/ }),
 	],
 	resolve: {
 		alias: {
 			'@': path.resolve(__dirname, 'src'),
 		},
+		// @react-email/editor pins a newer TipTap than frappe-ui. Two copies break ProseMirror.
+		dedupe: ['@tiptap/core', '@tiptap/pm'],
 	},
 	optimizeDeps: {
 		// frappe-ui ships unbuilt source with `~icons/lucide/*` virtual imports
