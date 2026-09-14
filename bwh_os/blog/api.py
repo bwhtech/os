@@ -6,6 +6,7 @@ import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
 
+from bwh_os.blog import stats
 from bwh_os.blog.comments import public_comments
 from bwh_os.blog.doctype.bwh_blog_post.bwh_blog_post import get_or_create_post
 from bwh_os.mailing.api import SIGNUP_API_ROLE
@@ -80,6 +81,13 @@ def delete_comments(ids: list[int]) -> int:
 	for name in names:
 		frappe.delete_doc("BWH Blog Comment", name)
 	return len(names)
+
+
+@frappe.whitelist(methods=["GET"])
+def get_overview() -> dict:
+	"""Comment activity, likes, and top posts for the Blog overview page."""
+	frappe.only_for("System Manager")
+	return stats.blog_overview()
 
 
 def limit_likes_per_post(ip: str, post_id: str):

@@ -89,7 +89,7 @@ OS methods. Only System Manager can call them.
 |---|---|
 | `set_hidden(ids, hidden)` (POST) | Saves each comment, so the realtime update goes out |
 | `delete_comments(ids)` (POST) | Deletes each comment |
-| `get_overview()` (GET) | Slice 4 |
+| `get_overview()` (GET) | Comment activity (total, last 30 days against the 30 before, per week), hidden count, total likes, and the top 10 posts by comments and by likes |
 
 ### Blog repo
 
@@ -121,11 +121,12 @@ The layout follows the Tasks recipe in frappe-ui (`docs/components/recipes/Tasks
 
 Slice 2 adds a filter bar with `TabButtons` (All, Visible, Hidden) and search, a row menu, and selection with a bar for bulk actions. Slice 3 adds Delete with a confirmation dialog.
 
-**Overview** (`/blog`)
+**Overview** (`/blog/overview`)
 
-- Number cards: comments, hidden comments, and likes.
+- Number cards: comments in the last 30 days, all comments, hidden comments, and likes.
 - A bar chart of comments per week for the last 12 weeks.
-- Top posts by comments and by likes.
+- Two horizontal bar charts: the top 10 posts by comments and by likes, most first. Click a bar to open the comments of the post.
+- The page reloads on `list_update`, like the Comments page.
 
 ### Local development
 

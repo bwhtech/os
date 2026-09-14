@@ -7,6 +7,7 @@ from bwh_os.blog.api import (
 	add_comment,
 	delete_comments,
 	get_engagement,
+	get_overview,
 	like_post,
 	set_hidden,
 )
@@ -82,6 +83,24 @@ class IntegrationTestBlogApi(IntegrationTestCase):
 
 		self.assertFalse(frappe.db.exists("BWH Blog Comment", {"name": ("in", ids)}))
 
+	def test_overview_counts_comments_likes_and_top_posts(self, _titles):
+		for body in ("One", "Two"):
+			add_comment("stories/overview-test", "Ada", "ada@example.com", body, random_ip())
+		hidden = add_comment("stories/overview-test", "Bot", "bot@example.com", "Spam", random_ip())
+		set_hidden([hidden["id"]], True)
+		like_post("stories/overview-test", random_ip())
+		before = get_overview()
+		like_post("stories/overview-test", random_ip())
+
+		overview = get_overview()
+
+		self.assertGreaterEqual(overview["comments"]["total"], 3)
+		self.assertGreaterEqual(overview["comments"]["last_period"], 3)
+		self.assertGreaterEqual(overview["hidden"], 1)
+		self.assertEqual(overview["likes"], before["likes"] + 1)
+		top = next(post for post in overview["top_by_comments"] if post.post_id == "stories/overview-test")
+		self.assertEqual(top["count"], 3)
+
 	def test_website_methods_need_the_api_role(self, _titles):
 		frappe.set_user("Guest")
 
@@ -91,3 +110,5 @@ class IntegrationTestBlogApi(IntegrationTestCase):
 			set_hidden([1], True)
 		with self.assertRaises(frappe.PermissionError):
 			delete_comments([1])
+		with self.assertRaises(frappe.PermissionError):
+			get_overview()

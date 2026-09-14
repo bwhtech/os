@@ -240,3 +240,18 @@ export interface BlogPost {
 	/** Newest first */
 	comments: BlogComment[]
 }
+
+export interface BlogTopPost {
+	post_id: string
+	title: string | null
+	count: number
+}
+
+/** From `bwh_os.blog.api.get_overview` */
+export interface BlogOverview {
+	comments: Activity
+	hidden: number
+	likes: number
+	top_by_comments: BlogTopPost[]
+	top_by_likes: BlogTopPost[]
+}

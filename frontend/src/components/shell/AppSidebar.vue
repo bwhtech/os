@@ -65,7 +65,10 @@ const SECTIONS = [
 	},
 	{
 		label: 'Blog',
-		items: [{ to: '/blog/comments', label: 'Comments', icon: 'lucide-message-square' }],
+		items: [
+			{ to: '/blog/overview', label: 'Overview', icon: 'lucide-chart-column' },
+			{ to: '/blog/comments', label: 'Comments', icon: 'lucide-message-square' },
+		],
 	},
 ]
 
