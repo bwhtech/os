@@ -1,16 +1,18 @@
 <template>
-	<PageHeader>
-		<PageHeaderTitle class="min-w-0 flex-1">
-			<h1 class="truncate">Forms</h1>
-		</PageHeaderTitle>
-		<Button
-			variant="solid"
-			theme="gray"
-			icon-left="lucide-plus"
-			label="New Form"
-			@click="newOpen = true"
-		/>
-	</PageHeader>
+	<AppPageHeader title="Forms">
+		<template #actions>
+			<Button
+				variant="solid"
+				theme="gray"
+				icon-left="lucide-plus"
+				label="New Form"
+				@click="newOpen = true"
+			/>
+		</template>
+		<template #mobile-actions>
+			<Button variant="ghost" size="md" icon="lucide-plus" aria-label="New Form" @click="newOpen = true" />
+		</template>
+	</AppPageHeader>
 
 	<div class="px-3 py-5 pb-10 sm:px-5">
 		<ListSkeleton v-if="forms.loading && !forms.data" />
@@ -85,11 +87,10 @@ import {
 	Badge,
 	Button,
 	ErrorMessage,
-	PageHeader,
-	PageHeaderTitle,
 	useCall,
 	useList,
 } from 'frappe-ui'
+import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import NewFormDialog from '@/components/forms/NewFormDialog.vue'

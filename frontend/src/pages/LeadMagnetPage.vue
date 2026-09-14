@@ -1,17 +1,16 @@
 <template>
-	<PageHeader>
-		<div class="min-w-0 flex-1">
-			<Breadcrumbs :items="breadcrumbs" />
-		</div>
-		<Button
-			variant="solid"
-			theme="gray"
-			label="Save"
-			:loading="leadMagnet.setValue.loading"
-			:disabled="!dirty"
-			@click="save"
-		/>
-	</PageHeader>
+	<AppPageHeader :breadcrumbs="breadcrumbs">
+		<template #actions>
+			<Button
+				variant="solid"
+				theme="gray"
+				label="Save"
+				:loading="leadMagnet.setValue.loading"
+				:disabled="!dirty"
+				@click="save"
+			/>
+		</template>
+	</AppPageHeader>
 
 	<div class="mx-auto max-w-2xl space-y-8 px-3 py-6 pb-20 sm:px-5">
 		<DetailSkeleton v-if="!leadMagnet.doc && !leadMagnet.error" />
@@ -43,16 +42,15 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
 import {
-	Breadcrumbs,
 	Button,
 	ErrorMessage,
-	PageHeader,
 	TextInput,
 	Textarea,
 	toast,
 	useCall,
 	useDoc,
 } from 'frappe-ui'
+import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import LeadMagnetDownloads from '@/components/lead-magnets/LeadMagnetDownloads.vue'
 import LeadMagnetFileInput from '@/components/lead-magnets/LeadMagnetFileInput.vue'

@@ -1,9 +1,5 @@
 <template>
-	<PageHeader>
-		<PageHeaderTitle class="min-w-0 flex-1">
-			<h1 class="truncate">Comments</h1>
-		</PageHeaderTitle>
-	</PageHeader>
+	<AppPageHeader title="Comments" />
 
 	<div class="px-3 py-5 pb-10 sm:px-5">
 		<ListSkeleton v-if="!comments.data && !error" />
@@ -58,8 +54,6 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
 	ErrorMessage,
-	PageHeader,
-	PageHeaderTitle,
 	dayjs,
 	debounce,
 	dialog,
@@ -67,6 +61,7 @@ import {
 	useCall,
 	useList,
 } from 'frappe-ui'
+import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import CommentGroup from '@/components/blog/CommentGroup.vue'
 import CommentToolbar from '@/components/blog/CommentToolbar.vue'

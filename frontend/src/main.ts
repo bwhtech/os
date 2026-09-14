@@ -19,6 +19,14 @@ async function loadDevBootData() {
 	}
 }
 
+/** The worker gives the installed app an offline page. See `bwh_os/pwa.py`. */
+function registerServiceWorker() {
+	if (import.meta.env.DEV || !('serviceWorker' in navigator)) return
+	navigator.serviceWorker
+		.register('/api/method/bwh_os.pwa.service_worker', { scope: '/os' })
+		.catch((error) => console.warn('Service worker registration failed', error))
+}
+
 async function start() {
 	await loadDevBootData()
 	setConfig('systemTimezone', window.system_timezone ?? null)
@@ -27,6 +35,7 @@ async function start() {
 	app.use(router)
 	app.use(FrappeUI)
 	app.mount('#app')
+	registerServiceWorker()
 }
 
 start()

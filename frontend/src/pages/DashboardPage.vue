@@ -1,9 +1,5 @@
 <template>
-	<PageHeader>
-		<PageHeaderTitle class="min-w-0 flex-1">
-			<h1 class="truncate">Dashboard</h1>
-		</PageHeaderTitle>
-	</PageHeader>
+	<AppPageHeader title="Dashboard" />
 
 	<div class="space-y-4 px-3 py-5 pb-10 sm:px-5">
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -51,7 +47,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { PageHeader, PageHeaderTitle, dayjs, useCall } from 'frappe-ui'
+import { dayjs, useCall } from 'frappe-ui'
+import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import {
 	BarChart,
 	DonutChart,

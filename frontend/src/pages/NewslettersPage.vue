@@ -1,16 +1,18 @@
 <template>
-	<PageHeader>
-		<PageHeaderTitle class="min-w-0 flex-1">
-			<h1 class="truncate">Newsletters</h1>
-		</PageHeaderTitle>
-		<Button
-			variant="solid"
-			theme="gray"
-			icon-left="lucide-plus"
-			label="New Newsletter"
-			@click="newOpen = true"
-		/>
-	</PageHeader>
+	<AppPageHeader title="Newsletters">
+		<template #actions>
+			<Button
+				variant="solid"
+				theme="gray"
+				icon-left="lucide-plus"
+				label="New Newsletter"
+				@click="newOpen = true"
+			/>
+		</template>
+		<template #mobile-actions>
+			<Button variant="ghost" size="md" icon="lucide-plus" aria-label="New Newsletter" @click="newOpen = true" />
+		</template>
+	</AppPageHeader>
 
 	<div class="px-3 py-5 pb-10 sm:px-5">
 		<ListSkeleton v-if="issues.loading && !issues.data" />
@@ -96,11 +98,10 @@ import {
 	Badge,
 	Button,
 	ErrorMessage,
-	PageHeader,
-	PageHeaderTitle,
 	dayjs,
 	useList,
 } from 'frappe-ui'
+import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import NewNewsletterDialog from '@/components/newsletters/NewNewsletterDialog.vue'

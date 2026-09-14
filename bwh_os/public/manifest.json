@@ -3,9 +3,12 @@
   "short_name": "BWH OS",
   "description": "Control panel for BWH",
   "id": "/os",
-  "start_url": "/os",
+  "start_url": "/os/dashboard",
   "scope": "/os",
   "display": "standalone",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
   "theme_color": "#344E97",
   "background_color": "#344E97",
   "icons": [
@@ -18,5 +21,22 @@
       "purpose": "maskable"
     },
     { "src": "/assets/bwh_os/images/os-logo.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Subscribers",
+      "url": "/os/subscribers",
+      "icons": [{ "src": "/assets/bwh_os/images/os-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Newsletters",
+      "url": "/os/newsletters",
+      "icons": [{ "src": "/assets/bwh_os/images/os-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Blog Comments",
+      "url": "/os/blog/comments",
+      "icons": [{ "src": "/assets/bwh_os/images/os-192.png", "sizes": "192x192" }]
+    }
   ]
 }

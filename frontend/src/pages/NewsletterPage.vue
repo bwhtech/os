@@ -1,15 +1,14 @@
 <template>
-	<PageHeader>
-		<div class="flex min-w-0 flex-1 items-center gap-2">
-			<Breadcrumbs :items="breadcrumbs" />
+	<AppPageHeader :breadcrumbs="breadcrumbs">
+		<template #title-suffix>
 			<Badge
 				v-if="issue.doc && !isDraft"
 				:label="issue.doc.status"
 				:theme="STATUS_THEMES[issue.doc.status]"
 				variant="subtle"
 			/>
-		</div>
-		<div class="flex shrink-0 gap-2">
+		</template>
+		<template #actions>
 			<Button
 				v-if="issue.doc?.status === 'Sent'"
 				:label="issue.doc.is_public ? 'Public' : 'Publish'"
@@ -32,8 +31,15 @@
 					@click="sendOpen = true"
 				/>
 			</template>
-		</div>
-	</PageHeader>
+		</template>
+		<!-- The narrow header keeps Save and folds the rest into a menu. -->
+		<template #mobile-actions>
+			<Button v-if="isDraft" label="Save" :loading="saving" :disabled="!dirty" @click="save" />
+			<Dropdown :options="mobileMenu" align="end">
+				<Button variant="ghost" size="md" icon="lucide-ellipsis" aria-label="More actions" />
+			</Dropdown>
+		</template>
+	</AppPageHeader>
 
 	<!-- Wide enough for the 600px email and the inspector side by side. -->
 	<div class="mx-auto max-w-5xl space-y-6 px-3 py-6 pb-20 sm:px-5">
@@ -124,10 +130,9 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, useTemplateRef, wa
 import {
 	Alert,
 	Badge,
-	Breadcrumbs,
 	Button,
+	Dropdown,
 	ErrorMessage,
-	PageHeader,
 	Skeleton,
 	TabButtons,
 	TextInput,
@@ -135,7 +140,9 @@ import {
 	toast,
 	useCall,
 	useDoc,
+	type DropdownOptions,
 } from 'frappe-ui'
+import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import EmailComposer from '@/components/email/EmailComposer.vue'
 import EmailPreview from '@/components/email/EmailPreview.vue'
 import NewsletterAudience from '@/components/newsletters/NewsletterAudience.vue'
@@ -208,6 +215,27 @@ const breadcrumbs = computed(() => [
 	{ label: 'Newsletters', route: '/newsletters' },
 	{ label: issue.doc?.subject ?? props.issueId },
 ])
+
+/** The header actions that do not fit the mobile header. */
+const mobileMenu = computed<DropdownOptions>(() => {
+	const doc = issue.doc
+	if (!doc) return []
+	return [
+		...(isDraft.value
+			? [{ label: 'Send', icon: 'lucide-send', onClick: () => (sendOpen.value = true) }]
+			: []),
+		{ label: 'Send Test', icon: 'lucide-flask-conical', onClick: () => (sendTestOpen.value = true) },
+		...(doc.status === 'Sent'
+			? [
+					{
+						label: doc.is_public ? 'Public' : 'Publish',
+						icon: 'lucide-globe',
+						onClick: () => (publishOpen.value = true),
+					},
+				]
+			: []),
+	]
+})
 
 const saved = computed(() => {
 	const doc = issue.doc

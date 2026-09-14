@@ -1,17 +1,16 @@
 <template>
-	<PageHeader>
-		<div class="min-w-0 flex-1">
-			<Breadcrumbs :items="breadcrumbs" />
-		</div>
-		<Button
-			variant="solid"
-			theme="gray"
-			label="Save"
-			:loading="form.setValue.loading"
-			:disabled="!dirty"
-			@click="save"
-		/>
-	</PageHeader>
+	<AppPageHeader :breadcrumbs="breadcrumbs">
+		<template #actions>
+			<Button
+				variant="solid"
+				theme="gray"
+				label="Save"
+				:loading="form.setValue.loading"
+				:disabled="!dirty"
+				@click="save"
+			/>
+		</template>
+	</AppPageHeader>
 
 	<!-- Wide enough for the email editor and its inspector. Form fields keep a narrow column. -->
 	<div class="mx-auto max-w-5xl space-y-8 px-3 py-6 pb-20 sm:px-5">
@@ -87,16 +86,15 @@
 <script setup lang="ts">
 import { computed, reactive, ref, useTemplateRef, watch } from "vue";
 import {
-	Breadcrumbs,
 	Button,
 	ErrorMessage,
-	PageHeader,
 	Switch,
 	TextInput,
 	Textarea,
 	toast,
 	useDoc,
 } from "frappe-ui";
+import AppPageHeader from "@/components/shell/AppPageHeader.vue";
 import DetailSkeleton from "@/components/stats/DetailSkeleton.vue";
 import ConfirmEmailSection from "@/components/forms/ConfirmEmailSection.vue";
 import ConfirmRateCard from "@/components/forms/ConfirmRateCard.vue";

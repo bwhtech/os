@@ -1,9 +1,5 @@
 <template>
-	<PageHeader>
-		<PageHeaderTitle class="min-w-0 flex-1">
-			<h1 class="truncate">Blog</h1>
-		</PageHeaderTitle>
-	</PageHeader>
+	<AppPageHeader title="Blog" />
 
 	<div class="space-y-4 px-3 py-5 pb-10 sm:px-5">
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -28,7 +24,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { PageHeader, PageHeaderTitle, dayjs, debounce, useCall } from 'frappe-ui'
+import { dayjs, debounce, useCall } from 'frappe-ui'
+import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import {
 	BarChart,
 	NumberCard,

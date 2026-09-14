@@ -1,10 +1,6 @@
 <template>
-	<PageHeader>
-		<PageHeaderTitle class="min-w-0 flex-1">
-			<h1 class="truncate">Subscribers</h1>
-		</PageHeaderTitle>
-		<!-- PageHeader puts no gap between its children. -->
-		<div class="flex shrink-0 gap-2">
+	<AppPageHeader title="Subscribers">
+		<template #actions>
 			<Button icon-left="lucide-upload" label="Import" @click="importOpen = true" />
 			<Button
 				variant="solid"
@@ -13,8 +9,13 @@
 				label="Add Subscriber"
 				@click="addOpen = true"
 			/>
-		</div>
-	</PageHeader>
+		</template>
+		<template #mobile-actions>
+			<Dropdown :options="addMenu" align="end">
+				<Button variant="ghost" size="md" icon="lucide-plus" aria-label="Add subscribers" />
+			</Dropdown>
+		</template>
+	</AppPageHeader>
 
 	<div class="space-y-4 px-3 py-5 pb-10 sm:px-5">
 		<SubscriberFilters ref="filtersRef" v-model="filters" />
@@ -45,11 +46,12 @@
 import { computed, ref, watch } from 'vue'
 import {
 	Button,
+	Dropdown,
 	ErrorMessage,
-	PageHeader,
-	PageHeaderTitle,
 	debounce,
+	type DropdownOptions,
 } from 'frappe-ui'
+import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import ListPagination from '@/components/list/ListPagination.vue'
 import AddSubscriberDialog from '@/components/subscribers/AddSubscriberDialog.vue'
@@ -64,6 +66,11 @@ import type { Subscriber } from '@/types'
 
 const addOpen = ref(false)
 const importOpen = ref(false)
+
+const addMenu: DropdownOptions = [
+	{ label: 'Add Subscriber', icon: 'lucide-user-plus', onClick: () => (addOpen.value = true) },
+	{ label: 'Import', icon: 'lucide-upload', onClick: () => (importOpen.value = true) },
+]
 const filtersRef = ref<InstanceType<typeof SubscriberFilters>>()
 const filters = ref<SubscriberFilterValues>({ search: '', status: '', tag: '', form: '' })
 const debouncedSearch = ref('')

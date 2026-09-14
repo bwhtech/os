@@ -29,8 +29,6 @@
 			</Dropdown>
 		</div>
 	</Sidebar>
-
-	<AppSettingsDialog v-model:open="settingsOpen" />
 </template>
 
 <script setup lang="ts">
@@ -44,36 +42,13 @@ import {
 	SidebarSection,
 	type DropdownOptions,
 } from 'frappe-ui'
-import { ref } from 'vue'
 import { useRoute } from 'vue-router'
-import AppSettingsDialog from '@/components/settings/AppSettingsDialog.vue'
 import { useSession } from '@/composables/useSession'
+import { LOGO_URL, SECTIONS } from '@/lib/navigation'
 
-const LOGO_URL = '/assets/bwh_os/images/os-logo.svg'
-
-/** One sidebar section per OS module. */
-const SECTIONS = [
-	{
-		label: 'Email List',
-		items: [
-			{ to: '/dashboard', label: 'Dashboard', icon: 'lucide-layout-dashboard' },
-			{ to: '/subscribers', label: 'Subscribers', icon: 'lucide-users' },
-			{ to: '/forms', label: 'Forms', icon: 'lucide-clipboard-list' },
-			{ to: '/lead-magnets', label: 'Lead Magnets', icon: 'lucide-gift' },
-			{ to: '/newsletters', label: 'Newsletters', icon: 'lucide-newspaper' },
-		],
-	},
-	{
-		label: 'Blog',
-		items: [
-			{ to: '/blog/overview', label: 'Overview', icon: 'lucide-chart-column' },
-			{ to: '/blog/comments', label: 'Comments', icon: 'lucide-message-square' },
-		],
-	},
-]
+const emit = defineEmits<{ 'open-settings': [] }>()
 
 const route = useRoute()
-const settingsOpen = ref(false)
 const { user, logout } = useSession()
 
 const workspaceMenu = [
@@ -87,9 +62,7 @@ const workspaceMenu = [
 	{
 		label: 'Settings',
 		icon: 'lucide-settings',
-		onClick: () => {
-			settingsOpen.value = true
-		},
+		onClick: () => emit('open-settings'),
 	},
 ]
 
