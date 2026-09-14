@@ -2,7 +2,7 @@ import { InputRule, PasteRule } from '@tiptap/core'
 import { Mention } from '@tiptap/extension-mention'
 import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion'
 import { EmailNode } from '@react-email/editor/core'
-import type { EmailVariable } from '@/lib/emailVariables'
+import { describe, type EmailVariable } from '@/lib/emailVariables'
 
 /** `{{ first_name }}` typed or pasted as text */
 const TYPED_VARIABLE = /\{\{\s*([a-z_]+)\s*\}\}$/
@@ -73,11 +73,6 @@ export function variableExtension(variables: EmailVariable[]) {
 	})
 
 	return EmailNode.from(node, ({ node }) => `{{ ${node.attrs?.id} }}`)
-}
-
-export function describe(variable: EmailVariable): string {
-	const fallback = variable.fallback ? ` When empty: “${variable.fallback}”.` : ''
-	return `${variable.description}${fallback}`
 }
 
 function filterVariables(variables: EmailVariable[], query: string) {

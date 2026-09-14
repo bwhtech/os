@@ -12,6 +12,12 @@ export interface EmailVariable {
 	sample: string
 }
 
+/** The tooltip text of a variable */
+export function describe(variable: EmailVariable): string {
+	const fallback = variable.fallback ? ` When empty: “${variable.fallback}”.` : ''
+	return `${variable.description}${fallback}`
+}
+
 const FIRST_NAME: EmailVariable = {
 	key: 'first_name',
 	label: 'First name',

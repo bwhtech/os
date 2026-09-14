@@ -1,0 +1,8 @@
+{
+  // React Email and frappe-ui/editor declare the same Tiptap commands with different
+  // types, so one program cannot load both. This project checks the React Email editor,
+  // and tsconfig.json checks the Vue app. They meet in email-editor/api.ts.
+  "extends": "./tsconfig.json",
+  "include": ["src/components/email/email-editor/**/*", "src/env.d.ts", "src/shims.d.ts"],
+  "exclude": []
+}

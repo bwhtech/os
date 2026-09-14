@@ -3,6 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@/components/email/email-editor/mount": ["./src/components/email/email-editor/api.ts"],
       "@/*": ["./src/*"],
       "#components/*": ["./node_modules/frappe-ui/src/components/*"],
       "#molecules/*": ["./node_modules/frappe-ui/src/molecules/*"],
@@ -21,5 +22,7 @@
     "vite.config.ts",
     "tailwind.config.js",
     "postcss.config.js"
-  ]
+  ],
+  // The React Email editor typechecks on its own. See tsconfig.email.json.
+  "exclude": ["src/components/email/email-editor/**"]
 }

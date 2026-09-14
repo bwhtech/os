@@ -30,9 +30,8 @@ import { ref, useTemplateRef, watch } from 'vue'
 import { Badge, Select, TabButtons, Tooltip } from 'frappe-ui'
 import EmailEditor from '@/components/email/EmailEditor.vue'
 import EmailPreview from '@/components/email/EmailPreview.vue'
-import { describe } from '@/components/email/email-editor/variables'
 import { fillFooter } from '@/lib/emailFooter'
-import { fillSamples, type EmailVariable } from '@/lib/emailVariables'
+import { describe, fillSamples, type EmailVariable } from '@/lib/emailVariables'
 import type { EmailDocument, NewsletterTheme } from '@/types'
 
 /** The editor, a preview with sample values, and the theme picker. Used for every email in OS. */

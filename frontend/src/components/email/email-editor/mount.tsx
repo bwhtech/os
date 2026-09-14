@@ -14,21 +14,7 @@ import { extraStylesCss, extraThemeStyles } from './extraStyles'
 import { EMAIL_THEMES } from './themes'
 import { variableExtension } from './variables'
 import type { EmailVariable } from '@/lib/emailVariables'
-
-export interface EmailEditorApi {
-	/** Email-safe HTML for the current document, as a full HTML document. */
-	getHtml: (previewText: string) => Promise<string>
-}
-
-interface MountOptions {
-	content: JSONContent | null
-	theme: NewsletterTheme
-	/** The `{{` menu offers these. With none, the editor has no variables. */
-	variables: EmailVariable[]
-	onChange: (json: JSONContent) => void
-	onReady: (api: EmailEditorApi) => void
-	uploadImage: (file: File) => Promise<{ url: string }>
-}
+import type { EmailEditorApi, MountedEmailEditor, MountOptions } from './api'
 
 /**
  * The editor theme follows prefers-color-scheme, not the OS theme switch. The menus on the page use
@@ -132,7 +118,7 @@ const EDITOR_CSS = `
  * Mount the React Email editor in a shadow root, so its styles and the frappe-ui styles stay apart.
  * The slash menu and link forms render into document.body, so the theme also goes on the page once.
  */
-export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
+export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions): MountedEmailEditor {
 	addPageTheme()
 	addBlockSlashCommands()
 	const style = document.createElement('style')
@@ -179,7 +165,6 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions) {
 	render(options.theme, options.content)
 
 	return {
-		/** Restyle the current content. The undo history starts again. */
 		setTheme(theme: NewsletterTheme) {
 			const content = editorRef ? withoutThemeStyles(editorRef.getJSON()) : options.content
 			render(theme, content)

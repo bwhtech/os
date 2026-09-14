@@ -14,7 +14,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Skeleton } from 'frappe-ui'
-import type { EmailEditorApi, mountEmailEditor } from './email-editor/mount'
+import type { EmailEditorApi, MountedEmailEditor } from '@/components/email/email-editor/api'
 import type { EmailVariable } from '@/lib/emailVariables'
 import type { EmailDocument, NewsletterTheme } from '@/types'
 
@@ -33,11 +33,12 @@ const document_ = defineModel<EmailDocument | null>({ required: true })
 const host = ref<HTMLElement>()
 const ready = ref(false)
 let api: EmailEditorApi | null = null
-let mounted: ReturnType<typeof mountEmailEditor> | null = null
+let mounted: MountedEmailEditor | null = null
 
 onMounted(async () => {
 	// React and the editor are large, so they load only on this page.
-	const { mountEmailEditor } = await import('./email-editor/mount')
+	// Keep the alias. tsconfig.json points it at `api.ts`, so the app typecheck never loads React Email.
+	const { mountEmailEditor } = await import('@/components/email/email-editor/mount')
 	if (!host.value) return
 	mounted = mountEmailEditor(host.value.attachShadow({ mode: 'open' }), {
 		content: document_.value,
