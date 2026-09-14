@@ -57,6 +57,35 @@ const routes: RouteRecordRaw[] = [
 		name: 'Blog Comments',
 		component: () => import('@/pages/BlogCommentsPage.vue'),
 	},
+	{
+		path: '/videos',
+		name: 'Videos',
+		component: () => import('@/pages/VideosPage.vue'),
+	},
+	{
+		path: '/videos/:videoId',
+		name: 'Video',
+		component: () => import('@/pages/VideoPage.vue'),
+		props: true,
+	},
+	{
+		path: '/series',
+		name: 'Series List',
+		component: () => import('@/pages/SeriesListPage.vue'),
+	},
+	// Routes with a `seriesId` show the sidebar of that series. See AppShell.
+	{
+		path: '/series/:seriesId',
+		name: 'Series',
+		component: () => import('@/pages/SeriesPage.vue'),
+		props: true,
+	},
+	{
+		path: '/series/:seriesId/videos/:videoId',
+		name: 'Series Video',
+		component: () => import('@/pages/VideoPage.vue'),
+		props: true,
+	},
 	{ path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

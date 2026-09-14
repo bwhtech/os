@@ -42,15 +42,9 @@ Collect subscribers from bwh.tech, deliver lead magnets, and write and send news
 
 Store the likes and comments of bwh.tech/blog, moderate comments, see stats, and get an email for new comments. See [02-blog.md](02-blog.md).
 
-### 3. Content Pipeline
+### 3. Videos
 
-Track each video from idea to publish.
-
-- `Video`: title, lane (A: Frappe, B: open source for business), series, stage, target date, publish date, notes.
-- `Video Stage`: name and order. You can edit the stages from day one.
-- `Video Series`: groups videos, for example "Frappe Framework: Zero to Hero".
-
-The board is a Kanban with one column per stage. frappe-ui has no Kanban component. Build it like the bwh_hive board (`frontend/src/composables/useBoardDrag.ts`) with frappe-ui `Badge` and `ScrollArea`. The calendar view uses `Calendar` from `frappe-ui/experimental`.
+Track each video from idea to publish, alone or in an ordered series. Write the research, script, and description, and attach files. See [03-videos.md](03-videos.md).
 
 ### 4. Social Posts
 

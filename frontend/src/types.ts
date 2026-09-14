@@ -257,3 +257,57 @@ export interface BlogOverview {
 	top_by_comments: BlogTopPost[]
 	top_by_likes: BlogTopPost[]
 }
+
+export type VideoStatus =
+	| 'Idea'
+	| 'Researching'
+	| 'Scripting'
+	| 'Recording'
+	| 'Editing'
+	| 'Thumbnail Pending'
+	| 'Published'
+
+/** A `BWH Video` */
+export interface Video {
+	/** Autoincrement. The server sends a number, and useList types every name as a string. */
+	name: string
+	title: string
+	status: VideoStatus
+	series: string | null
+	/** Order in the series, from 1. 0 without a series. The server sets it. */
+	position: number
+	publish_on: string | null
+	youtube_url: string | null
+	research: string | null
+	script: string | null
+	description: string | null
+	modified: string
+}
+
+/** A `BWH Video Series` */
+export interface VideoSeries {
+	name: string
+	title: string
+	emoji: string | null
+	summary: string | null
+	notes: string | null
+}
+
+/** From `bwh_os.videos.api.get_series` */
+export interface VideoSeriesSummary {
+	name: number
+	title: string
+	emoji: string | null
+	summary: string | null
+	video_count: number
+	published_count: number
+}
+
+/** A `File` attached to a video. A link is a File whose URL points outside the site. */
+export interface VideoFile {
+	name: string
+	file_name: string | null
+	file_url: string
+	file_size: number
+	is_private: 0 | 1
+}

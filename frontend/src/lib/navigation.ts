@@ -28,6 +28,13 @@ export const SECTIONS: NavSection[] = [
 			{ to: '/blog/comments', label: 'Comments', icon: 'lucide-message-square' },
 		],
 	},
+	{
+		label: 'Videos',
+		items: [
+			{ to: '/videos', label: 'All Videos', icon: 'lucide-clapperboard' },
+			{ to: '/series', label: 'Series', icon: 'lucide-library' },
+		],
+	},
 ]
 
 /** The pages that get a tab in the mobile nav. The rest live in the "More" sheet. */

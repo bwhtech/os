@@ -1,0 +1,50 @@
+import { onBeforeUnmount, ref } from 'vue'
+import { toast } from 'frappe-ui'
+import { errorMessage } from '@/lib/errors'
+
+type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+
+/**
+ * Collects edits and saves them together after a pause in typing.
+ * Edits that arrive during a save wait for the next one, so a slow response
+ * never sends an old value after a newer one.
+ */
+export function useAutosave<T extends object>(save: (values: Partial<T>) => Promise<unknown>, delay = 800) {
+	const state = ref<SaveState>('idle')
+	let pending: Partial<T> = {}
+	let timer: ReturnType<typeof setTimeout> | undefined
+	let inFlight: Promise<void> | null = null
+
+	function queue(values: Partial<T>) {
+		Object.assign(pending, values)
+		clearTimeout(timer)
+		timer = setTimeout(flush, delay)
+	}
+
+	async function flush() {
+		clearTimeout(timer)
+		if (inFlight) await inFlight
+		if (!Object.keys(pending).length) return
+		const values = pending
+		pending = {}
+		inFlight = send(values)
+		await inFlight
+		inFlight = null
+	}
+
+	async function send(values: Partial<T>) {
+		state.value = 'saving'
+		try {
+			await save(values)
+			state.value = 'saved'
+		} catch (error) {
+			state.value = 'error'
+			toast.error(errorMessage(error as Error))
+		}
+	}
+
+	// Leaving the page must not drop the last few keystrokes.
+	onBeforeUnmount(flush)
+
+	return { state, queue, flush }
+}
