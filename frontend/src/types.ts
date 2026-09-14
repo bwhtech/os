@@ -211,3 +211,35 @@ export interface ListOverview {
 	/** The last 10 Sent issues, oldest first */
 	issue_rates: ({ name: string; subject: string; sent_at: string } & EngagementRates)[]
 }
+
+export interface BlogSettings {
+	name: 'Blog Settings'
+	turso_url: string | null
+	/** Masked by Frappe. Only tells if a token is saved. */
+	turso_token: string | null
+}
+
+/** A comment from the blog's Turso database. `created_at` is Unix seconds. */
+export interface BlogComment {
+	id: number
+	post_id: string
+	name: string
+	email: string
+	body: string
+	created_at: number
+	hidden: boolean
+}
+
+export interface BlogPost {
+	post_id: string
+	title: string
+	url: string
+	likes: number
+	/** Newest first */
+	comments: BlogComment[]
+}
+
+/** From `bwh_os.blog.api.get_comments` */
+export type BlogCommentFeed =
+	| { configured: false }
+	| { configured: true; db_host: string; truncated: boolean; posts: BlogPost[] }

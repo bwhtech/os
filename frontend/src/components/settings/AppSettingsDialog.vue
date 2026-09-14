@@ -14,12 +14,12 @@
 
 		<SettingsContent>
 			<EmailSettings :open="open" />
+			<BlogSettings :open="open" />
 		</SettingsContent>
 	</SettingsDialog>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import {
 	SettingsContent,
 	SettingsDialog,
@@ -27,10 +27,12 @@ import {
 	SettingsNavItem,
 	SettingsSidebar,
 } from 'frappe-ui'
+import BlogSettings from '@/components/settings/BlogSettings.vue'
 import EmailSettings from '@/components/settings/EmailSettings.vue'
+import { useSettingsDialog } from '@/composables/useSettingsDialog'
 
 /** All OS settings. Each module adds a group here and a component with its panels. */
-const open = defineModel<boolean>('open', { required: true })
+const { open, tab } = useSettingsDialog()
 
 const GROUPS = [
 	{
@@ -40,7 +42,9 @@ const GROUPS = [
 			{ label: 'Footer', value: 'footer', icon: 'lucide-building-2' },
 		],
 	},
+	{
+		label: 'Blog',
+		items: [{ label: 'Comments', value: 'blog-comments', icon: 'lucide-message-square' }],
+	},
 ]
-
-const tab = ref(GROUPS[0].items[0].value)
 </script>

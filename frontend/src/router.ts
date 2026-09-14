@@ -46,6 +46,11 @@ const routes: RouteRecordRaw[] = [
 		component: () => import('@/pages/NewsletterPage.vue'),
 		props: true,
 	},
+	{
+		path: '/blog/comments',
+		name: 'Blog Comments',
+		component: () => import('@/pages/BlogCommentsPage.vue'),
+	},
 	{ path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

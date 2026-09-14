@@ -30,7 +30,7 @@
 		</div>
 	</Sidebar>
 
-	<AppSettingsDialog v-model:open="settingsOpen" />
+	<AppSettingsDialog />
 </template>
 
 <script setup lang="ts">
@@ -44,10 +44,10 @@ import {
 	SidebarSection,
 	type DropdownOptions,
 } from 'frappe-ui'
-import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AppSettingsDialog from '@/components/settings/AppSettingsDialog.vue'
 import { useSession } from '@/composables/useSession'
+import { useSettingsDialog } from '@/composables/useSettingsDialog'
 
 const LOGO_URL = '/assets/bwh_os/images/os-logo.svg'
 
@@ -63,10 +63,14 @@ const SECTIONS = [
 			{ to: '/newsletters', label: 'Newsletters', icon: 'lucide-newspaper' },
 		],
 	},
+	{
+		label: 'Blog',
+		items: [{ to: '/blog/comments', label: 'Comments', icon: 'lucide-message-square' }],
+	},
 ]
 
 const route = useRoute()
-const settingsOpen = ref(false)
+const { openSettings } = useSettingsDialog()
 const { user, logout } = useSession()
 
 const workspaceMenu = [
@@ -80,9 +84,7 @@ const workspaceMenu = [
 	{
 		label: 'Settings',
 		icon: 'lucide-settings',
-		onClick: () => {
-			settingsOpen.value = true
-		},
+		onClick: () => openSettings(),
 	},
 ]
 
