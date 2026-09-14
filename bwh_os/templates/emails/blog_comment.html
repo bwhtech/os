@@ -1,0 +1,15 @@
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.5; color: #1f2937; max-width: 560px;">
+	<p style="margin: 0 0 4px; color: #6b7280;">New comment on</p>
+	<p style="margin: 0 0 20px; font-size: 17px; font-weight: 600;">
+		<a href="{{ post_url | e }}" style="color: #1f2937;">{{ post_title | e }}</a>
+	</p>
+	<p style="margin: 0 0 8px;">
+		<strong>{{ name | e }}</strong>
+		<span style="color: #6b7280;">&lt;{{ email | e }}&gt;</span>
+	</p>
+	{# Plain text from the blog form. Escape it and keep its line breaks. #}
+	<p style="margin: 0 0 24px; white-space: pre-line; padding: 12px 16px; background: #f3f4f6; border-radius: 8px;">{{ body | e }}</p>
+	<p style="margin: 0;">
+		<a class="btn" href="{{ moderate_url | e }}" style="display: inline-block; padding: 8px 16px; background: #171717; color: #ffffff; border-radius: 8px; text-decoration: none;">Moderate in OS</a>
+	</p>
+</div>

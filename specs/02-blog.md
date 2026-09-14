@@ -61,13 +61,15 @@ OS makes the post on its first like or comment.
 
 The name is an autoincrement number. The blog uses it as the comment id. `creation` is the comment time.
 
+`commenter_name` and `body` have `ignore_xss_filter`. The Frappe filter removes HTML-like text, so a comment such as "wrap it in `<template>`" would lose words. The blog and OS show both fields as text, and the email escapes them.
+
 | Field | Type | Notes |
 |---|---|---|
 | post | Link: BWH Blog Post | |
 | commenter_name | Data | Max 60 characters |
 | email | Data (Email) | Lowercased. Never shown on the blog. |
 | hidden | Check | Hidden comments do not show on the blog |
-| body | Text | Plain text. Max 2,000 characters. |
+| body | Text | Plain text, stored as typed. Max 2,000 characters. |
 
 ### API
 
@@ -104,7 +106,9 @@ The functions need only `FRAPPE_URL` and `FRAPPE_API_TOKEN`.
 
 ### Notifications
 
-In slice 5, `BWH Blog Comment.after_insert` sends an email if notifications are on. The email shows the post title, the name, the time, and the body. It has a "Moderate in OS" link to `/os/blog/comments?post=<post_id>`. `Mailing Settings` gets a toggle and a recipient email for blog notifications.
+`BWH Blog Comment.after_insert` queues an email if `notify_blog_comments` is on in `Mailing Settings`. The email goes to `blog_notification_email` through the Mailing Settings account. It shows the post title, the name, the email, and the body, and has a "Moderate in OS" link to `/os/blog/comments?post=<post_id>`. A failure to queue the email is logged and never blocks the comment.
+
+Set it in Settings → Blog → Notifications. An empty recipient becomes the email of the user who turns notifications on.
 
 ### OS pages
 

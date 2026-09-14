@@ -6,6 +6,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import validate_email_address
 
+from bwh_os.blog.notifications import notify_new_comment
+
 BODY_MAX = 2000
 
 
@@ -31,3 +33,6 @@ class BWHBlogComment(Document):
 		validate_email_address(self.email, throw=True)
 		if len(self.body) > BODY_MAX:
 			frappe.throw(_("Keep the comment under {0} characters").format(BODY_MAX))
+
+	def after_insert(self):
+		notify_new_comment(self)

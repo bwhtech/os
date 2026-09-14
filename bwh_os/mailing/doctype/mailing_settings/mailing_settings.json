@@ -16,7 +16,10 @@
   "x_url",
   "linkedin_url",
   "github_url",
-  "discord_url"
+  "discord_url",
+  "blog_section",
+  "notify_blog_comments",
+  "blog_notification_email"
  ],
  "fields": [
   {
@@ -94,12 +97,32 @@
    "fieldtype": "Data",
    "label": "Discord",
    "options": "URL"
+  },
+  {
+   "fieldname": "blog_section",
+   "fieldtype": "Section Break",
+   "label": "Blog"
+  },
+  {
+   "default": "0",
+   "description": "Send an email when a person comments on the blog",
+   "fieldname": "notify_blog_comments",
+   "fieldtype": "Check",
+   "label": "Email New Blog Comments"
+  },
+  {
+   "depends_on": "notify_blog_comments",
+   "description": "Gets the new comment emails. Empty means the user who turns notifications on.",
+   "fieldname": "blog_notification_email",
+   "fieldtype": "Data",
+   "label": "Blog Notification Email",
+   "options": "Email"
   }
  ],
  "grid_page_length": 50,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-13 22:00:00.000000",
+ "modified": "2026-09-14 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Mailing Settings",

@@ -177,6 +177,8 @@ export interface MailingSettings {
 	linkedin_url: string | null
 	github_url: string | null
 	discord_url: string | null
+	notify_blog_comments: 0 | 1
+	blog_notification_email: string | null
 }
 
 /** Counts from `bwh_os.mailing.stats.activity` */

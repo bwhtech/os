@@ -33,6 +33,15 @@ class IntegrationTestBlogApi(IntegrationTestCase):
 		self.assertEqual(comment["email"], "ada@example.com")
 		self.assertIsInstance(comment["created_at"], int)
 
+	def test_comment_is_stored_as_typed(self, _titles):
+		# The blog shows plain text, so code like <template> must not be stripped as HTML.
+		comment = add_comment(
+			"stories/one-year", "Ada <dev>", "ada@example.com", "Wrap it in <template>", random_ip()
+		)
+
+		self.assertEqual(comment["name"], "Ada <dev>")
+		self.assertEqual(comment["body"], "Wrap it in <template>")
+
 	def test_engagement_leaves_out_hidden_comments(self, _titles):
 		visible = add_comment("stories/one-year", "Ada", "ada@example.com", "Visible", random_ip())
 		hidden = add_comment("stories/one-year", "Bot", "bot@example.com", "Spam", random_ip())

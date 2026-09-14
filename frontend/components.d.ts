@@ -16,6 +16,7 @@ declare module 'vue' {
     AppSettingsDialog: typeof import('./src/components/settings/AppSettingsDialog.vue')['default']
     AppShell: typeof import('./src/components/shell/AppShell.vue')['default']
     AppSidebar: typeof import('./src/components/shell/AppSidebar.vue')['default']
+    BlogSettings: typeof import('./src/components/settings/BlogSettings.vue')['default']
     ColumnMappingStep: typeof import('./src/components/subscribers/import/ColumnMappingStep.vue')['default']
     CommentGroup: typeof import('./src/components/blog/CommentGroup.vue')['default']
     CommentRow: typeof import('./src/components/blog/CommentRow.vue')['default']

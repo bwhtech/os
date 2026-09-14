@@ -14,6 +14,7 @@
 
 		<SettingsContent>
 			<EmailSettings :open="open" />
+			<BlogSettings :open="open" />
 		</SettingsContent>
 	</SettingsDialog>
 </template>
@@ -27,6 +28,7 @@ import {
 	SettingsNavItem,
 	SettingsSidebar,
 } from 'frappe-ui'
+import BlogSettings from '@/components/settings/BlogSettings.vue'
 import EmailSettings from '@/components/settings/EmailSettings.vue'
 
 /** All OS settings. Each module adds a group here and a component with its panels. */
@@ -39,6 +41,10 @@ const GROUPS = [
 			{ label: 'Sending', value: 'sending', icon: 'lucide-send' },
 			{ label: 'Footer', value: 'footer', icon: 'lucide-building-2' },
 		],
+	},
+	{
+		label: 'Blog',
+		items: [{ label: 'Notifications', value: 'blog-notifications', icon: 'lucide-bell' }],
 	},
 ]
 

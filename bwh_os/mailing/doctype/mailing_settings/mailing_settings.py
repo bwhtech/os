@@ -16,6 +16,7 @@ class MailingSettings(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		blog_notification_email: DF.Data | None
 		company_name: DF.Data | None
 		default_hourly_limit: DF.Int
 		discord_url: DF.Data | None
@@ -23,10 +24,15 @@ class MailingSettings(Document):
 		github_url: DF.Data | None
 		gstin: DF.Data | None
 		linkedin_url: DF.Data | None
+		notify_blog_comments: DF.Check
 		postal_address: DF.SmallText | None
 		x_url: DF.Data | None
 		youtube_url: DF.Data | None
 	# end: auto-generated types
+
+	def validate(self):
+		if self.notify_blog_comments and not self.blog_notification_email:
+			self.blog_notification_email = frappe.db.get_value("User", frappe.session.user, "email")
 
 	def get_social_links(self) -> list[dict]:
 		"""The social links that are set, in the order of the form."""
