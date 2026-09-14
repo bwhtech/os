@@ -11,7 +11,7 @@ BWH OS puts this work in one place. BWH owns the data. One person (Hussain) uses
 ## Principles
 
 - Use frappe-ui components for all UI: lists, dialogs, calendar, editor, and charts. Write custom UI only when frappe-ui has no component, and build it from frappe-ui parts.
-- Frappe doctypes are the source of truth. Integrations pull data into doctypes. A page never waits on a live third-party call to render.
+- Frappe doctypes are the source of truth. Integrations pull data into doctypes. A page never waits on a live third-party call to render. The Blog module is an exception. See [02-blog.md](02-blog.md#decisions).
 - Only users with the System Manager role can open `/os`.
 - Each module is one section in the sidebar.
 - Each spec splits work into tracer-bullet slices. A slice goes through all layers (doctype, API, UI) and you can demo it alone.
@@ -38,7 +38,11 @@ The dev site is `bwhos.localhost`. Production runs on a Frappe Cloud bench. The 
 
 Collect subscribers from bwh.tech, deliver lead magnets, and write and send newsletters. See [01-email-list.md](01-email-list.md).
 
-### 2. Content Pipeline
+### 2. Blog
+
+Moderate comments on bwh.tech/blog, see engagement stats, and get an email for new comments. See [02-blog.md](02-blog.md).
+
+### 3. Content Pipeline
 
 Track each video from idea to publish.
 
@@ -48,7 +52,7 @@ Track each video from idea to publish.
 
 The board is a Kanban with one column per stage. frappe-ui has no Kanban component. Build it like the bwh_hive board (`frontend/src/composables/useBoardDrag.ts`) with frappe-ui `Badge` and `ScrollArea`. The calendar view uses `Calendar` from `frappe-ui/experimental`.
 
-### 3. Social Posts
+### 4. Social Posts
 
 Plan posts for X, LinkedIn, the YouTube community tab, and Discord.
 
@@ -56,7 +60,7 @@ Plan posts for X, LinkedIn, the YouTube community tab, and Discord.
 
 Posts show on the same calendar as videos.
 
-### 4. YouTube Integration
+### 5. YouTube Integration
 
 Connect the channel with OAuth and sync videos into `YouTube Video`. Do bulk actions that YouTube Studio does not have:
 
@@ -64,11 +68,11 @@ Connect the channel with OAuth and sync videos into `YouTube Video`. Do bulk act
 - Add or update a call to action, for example the email list link, on many videos at once.
 - Show videos with missing chapters, playlists, or end screens.
 
-### 5. LMS Integration
+### 6. LMS Integration
 
 Read data from school.bwh.tech: live cohorts, seats sold against capacity, and revenue per batch.
 
-### 6. GitHub Integration
+### 7. GitHub Integration
 
 Show the health of the core products (buzz, commera): stars, open issues, open pull requests, and releases.
 
@@ -77,8 +81,9 @@ Show the health of the core products (buzz, commera): stars, open issues, open p
 | # | Spec | Status |
 |---|---|---|
 | 01 | [Email List](01-email-list.md) | Draft |
-| 02 | Content Pipeline | Not started |
-| 03 | Social Posts | Not started |
-| 04 | YouTube Integration | Not started |
-| 05 | LMS Integration | Not started |
-| 06 | GitHub Integration | Not started |
+| 02 | [Blog](02-blog.md) | Draft |
+| 03 | Content Pipeline | Not started |
+| 04 | Social Posts | Not started |
+| 05 | YouTube Integration | Not started |
+| 06 | LMS Integration | Not started |
+| 07 | GitHub Integration | Not started |
