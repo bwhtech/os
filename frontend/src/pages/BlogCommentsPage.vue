@@ -3,13 +3,6 @@
 		<PageHeaderTitle class="min-w-0 flex-1">
 			<h1 class="truncate">Comments</h1>
 		</PageHeaderTitle>
-		<Tooltip v-if="dbHost" text="The Turso database that this page reads and changes">
-			<Badge variant="outline" theme="gray" :label="dbHost">
-				<template #prefix>
-					<span class="lucide-database size-3" aria-hidden="true" />
-				</template>
-			</Badge>
-		</Tooltip>
 		<Button
 			variant="ghost"
 			icon-left="lucide-refresh-cw"
@@ -27,21 +20,12 @@
 			<Button label="Retry" icon-left="lucide-rotate-cw" @click="feed.reload()" />
 		</div>
 
-		<div v-else-if="emptyState" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
+		<div v-else-if="!posts.length" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
 			<div class="rounded-full bg-surface-gray-2 p-3 text-ink-gray-5">
-				<span :class="[emptyState.icon, 'size-6']" aria-hidden="true" />
+				<span class="lucide-message-square size-6" aria-hidden="true" />
 			</div>
-			<p class="text-base text-ink-gray-7">{{ emptyState.title }}</p>
-			<p class="text-sm text-ink-gray-5">{{ emptyState.description }}</p>
-			<Button
-				v-if="!configured"
-				variant="solid"
-				theme="gray"
-				icon-left="lucide-settings"
-				label="Open Blog settings"
-				class="mt-2"
-				@click="openSettings('blog-comments')"
-			/>
+			<p class="text-base text-ink-gray-7">No comments yet</p>
+			<p class="text-sm text-ink-gray-5">Comments from bwh.tech/blog show here.</p>
 		</div>
 
 		<template v-else>
@@ -69,18 +53,15 @@
 import { computed, nextTick, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-	Badge,
 	Button,
 	ErrorMessage,
 	LoadingText,
 	PageHeader,
 	PageHeaderTitle,
-	Tooltip,
 	dayjs,
 	useCall,
 } from 'frappe-ui'
 import CommentGroup from '@/components/blog/CommentGroup.vue'
-import { useSettingsDialog } from '@/composables/useSettingsDialog'
 import { errorMessage } from '@/lib/errors'
 import type { BlogCommentFeed, BlogPost } from '@/types'
 
@@ -88,7 +69,6 @@ import type { BlogCommentFeed, BlogPost } from '@/types'
 const RECENT_DAYS = 7
 
 const route = useRoute()
-const { openSettings } = useSettingsDialog()
 
 const feed = useCall<BlogCommentFeed>({
 	url: '/api/v2/method/bwh_os.blog.api.get_comments',
@@ -96,34 +76,12 @@ const feed = useCall<BlogCommentFeed>({
 	refetch: true,
 })
 
-const configured = computed(() => feed.data?.configured ?? false)
-const loaded = computed(() => (feed.data?.configured ? feed.data : null))
-const posts = computed(() => loaded.value?.posts ?? [])
-const dbHost = computed(() => loaded.value?.db_host ?? '')
-const truncated = computed(() => loaded.value?.truncated ?? false)
+const posts = computed(() => feed.data?.posts ?? [])
+const truncated = computed(() => feed.data?.truncated ?? false)
 
 const summary = computed(() => {
 	const comments = posts.value.reduce((total, post) => total + post.comments.length, 0)
 	return `${plural(comments, 'comment')} on ${plural(posts.value.length, 'post')}`
-})
-
-const emptyState = computed(() => {
-	if (!feed.data) return null
-	if (!configured.value) {
-		return {
-			icon: 'lucide-database',
-			title: 'Connect the blog database',
-			description: 'Add the Turso URL and token of the blog to see its comments.',
-		}
-	}
-	if (!posts.value.length) {
-		return {
-			icon: 'lucide-message-square',
-			title: 'No comments yet',
-			description: 'Comments from bwh.tech/blog show here.',
-		}
-	}
-	return null
 })
 
 // Your toggles override the default open state of a group.

@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
+from frappe.rate_limiter import rate_limit
 from frappe.utils import validate_email_address
 from werkzeug.utils import redirect
 
@@ -15,6 +16,9 @@ SIGNUP_API_ROLE = "OS Signup API"
 
 
 @frappe.whitelist(methods=["POST"])
+# All calls come from Netlify, so the limit counts by the reader IP that the function passes.
+@rate_limit(key="consent_ip", limit=5, seconds=10 * 60)
+@rate_limit(key="consent_ip", limit=20, seconds=24 * 60 * 60)
 def subscribe(
 	form_id: str,
 	email: str,
@@ -46,7 +50,9 @@ def add_subscriber(email: str, first_name: str | None = None, tags: list[str] | 
 
 
 @frappe.whitelist(methods=["POST"])
-def preview_subscriber_import(content: str, mapping: dict | None = None, tags: list[str] | None = None) -> dict:
+def preview_subscriber_import(
+	content: str, mapping: dict | None = None, tags: list[str] | None = None
+) -> dict:
 	"""Read CSV text and say what an import would do. With no mapping, the columns are mapped by name."""
 	frappe.only_for("System Manager")
 	return SubscriberImport(content, mapping, tags).preview()

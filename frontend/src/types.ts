@@ -212,17 +212,9 @@ export interface ListOverview {
 	issue_rates: ({ name: string; subject: string; sent_at: string } & EngagementRates)[]
 }
 
-export interface BlogSettings {
-	name: 'Blog Settings'
-	turso_url: string | null
-	/** Masked by Frappe. Only tells if a token is saved. */
-	turso_token: string | null
-}
-
-/** A comment from the blog's Turso database. `created_at` is Unix seconds. */
+/** A `BWH Blog Comment`. `created_at` is Unix seconds. */
 export interface BlogComment {
 	id: number
-	post_id: string
 	name: string
 	email: string
 	body: string
@@ -240,6 +232,7 @@ export interface BlogPost {
 }
 
 /** From `bwh_os.blog.api.get_comments` */
-export type BlogCommentFeed =
-	| { configured: false }
-	| { configured: true; db_host: string; truncated: boolean; posts: BlogPost[] }
+export interface BlogCommentFeed {
+	truncated: boolean
+	posts: BlogPost[]
+}

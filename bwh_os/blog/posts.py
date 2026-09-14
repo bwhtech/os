@@ -1,4 +1,4 @@
-"""Post titles for the blog. The Turso database has only post ids, so the titles come from the feed."""
+"""Post titles for the blog. The blog sends only post ids, so the titles come from its feed."""
 
 import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
@@ -10,7 +10,7 @@ BLOG_URL = "https://bwh.tech/blog"
 FEED_URL = "https://bwh.tech/rss.xml"
 CACHE_KEY = "bwh_os:blog_post_titles"
 CACHE_SECONDS = 60 * 60
-# A failed fetch is cached for a short time, so a feed outage does not slow every page load.
+# A failed fetch is cached for a short time, so a feed outage does not slow every comment.
 FAILED_CACHE_SECONDS = 5 * 60
 TIMEOUT = 5
 

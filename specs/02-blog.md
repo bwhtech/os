@@ -4,62 +4,41 @@ Status: Draft
 
 ## Why?
 
-bwh.tech/blog has likes and comments. Comments publish instantly, and there is no control panel. To hide a comment today, you run SQL in `turso db shell`. There are no stats and no alert when a person comments.
+bwh.tech/blog has likes and comments. Comments publish instantly, and there is no control panel. Before this module, the likes and comments were in a Turso database, and you hid a comment with SQL in `turso db shell`.
 
-The Blog module lets you moderate comments, see engagement stats, and get an email for new comments.
+The Blog module stores the likes and comments in OS. You moderate comments, see stats, and get an email for new comments.
 
 ## What?
 
+- OS stores the likes and comments. The blog's Netlify functions call the OS API.
 - A Comments page, grouped by post. Hide, unhide, and delete comments, one at a time or in bulk.
 - An Overview page with totals, comments per week, and top posts.
-- An email when new comments arrive.
-
-### How the blog works
-
-The blog is the Astro site in `bwhtech_blog`. Netlify hosts it. Three Netlify functions read and write a Turso (libSQL) database:
-
-| Function | Action |
-|---|---|
-| `netlify/functions/engagement.ts` (GET) | Returns the likes and the visible comments of a post. It removes the email before the response. |
-| `netlify/functions/comment.ts` (POST) | Checks a honeypot and a 3 second minimum fill time, validates the fields, limits by IP, and inserts the comment. The comment is visible at once. |
-| `netlify/functions/like.ts` (POST) | Adds 1 to the like count of a post. There is no unlike. |
-
-The schema is in `db/schema.sql`:
-
-- `comments(id, post_id, name, email, body, created_at, hidden)`. `id` is `AUTOINCREMENT`. `created_at` is Unix seconds. `hidden` is 0 or 1. The public read path uses `hidden = 0`.
-- `post_likes(post_id, likes, updated_at)`. One row for each post.
-- `rate_limits`. Internal to the functions. OS does not use this table.
-
-The post id is `<category>/<slug>`, for example `stories/the-frappeverse-2026-experience`. The database has no post titles. `https://bwh.tech/rss.xml` has the title and the link of each published post. The link is `https://bwh.tech/blog/<post_id>/`.
-
-There are two Turso databases. The dev database is in the blog `.env`. The production database is `bwhtech-blog-prod`. Its credentials are Netlify secrets.
+- An email when a person comments.
 
 ### Decisions
 
 | Topic | Decision |
 |---|---|
-| Data | OS reads and writes Turso live. There are no comment doctypes. This is an exception to the principle "a page never waits on a live third-party call". A copy of the comments would drift, and the data is small. |
-| Turso client | Plain `requests` to the Turso HTTP API (`POST <url>/v2/pipeline`). There is no new Python dependency. |
-| Token | A full-access token for each database, made for OS only. Hide and delete are writes, and Turso tokens cannot be limited to one table. Netlify keeps its own token, so you can revoke each token alone. |
-| Environments | Each site has its own credentials in `Blog Settings`. The dev site uses the dev database. The production site uses `bwhtech-blog-prod`. |
-| Database host | Blog pages show the database host in the page header, so you always know which database you act on. |
+| Storage | Doctypes in OS: `BWH Blog Post` and `BWH Blog Comment`. There is no Turso database. The `BWH` prefix prevents a clash with the doctypes of the `frappe/blog` app. |
+| Blog path | Astro island, then a Netlify function, then the OS API. This is the same path as the newsletter signup. The API key never goes to the browser. |
+| API user | The `OS Signup API` user that the signup already uses. The role can add subscribers, comments, and likes, and nothing else. |
+| Rate limits | Frappe `@rate_limit`, keyed on the reader IP that the function passes. Likes also have a limit for each IP and post. A 429 from OS becomes a 429 from the function. |
+| Bot checks | The functions keep the honeypot and the 3 second minimum fill time. A bot gets a fake success and nothing goes to OS. |
+| Email | The functions drop the email before a comment goes to the browser. OS sends the email to the functions only for the avatar color. |
 | Moderation | Comments publish instantly. OS hides, unhides, and deletes after. There is no approve-first queue. |
-| Delete | A hard `DELETE`, after a confirmation dialog. `AUTOINCREMENT` never reuses an id, so a delete does not break the notification watermark. The public site uses the id only as a Vue list key. |
-| Post titles | From `rss.xml`, cached in Redis for 1 hour. A post that is not in the feed shows its post id. |
-| Loading | The Comments page loads all comments in one query, newest first, with a cap of 2,000. Grouping, filters, and search run in the browser. |
-| Notifications | A scheduler job reads `WHERE id > <watermark>` every 5 minutes and sends one email for all new comments. The email goes through the `email_account` in `Mailing Settings`. |
-| Access | System Manager only, like the rest of `/os`. Each API method checks the role again. |
-| Names | The module is `Blog`. Frappe v16 no longer has the blog doctypes. The `frappe/blog` app also has a `Blog Settings` doctype, so do not install that app on this site. |
+| Delete | A hard delete, after a confirmation dialog. |
+| Post titles | From `rss.xml`, cached in Redis for 1 hour, and set when OS makes the post. A post that is not in the feed shows its post id. |
+| Loading | The Comments page loads all comments in one call, newest first, with a cap of 2,000. Grouping, filters, and search run in the browser. |
+| Notifications | `after_insert` on `BWH Blog Comment` sends the email through the `email_account` in `Mailing Settings`. |
 
 ### Out of scope for v1
 
 - A Posts page. Posts with no comments do not show.
-- Approve-first moderation. This needs a blog change: `hidden` starts as 1, and the form says the comment waits for approval.
-- Block an email. This needs a `blocked_emails` table and a check in `comment.ts`.
-- Reply as the author. This needs an `is_author` column, a badge in `CommentList.vue`, and an insert path from OS.
+- Approve-first moderation.
+- Block an email.
+- Reply as the author.
 - Edit a comment body.
 - Unique commenters, return commenters, commenters who are subscribers, and posts with no engagement.
-- Lazy load of comments for each post. Change to this when the cap is too small.
 
 ## How?
 
@@ -67,174 +46,127 @@ There are two Turso databases. The dev database is in the blog `.env`. The produ
 
 All doctypes go in a new module, `Blog`.
 
-**Blog Settings** (single doctype)
+**BWH Blog Post**
 
 | Field | Type | Notes |
 |---|---|---|
-| turso_url | Data | The `libsql://` URL from the Turso dashboard. OS also accepts `turso://`. |
-| turso_token | Password | A full-access database token |
-| notify_new_comments | Check | |
-| notify_email | Data (Email) | Gets the new comment email. The default is the email of the user who turns on notifications. |
-| last_notified_comment_id | Int, read only | The watermark |
+| post_id | Data, unique | `category/slug`, for example `stories/one-year`. Also the document name. |
+| title | Data | From the feed when OS makes the post |
+| likes | Int, read only | One `UPDATE ... SET likes = likes + 1`, so parallel likes do not overwrite each other |
 
-When `notify_new_comments` changes to on and the watermark is empty, `validate` sets the watermark to `MAX(id)`. This prevents an email for all old comments.
+OS makes the post on its first like or comment.
 
-### Turso client
+**BWH Blog Comment**
 
-Put the client in `bwh_os/blog/turso.py`.
+The name is an autoincrement number. The blog uses it as the comment id. `creation` is the comment time.
 
-- `pipeline(statements)` sends all statements in one request and returns one result for each statement.
-- The request goes to `https://<host>/v2/pipeline` with `Authorization: Bearer <token>`. Change `libsql://` and `turso://` to `https://`.
-- The body is `{"requests": [{"type": "execute", "stmt": {...}}, ..., {"type": "close"}]}`.
-- Send each argument with its type, for example `{"type": "integer", "value": "42"}`. Never put a value into the SQL text.
-- The response gives each cell with its type. Change `integer` values to `int` and `null` to `None`.
-- A response with `"type": "error"` raises `TursoError` with the message. A timeout is 10 seconds.
-- Missing settings raise `TursoNotConfiguredError`.
+| Field | Type | Notes |
+|---|---|---|
+| post | Link: BWH Blog Post | |
+| commenter_name | Data | Max 60 characters |
+| email | Data (Email) | Lowercased. Never shown on the blog. |
+| hidden | Check | Hidden comments do not show on the blog |
+| body | Text | Plain text. Max 2,000 characters. |
 
 ### API
 
-Put the methods in `bwh_os/blog/api.py`. Each method checks the System Manager role.
+Put the methods in `bwh_os/blog/api.py`.
 
-`get_comments()`
+Website methods. The `OS Signup API` role and System Manager can call them.
 
-- Runs `SELECT id, post_id, name, email, body, created_at, hidden FROM comments ORDER BY created_at DESC, id DESC LIMIT 2001` and `SELECT post_id, likes FROM post_likes` in one pipeline.
-- Returns `{"db_host", "truncated", "posts": [{"post_id", "title", "url", "likes", "comments": [...]}]}`.
-- `truncated` is true when the query returns 2,001 rows. The method drops the last row.
-- Orders posts by their newest comment.
+| Method | Limits | Action |
+|---|---|---|
+| `get_engagement(post_id)` (GET) | | Returns the likes and the first 200 visible comments, oldest first |
+| `add_comment(post_id, name, email, body, ip)` (POST) | 3 in 10 minutes and 10 in a day for each IP. 500 visible comments for each post. | Makes the post if needed, inserts the comment, and returns it |
+| `like_post(post_id, ip)` (POST) | 30 in an hour for each IP. 3 in a day for each IP and post. | Makes the post if needed, adds a like, and returns the total |
 
-`set_hidden(ids, hidden)`
+`bwh_os.mailing.api.subscribe` also gets limits: 5 in 10 minutes and 20 in a day for each `consent_ip`.
 
-- Validates that `ids` is a list of integers and `hidden` is 0 or 1.
-- Runs `UPDATE comments SET hidden = ? WHERE id IN (...)`.
+OS methods. Only System Manager can call them.
 
-`delete_comments(ids)`
+| Method | Action |
+|---|---|
+| `get_comments()` (GET) | All comments, newest first, grouped by post, with the title, the URL, and the likes of each post |
+| `set_hidden(ids, hidden)` (POST) | Slice 2 |
+| `delete_comments(ids)` (POST) | Slice 3 |
+| `get_overview()` (GET) | Slice 4 |
 
-- Validates that `ids` is a list of integers.
-- Runs `DELETE FROM comments WHERE id IN (...)`.
+### Blog repo
 
-`get_overview()`
+The functions in `bwhtech_blog/netlify/functions/` call OS through `netlify/lib/frappe.ts`:
 
-Runs these statements in one pipeline:
+- `engagement.ts` calls `get_engagement` and drops the email in `toPublicComment`.
+- `comment.ts` checks the bot signals, validates the fields, and calls `add_comment`.
+- `like.ts` calls `like_post`.
+- `subscribe.ts` calls `subscribe`.
 
-1. Total, visible, and hidden comments: `SELECT COUNT(*), SUM(hidden = 0), SUM(hidden) FROM comments`.
-2. Total likes: `SELECT COALESCE(SUM(likes), 0) FROM post_likes`.
-3. Comments per week for the last 12 weeks. Group by the start of the week in Python and fill empty weeks with 0.
-4. Top 5 posts by comments: `GROUP BY post_id ORDER BY COUNT(*) DESC LIMIT 5`.
-5. Top 5 posts by likes: `ORDER BY likes DESC LIMIT 5`.
-
-`test_connection()`
-
-- Runs `SELECT 1` and returns the database host.
+The functions need only `FRAPPE_URL` and `FRAPPE_API_TOKEN`.
 
 ### Notifications
 
-Put the job in `bwh_os/blog/notifications.py`. It runs every 5 minutes (`*/5 * * * *`).
-
-1. If `notify_new_comments` is off, stop.
-2. If the watermark is empty, set it to `MAX(id)` and stop.
-3. Get `SELECT ... FROM comments WHERE id > ? ORDER BY id LIMIT 50`.
-4. If there are no rows, stop.
-5. Send one email to `notify_email` with `frappe.sendmail` through the `Mailing Settings` email account. Group the comments by post. Show the post title, the name, the time, and the body of each comment. Escape the name and the body.
-6. Add a "Moderate in OS" link to `/os/blog/comments?post=<post_id>` for each post.
-7. Set the watermark to the highest id in the rows.
-
-If there are more than 50 new comments, the next run sends the rest.
+In slice 5, `BWH Blog Comment.after_insert` sends an email if notifications are on. The email shows the post title, the name, the time, and the body. It has a "Moderate in OS" link to `/os/blog/comments?post=<post_id>`. `Mailing Settings` gets a toggle and a recipient email for blog notifications.
 
 ### OS pages
 
-The sidebar gets a **Blog** section with two pages.
-
-**Overview** (`/blog`)
-
-- Number cards: comments, hidden comments, and likes.
-- A bar chart of comments per week for the last 12 weeks. Use the same frappe-ui charts as the Dashboard.
-- Two short lists: top posts by comments and top posts by likes. Each post links to its group on the Comments page.
+The sidebar gets a **Blog** section.
 
 **Comments** (`/blog/comments`)
 
 The layout follows the Tasks recipe in frappe-ui (`docs/components/recipes/TasksDesktop.vue`):
 
-- A filter bar with `TabButtons` (All, Visible, Hidden), a search input, and the comment count. Search matches the name, the email, and the body.
-- One group for each post, ordered by the newest comment. The group header is a full-width button with the post title, `12 comments · 3 hidden · 48 likes`, and Collapse or Expand on hover. A link icon opens the post on bwh.tech.
-- A group starts open if it has a comment from the last 7 days, or if the `post` query parameter names it. Other groups start closed. Your toggles override the default.
-- Each group is a `List` from `frappe-ui/list` in feed mode, with `selectable` and one shared `v-model:selection`.
+- One group for each post, ordered by the newest comment. The group header shows the post title, `12 comments · 3 hidden · 48 likes`, and Collapse or Expand on hover. A link icon opens the post on bwh.tech.
+- A group starts open if it has a comment from the last 7 days, or if the `post` query parameter names it. Other groups start closed.
+- Each group is a `List` from `frappe-ui/list` in feed mode.
+- Each row shows an `Avatar` with initials, the name, the email, the time, and the body clamped to 3 lines with "Show more". Render the body as text. Never use `v-html`. A hidden comment is dimmed and has a `Hidden` badge.
 
-Each row shows:
+Slice 2 adds a filter bar with `TabButtons` (All, Visible, Hidden) and search, a row menu, and selection with a bar for bulk actions. Slice 3 adds Delete with a confirmation dialog.
 
-- An `Avatar` with the initials of the name.
-- The name, the email in a muted color, and the time, for example "2h ago".
-- The body, clamped to 3 lines, with an inline "Show more". Render the body as text. Never use `v-html`.
-- A `Hidden` badge when the comment is hidden. A hidden row is dimmed.
-- A menu with Hide or Unhide, and Delete.
+**Overview** (`/blog`)
 
-When you select rows, a bar shows `3 selected`, Hide, Unhide, and Delete.
-
-Delete opens a confirmation dialog. For one comment, it shows the name, the post, and the body. For many comments, it shows the count. The dialog says that you cannot undo a delete.
-
-After a hide, an unhide, or a delete, the page loads the comments again. There are no optimistic updates. A failed action shows a toast and changes nothing.
-
-If Turso is not set up, both pages show an empty state with an "Open Blog settings" button. If Turso does not respond, the page shows an error with a Retry button.
-
-If `truncated` is true, the page shows "Showing the latest 2,000 comments".
-
-**Settings**
-
-`AppSettingsDialog` gets a **Blog** group with a **Comments** item:
-
-- The Turso URL and token, and a "Test connection" button. The button shows the database host or the error.
-- The notification toggle and the email.
+- Number cards: comments, hidden comments, and likes.
+- A bar chart of comments per week for the last 12 weeks.
+- Top posts by comments and by likes.
 
 ### Local development
 
-1. Copy `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` from the blog `.env` into `Blog Settings` on `bwhos.localhost`.
-2. In `bwhtech_blog`, run `netlify dev --target-port 4321 --command "astro dev logs --follow"`.
-3. Post a comment on a local post. See the comment in OS.
-4. Hide the comment in OS. Reload the post and see that the comment is gone.
-
-### Production setup
-
-1. Run `turso db tokens create bwhtech-blog-prod`.
-2. On the production site, set the URL and the token in `Blog Settings`.
-3. Click "Test connection" and make sure that the host is `bwhtech-blog-prod`.
-
-### Blog repo change
-
-`db/schema.sql` says "Flip it to 1 rather than deleting, so ids stay stable". Change the comment: OS hides and deletes comments, and `AUTOINCREMENT` never reuses a deleted id.
+1. On `bwhos.localhost`, make a user with only the `OS Signup API` role and generate its API keys.
+2. In `bwhtech_blog/.env`, set `FRAPPE_URL=http://bwhos.localhost:8000` and `FRAPPE_API_TOKEN=<key>:<secret>`.
+3. Run `netlify dev --target-port 4321 --command "astro dev logs --follow"`.
+4. Post a comment on a local post. See the comment in OS.
 
 ## Slices
 
 Each slice goes through all layers. Merge each slice alone.
 
-### 1. Settings and read-only comments
+### 1. Store likes and comments in OS
 
-- Add the `Blog` module and `Blog Settings`.
-- Add the Turso client, `test_connection`, and the Blog settings in `AppSettingsDialog`.
-- Add `get_comments`, the RSS title cache, and the grouped Comments page without actions.
-- Show the database host in the page header. Show the empty and error states.
-- Demo: set the dev database in settings, open Comments, see comments grouped by post with titles.
+- Add the `Blog` module, `BWH Blog Post`, and `BWH Blog Comment`.
+- Add the website methods with rate limits, and add rate limits to `subscribe`.
+- Change the Netlify functions to call OS. Remove Turso from the blog repo.
+- Add `get_comments` and the grouped Comments page without actions.
+- Demo: comment and like on a local post, see the comment and the likes in OS.
 
 ### 2. Hide and unhide
 
 - Add `set_hidden`, the row menu, selection, and the selection bar with Hide and Unhide.
 - Add the All, Visible, and Hidden tabs and search.
-- Demo: hide a comment in OS, reload the post under `netlify dev`, see that the comment is gone.
+- Demo: hide a comment in OS, reload the post, see that the comment is gone.
 
 ### 3. Delete
 
-- Add `delete_comments`, the Delete action in the row menu and the selection bar, and the confirmation dialog.
-- Change the comment in `db/schema.sql` in the blog repo.
+- Add `delete_comments`, the Delete action, and the confirmation dialog.
 - Demo: delete two comments in bulk, see that they are gone from OS and from the post.
 
 ### 4. Overview
 
 - Add `get_overview` and the Overview page.
-- Demo: open Overview, see the totals, the weekly chart, and the top posts. Click a top post and see its open group.
+- Demo: open Overview, see the totals, the weekly chart, and the top posts.
 
 ### 5. New comment email
 
-- Add the notification fields, the watermark on `validate`, and the scheduler job.
-- Demo: turn on notifications, post two comments on the local blog, get one email in Mailpit, click "Moderate in OS", see the open group.
+- Add the notification settings and the `after_insert` email.
+- Demo: turn on notifications, post a comment on the local blog, get the email in Mailpit, click "Moderate in OS".
 
 ## Open questions
 
-None.
+- Production Turso data: copy the existing likes and comments into OS once, before the new functions go live.

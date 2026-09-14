@@ -1,52 +1,87 @@
-"""Blog comments from Turso, grouped by post for the Comments page."""
+"""Reads of blog comments: the public thread of a post, and the feed for the OS Comments page."""
 
-from bwh_os.blog.posts import get_post_titles, post_url
-from bwh_os.blog.turso import Turso
+from zoneinfo import ZoneInfo
 
-# The page loads all comments at once. Above this, it shows only the newest.
-COMMENT_LIMIT = 2000
+import frappe
+from frappe.utils import get_datetime, get_system_timezone
+
+from bwh_os.blog.posts import post_url
+
+# The blog shows at most this many comments on a post.
+PUBLIC_LIMIT = 200
+# The OS page loads all comments at once. Above this, it shows only the newest.
+FEED_LIMIT = 2000
 
 
-class CommentFeed:
-	def __init__(self, turso: Turso):
-		self.turso = turso
-
-	def load(self) -> dict:
-		# One more row than the limit tells us that there are more comments.
-		comments, likes = self.turso.pipeline(
-			[
-				(
-					"""SELECT id, post_id, name, email, body, created_at, hidden
-					     FROM comments
-					 ORDER BY created_at DESC, id DESC
-					    LIMIT ?""",
-					[COMMENT_LIMIT + 1],
-				),
-				"SELECT post_id, likes FROM post_likes",
-			]
-		)
-		return {
-			"db_host": self.turso.host,
-			"truncated": len(comments) > COMMENT_LIMIT,
-			"posts": group_by_post(comments[:COMMENT_LIMIT], likes),
+def public_comments(post_id: str, comment: int | None = None) -> list[dict]:
+	"""Visible comments of a post, oldest first, in the shape the blog uses."""
+	filters = {"post": post_id, "hidden": 0}
+	if comment:
+		filters["name"] = comment
+	rows = frappe.get_all(
+		"BWH Blog Comment",
+		filters=filters,
+		fields=["name", "commenter_name", "email", "body", "creation"],
+		order_by="creation asc, name asc",
+		limit=PUBLIC_LIMIT,
+	)
+	return [
+		{
+			"id": row.name,
+			"name": row.commenter_name,
+			"email": row.email,
+			"body": row.body,
+			"created_at": unix_time(row.creation),
 		}
+		for row in rows
+	]
 
 
-def group_by_post(comments: list[dict], likes: list[dict]) -> list[dict]:
+def get_comment_feed() -> dict:
+	# One more row than the limit tells us that there are more comments.
+	comments = frappe.get_all(
+		"BWH Blog Comment",
+		fields=["name", "post", "commenter_name", "email", "body", "creation", "hidden"],
+		order_by="creation desc, name desc",
+		limit=FEED_LIMIT + 1,
+	)
+	posts = frappe.get_all("BWH Blog Post", fields=["name", "title", "likes"])
+	return {
+		"truncated": len(comments) > FEED_LIMIT,
+		"posts": group_by_post(comments[:FEED_LIMIT], posts),
+	}
+
+
+def group_by_post(comments: list[dict], posts: list[dict]) -> list[dict]:
 	"""One group for each post that has comments. The comments are newest first, so the groups are too."""
-	likes_by_post = {row["post_id"]: row["likes"] for row in likes}
-	titles = get_post_titles()
-	posts: dict[str, dict] = {}
+	posts_by_id = {post.name: post for post in posts}
+	groups: dict[str, dict] = {}
 	for comment in comments:
-		post_id = comment["post_id"]
-		if post_id not in posts:
-			posts[post_id] = {
+		post_id = comment.post
+		if post_id not in groups:
+			post = posts_by_id.get(post_id, {})
+			groups[post_id] = {
 				"post_id": post_id,
-				# A draft or a renamed post is not in the feed.
-				"title": titles.get(post_id) or post_id,
+				# The feed had no title when the post was made, for example for a draft.
+				"title": post.get("title") or post_id,
 				"url": post_url(post_id),
-				"likes": likes_by_post.get(post_id, 0),
+				"likes": post.get("likes", 0),
 				"comments": [],
 			}
-		posts[post_id]["comments"].append({**comment, "hidden": bool(comment["hidden"])})
-	return list(posts.values())
+		groups[post_id]["comments"].append(
+			{
+				"id": comment.name,
+				"name": comment.commenter_name,
+				"email": comment.email,
+				"body": comment.body,
+				"created_at": unix_time(comment.creation),
+				"hidden": bool(comment.hidden),
+			}
+		)
+	return list(groups.values())
+
+
+def unix_time(value) -> int:
+	"""Frappe stores times without a zone, in the system time zone."""
+	moment = get_datetime(value).replace(tzinfo=ZoneInfo(get_system_timezone()))
+	return int(moment.timestamp())

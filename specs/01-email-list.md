@@ -154,7 +154,7 @@ Put the methods in `bwh_os/mailing/api.py`.
 `subscribe(form_id, email, first_name=None, source_url=None, utm=None, consent_ip=None)`
 
 - The Netlify function calls this method with the API key of a restricted user. That user has only the role `OS Signup API`.
-- There is no Frappe `@rate_limit`. All calls come from Netlify, so a per-IP limit in Frappe would block every reader at once. The Netlify function limits by reader IP.
+- All calls come from Netlify, so a limit on the request IP would block every reader at once. The method uses Frappe `@rate_limit` keyed on `consent_ip`, the reader IP that the function passes: 5 in 10 minutes and 20 in a day.
 - `after_migrate` creates the `OS Signup API` role. It has no desk access.
 - If the form has double opt-in, the method makes the subscriber Pending and sends the confirm email.
 - If the form has single opt-in, the method makes the subscriber Active and sends the welcome email.

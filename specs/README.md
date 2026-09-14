@@ -11,7 +11,7 @@ BWH OS puts this work in one place. BWH owns the data. One person (Hussain) uses
 ## Principles
 
 - Use frappe-ui components for all UI: lists, dialogs, calendar, editor, and charts. Write custom UI only when frappe-ui has no component, and build it from frappe-ui parts.
-- Frappe doctypes are the source of truth. Integrations pull data into doctypes. A page never waits on a live third-party call to render. The Blog module is an exception. See [02-blog.md](02-blog.md#decisions).
+- Frappe doctypes are the source of truth. Integrations pull data into doctypes. A page never waits on a live third-party call to render.
 - Only users with the System Manager role can open `/os`.
 - Each module is one section in the sidebar.
 - Each spec splits work into tracer-bullet slices. A slice goes through all layers (doctype, API, UI) and you can demo it alone.
@@ -40,7 +40,7 @@ Collect subscribers from bwh.tech, deliver lead magnets, and write and send news
 
 ### 2. Blog
 
-Moderate comments on bwh.tech/blog, see engagement stats, and get an email for new comments. See [02-blog.md](02-blog.md).
+Store the likes and comments of bwh.tech/blog, moderate comments, see stats, and get an email for new comments. See [02-blog.md](02-blog.md).
 
 ### 3. Content Pipeline
 

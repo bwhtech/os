@@ -1,67 +1,72 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from bwh_os.blog.api import get_comments
-from bwh_os.blog.comments import COMMENT_LIMIT, CommentFeed, group_by_post
+from bwh_os.blog.api import add_comment, get_comments, get_engagement, like_post
 
 
-def comment(id: int, post_id: str, hidden: int = 0) -> dict:
-	return {
-		"id": id,
-		"post_id": post_id,
-		"name": "Ada",
-		"email": "ada@example.com",
-		"body": "Nice post",
-		"created_at": 1_789_000_000 - id,
-		"hidden": hidden,
-	}
+def random_ip() -> str:
+	return f"test-{frappe.generate_hash(length=8)}"
 
 
-@patch("bwh_os.blog.comments.get_post_titles", return_value={"stories/one-year": "One Year"})
-class IntegrationTestComments(IntegrationTestCase):
+@patch(
+	"bwh_os.blog.doctype.bwh_blog_post.bwh_blog_post.get_post_titles",
+	return_value={"stories/one-year": "One Year"},
+)
+class IntegrationTestBlogApi(IntegrationTestCase):
 	def tearDown(self):
 		frappe.set_user("Administrator")
 
-	def test_groups_keep_the_order_of_the_newest_comment(self, _titles):
-		comments = [
-			comment(1, "stories/one-year"),
-			comment(2, "tutorial/draft", hidden=1),
-			comment(3, "stories/one-year"),
-		]
+	def test_first_comment_makes_the_post_with_its_feed_title(self, _titles):
+		comment = add_comment("stories/one-year", "Ada", " Ada@Example.com ", "Nice post", random_ip())
 
-		posts = group_by_post(comments, [{"post_id": "stories/one-year", "likes": 12}])
+		self.assertEqual(frappe.db.get_value("BWH Blog Post", "stories/one-year", "title"), "One Year")
+		self.assertEqual(comment["name"], "Ada")
+		self.assertEqual(comment["email"], "ada@example.com")
+		self.assertIsInstance(comment["created_at"], int)
 
-		self.assertEqual([post["post_id"] for post in posts], ["stories/one-year", "tutorial/draft"])
-		self.assertEqual([c["id"] for c in posts[0]["comments"]], [1, 3])
-		self.assertEqual(posts[0]["title"], "One Year")
-		self.assertEqual(posts[0]["url"], "https://bwh.tech/blog/stories/one-year/")
-		self.assertEqual(posts[0]["likes"], 12)
-		# A post that is not in the feed shows its id and has no likes row.
-		self.assertEqual(posts[1]["title"], "tutorial/draft")
-		self.assertEqual(posts[1]["likes"], 0)
-		self.assertIs(posts[1]["comments"][0]["hidden"], True)
+	def test_engagement_leaves_out_hidden_comments(self, _titles):
+		visible = add_comment("stories/one-year", "Ada", "ada@example.com", "Visible", random_ip())
+		hidden = add_comment("stories/one-year", "Bot", "bot@example.com", "Spam", random_ip())
+		frappe.db.set_value("BWH Blog Comment", hidden["id"], "hidden", 1)
 
-	def test_feed_is_truncated_above_the_limit(self, _titles):
-		turso = MagicMock(host="db.turso.io")
-		turso.pipeline.return_value = [[comment(i, "stories/one-year") for i in range(COMMENT_LIMIT + 1)], []]
+		ids = [comment["id"] for comment in get_engagement("stories/one-year")["comments"]]
 
-		feed = CommentFeed(turso).load()
+		self.assertIn(visible["id"], ids)
+		self.assertNotIn(hidden["id"], ids)
 
-		self.assertTrue(feed["truncated"])
-		self.assertEqual(len(feed["posts"][0]["comments"]), COMMENT_LIMIT)
-		self.assertEqual(feed["db_host"], "db.turso.io")
+	def test_likes_add_up_and_stop_after_three_from_one_ip(self, _titles):
+		ip = random_ip()
+		before = get_engagement("tutorial/likes-test")["likes"]
 
-	def test_get_comments_before_setup(self, _titles):
-		settings = frappe.get_single("Blog Settings")
-		settings.turso_url = ""
-		settings.save()
+		totals = [like_post("tutorial/likes-test", ip) for _ in range(3)]
 
-		self.assertEqual(get_comments(), {"configured": False})
+		self.assertEqual(totals, [before + 1, before + 2, before + 3])
+		with self.assertRaises(frappe.RateLimitExceededError):
+			like_post("tutorial/likes-test", ip)
+		self.assertEqual(like_post("tutorial/likes-test", random_ip()), before + 4)
 
-	def test_get_comments_needs_system_manager(self, _titles):
+	def test_post_id_must_be_category_and_slug(self, _titles):
+		with self.assertRaises(frappe.ValidationError):
+			like_post("../etc/passwd", random_ip())
+
+	def test_feed_groups_comments_by_post(self, _titles):
+		comment = add_comment("stories/one-year", "Ada", "ada@example.com", "Grouped", random_ip())
+		frappe.db.set_value("BWH Blog Comment", comment["id"], "hidden", 1)
+
+		feed = get_comments()
+
+		post = next(post for post in feed["posts"] if post["post_id"] == "stories/one-year")
+		self.assertEqual(post["title"], "One Year")
+		self.assertEqual(post["url"], "https://bwh.tech/blog/stories/one-year/")
+		row = next(row for row in post["comments"] if row["id"] == comment["id"])
+		self.assertIs(row["hidden"], True)
+
+	def test_website_methods_need_the_api_role(self, _titles):
 		frappe.set_user("Guest")
 
+		with self.assertRaises(frappe.PermissionError):
+			get_engagement("stories/one-year")
 		with self.assertRaises(frappe.PermissionError):
 			get_comments()
