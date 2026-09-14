@@ -14,7 +14,7 @@
 	</PageHeader>
 
 	<div class="mx-auto max-w-2xl space-y-8 px-3 py-6 pb-20 sm:px-5">
-		<LoadingText v-if="!leadMagnet.doc && !leadMagnet.error" :lines="6" />
+		<DetailSkeleton v-if="!leadMagnet.doc && !leadMagnet.error" />
 		<ErrorMessage v-else-if="leadMagnet.error" :message="errorMessage(leadMagnet.error)" />
 
 		<template v-else>
@@ -46,7 +46,6 @@ import {
 	Breadcrumbs,
 	Button,
 	ErrorMessage,
-	LoadingText,
 	PageHeader,
 	TextInput,
 	Textarea,
@@ -54,6 +53,7 @@ import {
 	useCall,
 	useDoc,
 } from 'frappe-ui'
+import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import LeadMagnetDownloads from '@/components/lead-magnets/LeadMagnetDownloads.vue'
 import LeadMagnetFileInput from '@/components/lead-magnets/LeadMagnetFileInput.vue'
 import ActivityCards from '@/components/stats/ActivityCards.vue'

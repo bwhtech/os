@@ -6,7 +6,7 @@
 	</PageHeader>
 
 	<div class="px-3 py-5 pb-10 sm:px-5">
-		<LoadingText v-if="!comments.data && !error" :lines="4" />
+		<ListSkeleton v-if="!comments.data && !error" />
 
 		<ErrorMessage v-else-if="error" :message="errorMessage(error)" />
 
@@ -58,7 +58,6 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
 	ErrorMessage,
-	LoadingText,
 	PageHeader,
 	PageHeaderTitle,
 	dayjs,
@@ -68,6 +67,7 @@ import {
 	useCall,
 	useList,
 } from 'frappe-ui'
+import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import CommentGroup from '@/components/blog/CommentGroup.vue'
 import CommentToolbar from '@/components/blog/CommentToolbar.vue'
 import { filterGroups, groupByPost, type CommentStatus } from '@/lib/blogComments'

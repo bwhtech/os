@@ -15,7 +15,7 @@
 
 	<!-- Wide enough for the email editor and its inspector. Form fields keep a narrow column. -->
 	<div class="mx-auto max-w-5xl space-y-8 px-3 py-6 pb-20 sm:px-5">
-		<LoadingText v-if="!form.doc && !form.error" :lines="6" />
+		<DetailSkeleton v-if="!form.doc && !form.error" />
 		<ErrorMessage v-else-if="form.error" :message="errorMessage(form.error)" />
 
 		<template v-else>
@@ -90,7 +90,6 @@ import {
 	Breadcrumbs,
 	Button,
 	ErrorMessage,
-	LoadingText,
 	PageHeader,
 	Switch,
 	TextInput,
@@ -98,6 +97,7 @@ import {
 	toast,
 	useDoc,
 } from "frappe-ui";
+import DetailSkeleton from "@/components/stats/DetailSkeleton.vue";
 import ConfirmEmailSection from "@/components/forms/ConfirmEmailSection.vue";
 import ConfirmRateCard from "@/components/forms/ConfirmRateCard.vue";
 import EmbedSnippet from "@/components/forms/EmbedSnippet.vue";

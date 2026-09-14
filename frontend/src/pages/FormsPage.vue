@@ -13,7 +13,7 @@
 	</PageHeader>
 
 	<div class="px-3 py-5 pb-10 sm:px-5">
-		<LoadingText v-if="forms.loading && !forms.data" :lines="4" />
+		<ListSkeleton v-if="forms.loading && !forms.data" />
 		<ErrorMessage v-else-if="forms.error" :message="forms.error.message" />
 
 		<div
@@ -85,12 +85,12 @@ import {
 	Badge,
 	Button,
 	ErrorMessage,
-	LoadingText,
 	PageHeader,
 	PageHeaderTitle,
 	useCall,
 	useList,
 } from 'frappe-ui'
+import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import NewFormDialog from '@/components/forms/NewFormDialog.vue'
 import type { SignupForm } from '@/types'

@@ -37,7 +37,13 @@
 
 	<!-- Wide enough for the 600px email and the inspector side by side. -->
 	<div class="mx-auto max-w-5xl space-y-6 px-3 py-6 pb-20 sm:px-5">
-		<LoadingText v-if="!issue.doc && !issue.error" :lines="6" />
+		<div v-if="!issue.doc && !issue.error" class="space-y-6" aria-busy="true" aria-label="Loading">
+			<div v-for="field in 2" :key="field" class="space-y-1.5">
+				<Skeleton class="h-3 w-24 rounded" />
+				<Skeleton class="h-7 w-full rounded" />
+			</div>
+			<Skeleton class="h-[32rem] w-full rounded-6" />
+		</div>
 		<ErrorMessage v-else-if="issue.error" :message="errorMessage(issue.error)" />
 
 		<template v-else-if="issue.doc?.status === 'Scheduled'">
@@ -121,8 +127,8 @@ import {
 	Breadcrumbs,
 	Button,
 	ErrorMessage,
-	LoadingText,
 	PageHeader,
+	Skeleton,
 	TabButtons,
 	TextInput,
 	dayjs,

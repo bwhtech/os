@@ -13,7 +13,7 @@
 	</PageHeader>
 
 	<div class="px-3 py-5 pb-10 sm:px-5">
-		<LoadingText v-if="leadMagnets.loading && !leadMagnets.data" :lines="4" />
+		<ListSkeleton v-if="leadMagnets.loading && !leadMagnets.data" />
 		<ErrorMessage v-else-if="leadMagnets.error" :message="leadMagnets.error.message" />
 
 		<div
@@ -80,12 +80,12 @@ import { ref } from 'vue'
 import {
 	Button,
 	ErrorMessage,
-	LoadingText,
 	PageHeader,
 	PageHeaderTitle,
 	useCall,
 	useList,
 } from 'frappe-ui'
+import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import NewLeadMagnetDialog from '@/components/lead-magnets/NewLeadMagnetDialog.vue'
 import type { LeadMagnet } from '@/types'

@@ -13,7 +13,7 @@
     "@react-email/editor": "1.7.7",
     "@tiptap/extension-mention": "3.31.3",
     "@tiptap/suggestion": "3.31.3",
-    "frappe-ui": "1.0.0-beta.55",
+    "frappe-ui": "1.0.0-beta.64",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "socket.io-client": "^4.8.3",

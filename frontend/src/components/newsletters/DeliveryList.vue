@@ -5,7 +5,7 @@
 			<TabButtons v-model="status" :options="FILTERS" />
 		</div>
 
-		<LoadingText v-if="deliveries.loading && !deliveries.data" :lines="3" />
+		<ListSkeleton v-if="deliveries.loading && !deliveries.data" :rows="3" />
 		<ErrorMessage v-else-if="deliveries.error" :message="deliveries.error.message" />
 		<p v-else-if="!deliveries.data?.length" class="py-6 text-center text-p-base text-ink-gray-5">
 			{{ status ? `No ${status.toLowerCase()} emails` : 'No recipients yet. The send job is starting.' }}
@@ -48,7 +48,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Badge, ErrorMessage, LoadingText, TabButtons, useList } from 'frappe-ui'
+import { Badge, ErrorMessage, TabButtons, useList } from 'frappe-ui'
+import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import type { DeliveryStatus, NewsletterDelivery } from '@/types'
 

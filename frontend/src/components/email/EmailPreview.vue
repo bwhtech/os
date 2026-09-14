@@ -3,7 +3,7 @@
 		<div class="flex justify-center">
 			<TabButtons v-model="width" :options="WIDTHS" />
 		</div>
-		<LoadingText v-if="html === null" :lines="6" />
+		<Skeleton v-if="html === null" class="h-[50rem] w-full rounded-6" aria-label="Loading preview" />
 		<div v-else class="flex justify-center rounded-6 bg-surface-gray-2 p-4">
 			<!-- Email HTML is a full document, so an iframe shows it the way an email client does. -->
 			<iframe
@@ -19,7 +19,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { LoadingText, TabButtons } from 'frappe-ui'
+import { Skeleton, TabButtons } from 'frappe-ui'
 
 /** Null while the HTML is being made */
 defineProps<{ html: string | null }>()

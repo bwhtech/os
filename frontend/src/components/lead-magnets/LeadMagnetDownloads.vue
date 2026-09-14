@@ -8,7 +8,7 @@
 			</p>
 		</div>
 
-		<LoadingText v-if="downloads.loading && !downloads.data" :lines="3" />
+		<ListSkeleton v-if="downloads.loading && !downloads.data" :rows="3" />
 		<ErrorMessage v-else-if="downloads.error" :message="downloads.error.message" />
 		<div v-else-if="downloads.data?.length" class="overflow-x-auto">
 			<List
@@ -44,7 +44,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ErrorMessage, LoadingText, dayjs, useList } from 'frappe-ui'
+import { ErrorMessage, dayjs, useList } from 'frappe-ui'
+import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 
 const props = defineProps<{ leadMagnetId: string; count: number }>()

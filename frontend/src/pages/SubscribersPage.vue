@@ -19,7 +19,7 @@
 	<div class="space-y-4 px-3 py-5 pb-10 sm:px-5">
 		<SubscriberFilters ref="filtersRef" v-model="filters" />
 
-		<LoadingText v-if="rows.loading && !rows.data" :lines="4" />
+		<ListSkeleton v-if="rows.loading && !rows.data" />
 		<ErrorMessage v-else-if="rows.error" :message="rows.error.message" />
 		<SubscriberEmptyState
 			v-else-if="!rows.data?.length && page === 1"
@@ -46,11 +46,11 @@ import { computed, ref, watch } from 'vue'
 import {
 	Button,
 	ErrorMessage,
-	LoadingText,
 	PageHeader,
 	PageHeaderTitle,
 	debounce,
 } from 'frappe-ui'
+import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import ListPagination from '@/components/list/ListPagination.vue'
 import AddSubscriberDialog from '@/components/subscribers/AddSubscriberDialog.vue'
 import SubscriberEmptyState from '@/components/subscribers/SubscriberEmptyState.vue'

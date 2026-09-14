@@ -13,7 +13,7 @@
 	</PageHeader>
 
 	<div class="px-3 py-5 pb-10 sm:px-5">
-		<LoadingText v-if="issues.loading && !issues.data" :lines="4" />
+		<ListSkeleton v-if="issues.loading && !issues.data" />
 		<ErrorMessage v-else-if="issues.error" :message="issues.error.message" />
 
 		<div
@@ -96,12 +96,12 @@ import {
 	Badge,
 	Button,
 	ErrorMessage,
-	LoadingText,
 	PageHeader,
 	PageHeaderTitle,
 	dayjs,
 	useList,
 } from 'frappe-ui'
+import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import NewNewsletterDialog from '@/components/newsletters/NewNewsletterDialog.vue'
 import { STATUS_THEMES } from '@/lib/newsletters'
