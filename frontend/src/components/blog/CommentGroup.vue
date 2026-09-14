@@ -25,10 +25,11 @@
 		</div>
 
 		<List v-if="open" v-model:selection="selection" class="mt-1" selectable>
-			<ListRow v-for="comment in comments" :key="comment.id" :value="String(comment.id)">
+			<ListRow v-for="comment in comments" :key="comment.name" :value="String(comment.name)">
 				<CommentRow
 					:comment="comment"
-					@set-hidden="(hidden) => emit('set-hidden', [comment.id], hidden)"
+					@set-hidden="(hidden) => emit('set-hidden', [Number(comment.name)], hidden)"
+					@delete="emit('delete', comment)"
 				/>
 			</ListRow>
 		</List>
@@ -45,7 +46,11 @@ import type { BlogComment, BlogPost } from '@/types'
 /** One post on the Comments page. `comments` are the ones that match the filters. */
 const props = defineProps<{ post: BlogPost; comments: BlogComment[]; open: boolean }>()
 const selection = defineModel<string[]>('selection', { required: true })
-const emit = defineEmits<{ toggle: []; 'set-hidden': [ids: number[], hidden: boolean] }>()
+const emit = defineEmits<{
+	toggle: []
+	'set-hidden': [ids: number[], hidden: boolean]
+	delete: [comment: BlogComment]
+}>()
 
 // The counts are for the whole post, not only the rows that match the filters.
 const counts = computed(() => {

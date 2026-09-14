@@ -212,16 +212,26 @@ export interface ListOverview {
 	issue_rates: ({ name: string; subject: string; sent_at: string } & EngagementRates)[]
 }
 
-/** A `BWH Blog Comment`. `created_at` is Unix seconds. */
+/** A `BWH Blog Comment` row */
 export interface BlogComment {
-	id: number
+	/** Autoincrement. The server sends a number, and useList types every name as a string. */
 	name: string
+	post: string
+	commenter_name: string
 	email: string
 	body: string
-	created_at: number
-	hidden: boolean
+	hidden: 0 | 1
+	creation: string
 }
 
+/** A `BWH Blog Post` row */
+export interface BlogPostRow {
+	name: string
+	title: string | null
+	likes: number
+}
+
+/** A post with its comments, for the Comments page */
 export interface BlogPost {
 	post_id: string
 	title: string
@@ -229,10 +239,4 @@ export interface BlogPost {
 	likes: number
 	/** Newest first */
 	comments: BlogComment[]
-}
-
-/** From `bwh_os.blog.api.get_comments` */
-export interface BlogCommentFeed {
-	truncated: boolean
-	posts: BlogPost[]
 }

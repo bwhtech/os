@@ -6,7 +6,7 @@ import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
 
-from bwh_os.blog.comments import get_comment_feed, public_comments
+from bwh_os.blog.comments import public_comments
 from bwh_os.blog.doctype.bwh_blog_post.bwh_blog_post import get_or_create_post
 from bwh_os.mailing.api import SIGNUP_API_ROLE
 
@@ -59,20 +59,26 @@ def like_post(post_id: str, ip: str) -> int:
 	return get_or_create_post(post_id).add_like()
 
 
-@frappe.whitelist(methods=["GET"])
-def get_comments() -> dict:
-	"""All comments for OS, newest first, grouped by post."""
-	frappe.only_for("System Manager")
-	return get_comment_feed()
-
-
 @frappe.whitelist(methods=["POST"])
 def set_hidden(ids: list[int], hidden: bool) -> int:
 	"""Hide or unhide comments on the blog. Returns how many comments changed."""
 	frappe.only_for("System Manager")
 	names = [int(name) for name in ids]
 	for name in names:
-		frappe.db.set_value("BWH Blog Comment", name, "hidden", int(bool(hidden)))
+		# A save, not db.set_value, so the OS page gets the realtime list update.
+		comment = frappe.get_doc("BWH Blog Comment", name)
+		comment.hidden = int(bool(hidden))
+		comment.save()
+	return len(names)
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_comments(ids: list[int]) -> int:
+	"""Delete comments for good. Returns how many were deleted."""
+	frappe.only_for("System Manager")
+	names = [int(name) for name in ids]
+	for name in names:
+		frappe.delete_doc("BWH Blog Comment", name)
 	return len(names)
 
 

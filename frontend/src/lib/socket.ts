@@ -24,6 +24,24 @@ export function onRealtime<T>(event: string, handler: (payload: T) => void) {
 	})
 }
 
+/**
+ * Call `handler` when a document of one of the doctypes is saved or deleted.
+ * Frappe sends `list_update` only to the room of the doctype, so join it, and
+ * join again after a reconnect because the server forgets the rooms.
+ */
+export function onListUpdate(doctypes: string[], handler: (doctype: string) => void) {
+	const subscribe = () => doctypes.forEach((doctype) => getSocket().emit('doctype_subscribe', doctype))
+	subscribe()
+	getSocket().on('connect', subscribe)
+	onRealtime<{ doctype: string }>('list_update', ({ doctype }) => {
+		if (doctypes.includes(doctype)) handler(doctype)
+	})
+	onScopeDispose(() => {
+		getSocket().off('connect', subscribe)
+		doctypes.forEach((doctype) => getSocket().emit('doctype_unsubscribe', doctype))
+	})
+}
+
 function socketUrl() {
 	const { hostname, port, protocol } = window.location
 	const siteName = window.site_name ?? hostname

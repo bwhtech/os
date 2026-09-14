@@ -3,7 +3,13 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from bwh_os.blog.api import add_comment, get_comments, get_engagement, like_post, set_hidden
+from bwh_os.blog.api import (
+	add_comment,
+	delete_comments,
+	get_engagement,
+	like_post,
+	set_hidden,
+)
 
 
 def random_ip() -> str:
@@ -51,18 +57,6 @@ class IntegrationTestBlogApi(IntegrationTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			like_post("../etc/passwd", random_ip())
 
-	def test_feed_groups_comments_by_post(self, _titles):
-		comment = add_comment("stories/one-year", "Ada", "ada@example.com", "Grouped", random_ip())
-		frappe.db.set_value("BWH Blog Comment", comment["id"], "hidden", 1)
-
-		feed = get_comments()
-
-		post = next(post for post in feed["posts"] if post["post_id"] == "stories/one-year")
-		self.assertEqual(post["title"], "One Year")
-		self.assertEqual(post["url"], "https://bwh.tech/blog/stories/one-year/")
-		row = next(row for row in post["comments"] if row["id"] == comment["id"])
-		self.assertIs(row["hidden"], True)
-
 	def test_hide_and_unhide_many_comments(self, _titles):
 		ids = [
 			add_comment("stories/one-year", "Ada", "ada@example.com", f"Bulk {i}", random_ip())["id"]
@@ -78,12 +72,22 @@ class IntegrationTestBlogApi(IntegrationTestCase):
 		self.assertIn(ids[0], shown)
 		self.assertNotIn(ids[1], shown)
 
+	def test_delete_many_comments(self, _titles):
+		ids = [
+			add_comment("stories/one-year", "Ada", "ada@example.com", f"Delete {i}", random_ip())["id"]
+			for i in range(2)
+		]
+
+		self.assertEqual(delete_comments(ids), 2)
+
+		self.assertFalse(frappe.db.exists("BWH Blog Comment", {"name": ("in", ids)}))
+
 	def test_website_methods_need_the_api_role(self, _titles):
 		frappe.set_user("Guest")
 
 		with self.assertRaises(frappe.PermissionError):
 			get_engagement("stories/one-year")
 		with self.assertRaises(frappe.PermissionError):
-			get_comments()
-		with self.assertRaises(frappe.PermissionError):
 			set_hidden([1], True)
+		with self.assertRaises(frappe.PermissionError):
+			delete_comments([1])

@@ -1,13 +1,13 @@
 <template>
 	<!-- Feed mode: avatar, content, trailing cell. -->
 	<ListCell class="self-start pt-1">
-		<Avatar :label="comment.name" size="lg" />
+		<Avatar :label="comment.commenter_name" size="lg" />
 	</ListCell>
 	<ListCell class="py-1">
 		<!-- ListCell centers its items, so the content needs its own column. -->
-		<div class="flex w-full min-w-0 flex-col items-start gap-1" :class="comment.hidden && 'opacity-60'">
+		<div class="flex w-full min-w-0 flex-col items-start gap-1" :class="{ 'opacity-60': comment.hidden }">
 			<div class="flex min-w-0 max-w-full items-baseline gap-2">
-				<span class="truncate text-base-medium text-ink-gray-8">{{ comment.name }}</span>
+				<span class="truncate text-base-medium text-ink-gray-8">{{ comment.commenter_name }}</span>
 				<span class="truncate text-sm text-ink-gray-5">{{ comment.email }}</span>
 				<Tooltip :text="postedAt.format('D MMM YYYY, h:mm A')">
 					<span class="shrink-0 text-sm text-ink-gray-5">{{ postedAt.fromNow() }}</span>
@@ -49,17 +49,18 @@ import { ListCell } from 'frappe-ui/list'
 import type { BlogComment } from '@/types'
 
 const props = defineProps<{ comment: BlogComment }>()
-const emit = defineEmits<{ 'set-hidden': [hidden: boolean] }>()
+const emit = defineEmits<{ 'set-hidden': [hidden: boolean]; delete: [] }>()
 
 const expanded = ref(false)
 const clamped = ref(false)
 const body = useTemplateRef<HTMLParagraphElement>('body')
-const postedAt = computed(() => dayjs.unix(props.comment.created_at))
+const postedAt = computed(() => dayjs(props.comment.creation))
 
 const menu = computed<DropdownOptions>(() => [
 	props.comment.hidden
 		? { label: 'Unhide', icon: 'lucide-eye', onClick: () => emit('set-hidden', false) }
 		: { label: 'Hide', icon: 'lucide-eye-off', onClick: () => emit('set-hidden', true) },
+	{ label: 'Delete', icon: 'lucide-trash-2', theme: 'red', onClick: () => emit('delete') },
 ])
 
 // Show the toggle only when the clamp cuts text. The width, and so the cut, changes on resize.

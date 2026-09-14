@@ -37,6 +37,10 @@ class BWHBlogPost(Document):
 	def add_like(self) -> int:
 		"""Add one like in one statement, so parallel likes do not overwrite each other. Returns the total."""
 		frappe.db.sql("UPDATE `tabBWH Blog Post` SET likes = likes + 1 WHERE name = %s", self.name)
+		# The raw update sends no realtime event, so tell open OS pages here.
+		frappe.publish_realtime(
+			"list_update", {"doctype": self.doctype, "name": self.name}, after_commit=True
+		)
 		return frappe.db.get_value("BWH Blog Post", self.name, "likes")
 
 

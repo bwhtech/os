@@ -14,6 +14,13 @@
 				:loading="busy"
 				@click="emit('set-hidden', false)"
 			/>
+			<Button
+				theme="red"
+				label="Delete"
+				icon-left="lucide-trash-2"
+				:disabled="busy"
+				@click="emit('delete')"
+			/>
 			<Button variant="ghost" label="Clear" icon-left="lucide-x" @click="emit('clear')" />
 		</template>
 
@@ -44,7 +51,7 @@ defineProps<{ selectedCount: number; summary: string; busy: boolean }>()
 const status = defineModel<CommentStatus>('status', { required: true })
 const search = defineModel<string>('search', { required: true })
 
-const emit = defineEmits<{ 'set-hidden': [hidden: boolean]; clear: [] }>()
+const emit = defineEmits<{ 'set-hidden': [hidden: boolean]; delete: []; clear: [] }>()
 
 const STATUS_OPTIONS = [
 	{ label: 'All', value: '' },

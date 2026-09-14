@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 import frappe
 import requests
 
-BLOG_URL = "https://bwh.tech/blog"
 FEED_URL = "https://bwh.tech/rss.xml"
 CACHE_KEY = "bwh_os:blog_post_titles"
 CACHE_SECONDS = 60 * 60
@@ -23,10 +22,6 @@ def get_post_titles() -> dict[str, str]:
 		expires = CACHE_SECONDS if titles else FAILED_CACHE_SECONDS
 		frappe.cache.set_value(CACHE_KEY, titles, expires_in_sec=expires)
 	return titles
-
-
-def post_url(post_id: str) -> str:
-	return f"{BLOG_URL}/{post_id}/"
 
 
 def fetch_post_titles() -> dict[str, str]:

@@ -28,7 +28,8 @@ The Blog module stores the likes and comments in OS. You moderate comments, see 
 | Moderation | Comments publish instantly. OS hides, unhides, and deletes after. There is no approve-first queue. |
 | Delete | A hard delete, after a confirmation dialog. |
 | Post titles | From `rss.xml`, cached in Redis for 1 hour, and set when OS makes the post. A post that is not in the feed shows its post id. |
-| Loading | The Comments page loads all comments in one call, newest first, with a cap of 2,000. Grouping, filters, and search run in the browser. |
+| Loading | The Comments page reads the doctypes with `useList`: all comments, newest first, with a cap of 2,000. Grouping, filters, and search run in the browser. |
+| Updates | The page joins the Frappe `list_update` room of both doctypes and reloads when a comment or a like changes. There is no Refresh button. |
 | Notifications | `after_insert` on `BWH Blog Comment` sends the email through the `email_account` in `Mailing Settings`. |
 
 ### Out of scope for v1
@@ -86,9 +87,8 @@ OS methods. Only System Manager can call them.
 
 | Method | Action |
 |---|---|
-| `get_comments()` (GET) | All comments, newest first, grouped by post, with the title, the URL, and the likes of each post |
-| `set_hidden(ids, hidden)` (POST) | Slice 2 |
-| `delete_comments(ids)` (POST) | Slice 3 |
+| `set_hidden(ids, hidden)` (POST) | Saves each comment, so the realtime update goes out |
+| `delete_comments(ids)` (POST) | Deletes each comment |
 | `get_overview()` (GET) | Slice 4 |
 
 ### Blog repo
@@ -143,7 +143,7 @@ Each slice goes through all layers. Merge each slice alone.
 - Add the `Blog` module, `BWH Blog Post`, and `BWH Blog Comment`.
 - Add the website methods with rate limits, and add rate limits to `subscribe`.
 - Change the Netlify functions to call OS. Remove Turso from the blog repo.
-- Add `get_comments` and the grouped Comments page without actions.
+- Add the grouped Comments page without actions. It reads the doctypes with `useList` and reloads on `list_update`.
 - Demo: comment and like on a local post, see the comment and the likes in OS.
 
 ### 2. Hide and unhide
