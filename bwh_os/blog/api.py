@@ -66,6 +66,16 @@ def get_comments() -> dict:
 	return get_comment_feed()
 
 
+@frappe.whitelist(methods=["POST"])
+def set_hidden(ids: list[int], hidden: bool) -> int:
+	"""Hide or unhide comments on the blog. Returns how many comments changed."""
+	frappe.only_for("System Manager")
+	names = [int(name) for name in ids]
+	for name in names:
+		frappe.db.set_value("BWH Blog Comment", name, "hidden", int(bool(hidden)))
+	return len(names)
+
+
 def limit_likes_per_post(ip: str, post_id: str):
 	"""`rate_limit` counts by one parameter. Likes also need a count for each IP and post."""
 	key = frappe.cache.make_key(f"rl:bwh_blog_like:{ip}:{post_id}")

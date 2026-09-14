@@ -3,7 +3,7 @@ from unittest.mock import patch
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from bwh_os.blog.api import add_comment, get_comments, get_engagement, like_post
+from bwh_os.blog.api import add_comment, get_comments, get_engagement, like_post, set_hidden
 
 
 def random_ip() -> str:
@@ -63,6 +63,21 @@ class IntegrationTestBlogApi(IntegrationTestCase):
 		row = next(row for row in post["comments"] if row["id"] == comment["id"])
 		self.assertIs(row["hidden"], True)
 
+	def test_hide_and_unhide_many_comments(self, _titles):
+		ids = [
+			add_comment("stories/one-year", "Ada", "ada@example.com", f"Bulk {i}", random_ip())["id"]
+			for i in range(2)
+		]
+
+		self.assertEqual(set_hidden(ids, True), 2)
+		shown = [comment["id"] for comment in get_engagement("stories/one-year")["comments"]]
+		self.assertFalse(set(ids) & set(shown))
+
+		set_hidden([str(ids[0])], False)
+		shown = [comment["id"] for comment in get_engagement("stories/one-year")["comments"]]
+		self.assertIn(ids[0], shown)
+		self.assertNotIn(ids[1], shown)
+
 	def test_website_methods_need_the_api_role(self, _titles):
 		frappe.set_user("Guest")
 
@@ -70,3 +85,5 @@ class IntegrationTestBlogApi(IntegrationTestCase):
 			get_engagement("stories/one-year")
 		with self.assertRaises(frappe.PermissionError):
 			get_comments()
+		with self.assertRaises(frappe.PermissionError):
+			set_hidden([1], True)

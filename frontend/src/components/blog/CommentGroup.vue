@@ -24,9 +24,12 @@
 			</Tooltip>
 		</div>
 
-		<List v-if="open" class="mt-1">
-			<ListRow v-for="comment in post.comments" :key="comment.id" :value="String(comment.id)">
-				<CommentRow :comment="comment" />
+		<List v-if="open" v-model:selection="selection" class="mt-1" selectable>
+			<ListRow v-for="comment in comments" :key="comment.id" :value="String(comment.id)">
+				<CommentRow
+					:comment="comment"
+					@set-hidden="(hidden) => emit('set-hidden', [comment.id], hidden)"
+				/>
 			</ListRow>
 		</List>
 	</section>
@@ -37,12 +40,14 @@ import { computed } from 'vue'
 import { Button, Tooltip } from 'frappe-ui'
 import { List, ListRow } from 'frappe-ui/list'
 import CommentRow from '@/components/blog/CommentRow.vue'
-import type { BlogPost } from '@/types'
+import type { BlogComment, BlogPost } from '@/types'
 
-/** One post and its comments on the Comments page. */
-const props = defineProps<{ post: BlogPost; open: boolean }>()
-const emit = defineEmits<{ toggle: [] }>()
+/** One post on the Comments page. `comments` are the ones that match the filters. */
+const props = defineProps<{ post: BlogPost; comments: BlogComment[]; open: boolean }>()
+const selection = defineModel<string[]>('selection', { required: true })
+const emit = defineEmits<{ toggle: []; 'set-hidden': [ids: number[], hidden: boolean] }>()
 
+// The counts are for the whole post, not only the rows that match the filters.
 const counts = computed(() => {
 	const total = props.post.comments.length
 	const hidden = props.post.comments.filter((comment) => comment.hidden).length

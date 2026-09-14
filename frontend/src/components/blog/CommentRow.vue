@@ -27,27 +27,40 @@
 				size="sm"
 				class="-ml-2"
 				:label="expanded ? 'Show less' : 'Show more'"
-				@click="expanded = !expanded"
+				@click.stop="expanded = !expanded"
 			/>
 		</div>
 	</ListCell>
-	<ListCell class="self-start pt-1">
+	<ListCell class="gap-1 self-start">
 		<Badge v-if="comment.hidden" label="Hidden" theme="gray" variant="subtle" />
+		<!-- A selectable row toggles on click. The menu must not. -->
+		<span @click.stop>
+			<Dropdown :options="menu" placement="right">
+				<Button variant="ghost" icon="lucide-ellipsis" label="Comment actions" />
+			</Dropdown>
+		</span>
 	</ListCell>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
-import { Avatar, Badge, Button, Tooltip, dayjs } from 'frappe-ui'
+import { Avatar, Badge, Button, Dropdown, Tooltip, dayjs, type DropdownOptions } from 'frappe-ui'
 import { ListCell } from 'frappe-ui/list'
 import type { BlogComment } from '@/types'
 
 const props = defineProps<{ comment: BlogComment }>()
+const emit = defineEmits<{ 'set-hidden': [hidden: boolean] }>()
 
 const expanded = ref(false)
 const clamped = ref(false)
 const body = useTemplateRef<HTMLParagraphElement>('body')
 const postedAt = computed(() => dayjs.unix(props.comment.created_at))
+
+const menu = computed<DropdownOptions>(() => [
+	props.comment.hidden
+		? { label: 'Unhide', icon: 'lucide-eye', onClick: () => emit('set-hidden', false) }
+		: { label: 'Hide', icon: 'lucide-eye-off', onClick: () => emit('set-hidden', true) },
+])
 
 // Show the toggle only when the clamp cuts text. The width, and so the cut, changes on resize.
 const observer = new ResizeObserver(() => {

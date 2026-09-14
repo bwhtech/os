@@ -19,6 +19,7 @@ declare module 'vue' {
     ColumnMappingStep: typeof import('./src/components/subscribers/import/ColumnMappingStep.vue')['default']
     CommentGroup: typeof import('./src/components/blog/CommentGroup.vue')['default']
     CommentRow: typeof import('./src/components/blog/CommentRow.vue')['default']
+    CommentToolbar: typeof import('./src/components/blog/CommentToolbar.vue')['default']
     ConfirmEmailSection: typeof import('./src/components/forms/ConfirmEmailSection.vue')['default']
     ConfirmRateCard: typeof import('./src/components/forms/ConfirmRateCard.vue')['default']
     CsvFileStep: typeof import('./src/components/subscribers/import/CsvFileStep.vue')['default']
