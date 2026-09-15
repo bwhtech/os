@@ -317,6 +317,10 @@ require_type_annotated_api_methods = True
 # ignore_translatable_strings_from = []
 
 scheduler_events = {
+	"daily": [
+		# Adds new LMS users to the list. See bwh_os.mailing.lms_sync.
+		"bwh_os.mailing.lms_sync.sync_daily",
+	],
 	"cron": {
 		# Starts Scheduled newsletters. See bwh_os.mailing.newsletter_schedule.
 		"* * * * *": ["bwh_os.mailing.newsletter_schedule.send_due_issues"],

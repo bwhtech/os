@@ -14,6 +14,7 @@
 
 		<SettingsContent>
 			<EmailSettings :open="open" />
+			<LMSSyncSettings :open="open" />
 			<BlogSettings :open="open" />
 		</SettingsContent>
 	</SettingsDialog>
@@ -30,6 +31,7 @@ import {
 } from 'frappe-ui'
 import BlogSettings from '@/components/settings/BlogSettings.vue'
 import EmailSettings from '@/components/settings/EmailSettings.vue'
+import LMSSyncSettings from '@/components/settings/LMSSyncSettings.vue'
 
 /** All OS settings. Each module adds a group here and a component with its panels. */
 const open = defineModel<boolean>('open', { required: true })
@@ -40,6 +42,7 @@ const GROUPS = [
 		items: [
 			{ label: 'Sending', value: 'sending', icon: 'lucide-send' },
 			{ label: 'Footer', value: 'footer', icon: 'lucide-building-2' },
+			{ label: 'LMS Sync', value: 'lms-sync', icon: 'lucide-refresh-cw' },
 		],
 	},
 	{

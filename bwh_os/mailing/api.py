@@ -69,6 +69,16 @@ def import_subscribers(content: str, mapping: dict, tags: list[str] | None = Non
 
 
 @frappe.whitelist(methods=["POST"])
+def sync_lms_now() -> dict:
+	"""Run the LMS sync now with the saved settings. A failure comes back as a status, not an error."""
+	frappe.only_for("System Manager")
+	settings = frappe.get_single("LMS Sync Settings")
+	if not (settings.site_url and settings.api_key and settings.api_secret):
+		frappe.throw(_("Save the site URL, API key, and API secret first"))
+	return settings.sync()
+
+
+@frappe.whitelist(methods=["POST"])
 def send_test_newsletter(issue: str, email: str) -> str:
 	"""Send the saved issue to one address. Returns the address."""
 	frappe.only_for("System Manager")

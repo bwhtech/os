@@ -34,6 +34,7 @@ Kit did not fit. BWH wants its own list with no third-party tool for now.
 | Delivery | One `Newsletter Delivery` row for each issue and subscriber. Stats come from these rows, because Frappe deletes old Email Queue records. |
 | Issue failure | An issue is Failed only when no email went out. Otherwise it is Sent, and the page shows the failed count. |
 | Import | CSV rows import as Active, with tags. |
+| LMS sync | Once a day, OS reads new LMS users and batch enrollments with an API key. New users join as Active with no welcome email. Enrollees get the enrollment tags. |
 | Editor | An `EmailEditor.vue` wrapper around `@react-email/editor`. The spike in slice 7 passed. See [Editor](#editor). |
 
 ### Out of scope for v1
@@ -41,7 +42,7 @@ Kit did not fit. BWH wants its own list with no third-party tool for now.
 - Drip or automation sequences.
 - Bounce and complaint processing. This needs a webhook from the email provider.
 - Captcha (for example Cloudflare Turnstile). The Netlify function already has a honeypot and a rate limit.
-- Live sync of new LMS users.
+- Live sync of new LMS users. A daily sync was added later. See `bwh_os/mailing/lms_sync.py`.
 - Segments based on opens or clicks.
 - Resend to people who did not open. `Newsletter Delivery` makes this possible later.
 - More than one list.

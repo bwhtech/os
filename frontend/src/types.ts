@@ -181,6 +181,33 @@ export interface MailingSettings {
 	blog_notification_email: string | null
 }
 
+export interface LMSSyncSettings {
+	name: 'LMS Sync Settings'
+	enabled: 0 | 1
+	site_url: string | null
+	api_key: string | null
+	/** Asterisks when a secret is saved */
+	api_secret: string | null
+	user_tags: { tag: string }[]
+	enrollment_tags: { tag: string }[]
+	/** In the LMS site's time zone */
+	users_synced_until: string | null
+	enrollments_synced_until: string | null
+	last_synced_on: string | null
+	last_sync_status: '' | 'Success' | 'Failed' | null
+	last_sync_message: string | null
+}
+
+/** From `bwh_os.mailing.api.sync_lms_now`. The counts are there only on success. */
+export interface LMSSyncResult {
+	status: 'Success' | 'Failed'
+	message: string
+	added?: number
+	skipped?: number
+	failed?: number
+	tagged?: number
+}
+
 /** Counts from `bwh_os.mailing.stats.activity` */
 export interface Activity {
 	total: number

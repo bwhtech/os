@@ -1,0 +1,140 @@
+{
+ "actions": [],
+ "creation": "2026-09-15 12:00:00.000000",
+ "description": "Adds new users of a Frappe LMS site to the list every day",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "site_url",
+  "api_key",
+  "api_secret",
+  "tags_section",
+  "user_tags",
+  "column_break_tags",
+  "enrollment_tags",
+  "state_section",
+  "users_synced_until",
+  "enrollments_synced_until",
+  "column_break_state",
+  "last_synced_on",
+  "last_sync_status",
+  "last_sync_message"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "description": "Sync once a day",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "description": "For example https://school.bwh.tech",
+   "fieldname": "site_url",
+   "fieldtype": "Data",
+   "label": "Site URL",
+   "mandatory_depends_on": "enabled",
+   "options": "URL"
+  },
+  {
+   "description": "Of an LMS user that can read User and LMS Batch Enrollment",
+   "fieldname": "api_key",
+   "fieldtype": "Data",
+   "label": "API Key",
+   "mandatory_depends_on": "enabled"
+  },
+  {
+   "fieldname": "api_secret",
+   "fieldtype": "Password",
+   "label": "API Secret",
+   "mandatory_depends_on": "enabled"
+  },
+  {
+   "fieldname": "tags_section",
+   "fieldtype": "Section Break",
+   "label": "Tags"
+  },
+  {
+   "description": "Added to each new LMS user",
+   "fieldname": "user_tags",
+   "fieldtype": "Table MultiSelect",
+   "label": "User Tags",
+   "options": "Subscriber Tag Item"
+  },
+  {
+   "fieldname": "column_break_tags",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Added to each subscriber who enrolls in an LMS batch",
+   "fieldname": "enrollment_tags",
+   "fieldtype": "Table MultiSelect",
+   "label": "Enrollment Tags",
+   "options": "Subscriber Tag Item"
+  },
+  {
+   "description": "Times are in the LMS site's time zone",
+   "fieldname": "state_section",
+   "fieldtype": "Section Break",
+   "label": "Sync State"
+  },
+  {
+   "description": "The next sync only reads users created after this. Empty reads all users.",
+   "fieldname": "users_synced_until",
+   "fieldtype": "Datetime",
+   "label": "Users Synced Until"
+  },
+  {
+   "description": "The next sync only reads enrollments created after this. Empty reads all enrollments.",
+   "fieldname": "enrollments_synced_until",
+   "fieldtype": "Datetime",
+   "label": "Enrollments Synced Until"
+  },
+  {
+   "fieldname": "column_break_state",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_synced_on",
+   "fieldtype": "Datetime",
+   "label": "Last Synced On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync_status",
+   "fieldtype": "Select",
+   "label": "Last Sync Status",
+   "options": "\nSuccess\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync_message",
+   "fieldtype": "Small Text",
+   "label": "Last Sync Message",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-15 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Mailing",
+ "name": "LMS Sync Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
