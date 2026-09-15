@@ -5,7 +5,7 @@
 		</div>
 
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-			<section class="h-72 rounded-xl border border-outline-gray-1 px-4 py-3">
+			<section class="h-72 rounded-7 border border-outline-gray-1 px-4 py-3">
 				<FunnelChart
 					:data="report.data?.funnel ?? []"
 					category="stage"
@@ -16,7 +16,7 @@
 				/>
 			</section>
 
-			<section class="h-72 rounded-xl border border-outline-gray-1 px-4 py-3">
+			<section class="h-72 rounded-7 border border-outline-gray-1 px-4 py-3">
 				<AreaChart
 					:data="hourlyRows"
 					x="hour"
@@ -31,7 +31,7 @@
 			</section>
 		</div>
 
-		<section class="h-72 rounded-xl border border-outline-gray-1 px-4 py-3">
+		<section class="h-72 rounded-7 border border-outline-gray-1 px-4 py-3">
 			<BarChart
 				:data="linkRows"
 				x="link"

@@ -1,7 +1,7 @@
 <template>
 	<div class="space-y-3">
 		<div
-			class="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-10 text-center transition-colors"
+			class="flex flex-col items-center justify-center gap-2 rounded-6 border border-dashed px-4 py-10 text-center transition-colors"
 			:class="dragging ? 'border-outline-gray-4 bg-surface-gray-2' : 'border-outline-gray-2'"
 			@dragover.prevent="dragging = true"
 			@dragleave.prevent="dragging = false"

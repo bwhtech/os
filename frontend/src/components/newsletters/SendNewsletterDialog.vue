@@ -22,7 +22,7 @@
 					<NumberCard v-for="card in cards" :key="card.title" v-bind="card" />
 				</div>
 
-				<section v-if="batchRows.length > 1" class="h-56 rounded-xl border border-outline-gray-1 px-4 py-3">
+				<section v-if="batchRows.length > 1" class="h-56 rounded-7 border border-outline-gray-1 px-4 py-3">
 					<BarChart
 						:data="batchRows"
 						x="hour"

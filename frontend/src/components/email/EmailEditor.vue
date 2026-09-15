@@ -2,9 +2,9 @@
 	<!-- No padding: the theme sets the email background and spacing. -->
 	<div class="relative overflow-hidden rounded-6 border border-outline-gray-2">
 		<div v-if="!ready" class="space-y-3 p-4" aria-busy="true" aria-label="Loading editor">
-			<Skeleton class="h-6 w-1/2 rounded" />
-			<Skeleton class="h-4 w-full rounded" />
-			<Skeleton class="h-4 w-4/5 rounded" />
+			<Skeleton class="h-6 w-1/2 rounded-4" />
+			<Skeleton class="h-4 w-full rounded-4" />
+			<Skeleton class="h-4 w-4/5 rounded-4" />
 			<Skeleton class="h-40 w-full rounded-6" />
 		</div>
 		<div ref="host" />

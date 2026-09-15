@@ -5,10 +5,10 @@
 			<Skeleton v-for="card in 2" :key="card" class="h-24 rounded-6" />
 		</div>
 		<div class="max-w-2xl space-y-5">
-			<Skeleton class="h-5 w-32 rounded" />
+			<Skeleton class="h-5 w-32 rounded-4" />
 			<div v-for="field in fields" :key="field" class="space-y-1.5">
-				<Skeleton class="h-3 w-24 rounded" />
-				<Skeleton class="h-7 w-full rounded" />
+				<Skeleton class="h-3 w-24 rounded-4" />
+				<Skeleton class="h-7 w-full rounded-4" />
 			</div>
 		</div>
 	</div>

@@ -65,7 +65,7 @@ import { errorMessage } from '@/lib/errors'
 import type { ListOverview } from '@/types'
 
 // Charts draw their own title and states. The card is only the surface.
-const CARD = 'flex min-w-0 flex-col rounded-xl border border-outline-gray-1 bg-surface-elevation-2 px-4 py-3'
+const CARD = 'flex min-w-0 flex-col rounded-7 border border-outline-gray-1 bg-surface-elevation-2 px-4 py-3'
 
 const percent = (value: number) => `${Math.round(value)}%`
 

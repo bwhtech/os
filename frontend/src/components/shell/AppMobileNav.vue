@@ -71,7 +71,7 @@ import { MOBILE_TABS, SECTIONS } from '@/lib/navigation'
 
 const emit = defineEmits<{ 'open-settings': [] }>()
 
-const ROW = 'flex h-12 items-center gap-3 rounded-lg px-2 text-left text-lg active:bg-surface-gray-2'
+const ROW = 'flex h-12 items-center gap-3 rounded-6 px-2 text-left text-lg active:bg-surface-gray-2'
 
 const route = useRoute()
 const { user, logout } = useSession()

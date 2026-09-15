@@ -15,7 +15,7 @@
 
 		<NewsletterEngagement :issue="issue" :refresh-key="refreshKey" />
 
-		<section class="h-72 rounded-xl border border-outline-gray-1 px-4 py-3">
+		<section class="h-72 rounded-7 border border-outline-gray-1 px-4 py-3">
 			<BarChart
 				:data="batchRows"
 				x="hour"

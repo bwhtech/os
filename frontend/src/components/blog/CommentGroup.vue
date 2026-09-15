@@ -1,7 +1,7 @@
 <template>
 	<section :id="`post-${post.post_id}`" class="scroll-mt-4">
 		<!-- The group header follows the Tasks recipe in frappe-ui. -->
-		<div class="group flex items-center rounded-sm bg-surface-sidebar transition hover:bg-surface-gray-2">
+		<div class="group flex items-center rounded-1 bg-surface-sidebar transition hover:bg-surface-gray-2">
 			<button
 				class="flex min-w-0 flex-1 items-baseline px-2.5 py-2 text-left text-base"
 				:aria-expanded="open"

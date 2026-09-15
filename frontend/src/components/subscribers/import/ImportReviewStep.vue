@@ -4,7 +4,7 @@
 			<div
 				v-for="stat in stats"
 				:key="stat.action"
-				class="rounded-lg border border-outline-gray-1 px-3 py-2.5"
+				class="rounded-6 border border-outline-gray-1 px-3 py-2.5"
 			>
 				<p class="text-xl font-semibold text-ink-gray-9">{{ preview.counts[stat.action] }}</p>
 				<p class="text-p-sm text-ink-gray-5">{{ stat.label }}</p>
