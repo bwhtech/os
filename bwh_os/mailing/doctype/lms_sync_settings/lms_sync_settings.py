@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime
 
@@ -40,7 +41,7 @@ class LMSSyncSettings(Document):
 		except Exception as e:
 			frappe.db.rollback(save_point="lms_sync")
 			frappe.log_error("LMS sync failed")
-			self.record("Failed", frappe.utils.strip_html(str(e)))
+			self.record("Failed", _("Failed: {0}").format(frappe.utils.strip_html(str(e))))
 			return {"status": "Failed", "message": self.last_sync_message}
 
 		frappe.db.release_savepoint("lms_sync")

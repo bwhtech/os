@@ -1,7 +1,7 @@
 {
  "actions": [],
  "creation": "2026-09-15 12:00:00.000000",
- "description": "Adds new users of a Frappe LMS site to the list every day",
+ "description": "Adds new LMS users to the list daily",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -24,13 +24,12 @@
  "fields": [
   {
    "default": "0",
-   "description": "Sync once a day",
+   "description": "Runs once a day",
    "fieldname": "enabled",
    "fieldtype": "Check",
    "label": "Enabled"
   },
   {
-   "description": "For example https://school.bwh.tech",
    "fieldname": "site_url",
    "fieldtype": "Data",
    "label": "Site URL",
@@ -38,7 +37,7 @@
    "options": "URL"
   },
   {
-   "description": "Of an LMS user that can read User and LMS Batch Enrollment",
+   "description": "Needs read access to User and LMS Batch Enrollment",
    "fieldname": "api_key",
    "fieldtype": "Data",
    "label": "API Key",
@@ -56,7 +55,6 @@
    "label": "Tags"
   },
   {
-   "description": "Added to each new LMS user",
    "fieldname": "user_tags",
    "fieldtype": "Table MultiSelect",
    "label": "User Tags",
@@ -67,26 +65,25 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "Added to each subscriber who enrolls in an LMS batch",
    "fieldname": "enrollment_tags",
    "fieldtype": "Table MultiSelect",
    "label": "Enrollment Tags",
    "options": "Subscriber Tag Item"
   },
   {
-   "description": "Times are in the LMS site's time zone",
+   "description": "In the LMS site's time zone",
    "fieldname": "state_section",
    "fieldtype": "Section Break",
    "label": "Sync State"
   },
   {
-   "description": "The next sync only reads users created after this. Empty reads all users.",
+   "description": "The next sync reads users created after this",
    "fieldname": "users_synced_until",
    "fieldtype": "Datetime",
    "label": "Users Synced Until"
   },
   {
-   "description": "The next sync only reads enrollments created after this. Empty reads all enrollments.",
+   "description": "The next sync reads enrollments created after this",
    "fieldname": "enrollments_synced_until",
    "fieldtype": "Datetime",
    "label": "Enrollments Synced Until"
@@ -118,7 +115,7 @@
  "grid_page_length": 50,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-15 12:00:00.000000",
+ "modified": "2026-09-15 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "LMS Sync Settings",

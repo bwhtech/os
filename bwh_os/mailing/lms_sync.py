@@ -23,9 +23,14 @@ class SyncResult:
 	tagged: int = 0
 
 	def summary(self) -> str:
-		return _("Added {0}, skipped {1}, failed {2}, tagged {3} enrollees").format(
-			self.added, self.skipped, self.failed, self.tagged
-		)
+		parts = []
+		if self.added:
+			parts.append(_("Added {0}").format(plural(self.added, "user")))
+		if self.tagged:
+			parts.append(_("tagged {0}").format(plural(self.tagged, "enrollee")))
+		if self.failed:
+			parts.append(_("{0} failed").format(self.failed))
+		return ", ".join(parts).capitalize() if parts else _("No new users")
 
 	def as_dict(self) -> dict:
 		return asdict(self)
@@ -146,11 +151,7 @@ class LMSClient:
 			timeout=TIMEOUT_SECONDS,
 		)
 		if response.status_code in (401, 403):
-			frappe.throw(
-				_(
-					"The LMS site refused the API key. Check the key, the secret, and that its user can read {0}."
-				).format(doctype)
-			)
+			frappe.throw(_("LMS rejected the API key. It needs read access to {0}.").format(doctype))
 		response.raise_for_status()
 		return response.json()["data"]
 
@@ -159,3 +160,7 @@ def sync_daily():
 	settings = frappe.get_single("LMS Sync Settings")
 	if settings.enabled:
 		settings.sync()
+
+
+def plural(count: int, noun: str) -> str:
+	return f"{count} {noun}" if count == 1 else f"{count} {noun}s"

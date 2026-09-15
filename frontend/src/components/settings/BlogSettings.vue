@@ -1,6 +1,6 @@
 <template>
 	<SettingsPanel value="blog-notifications">
-		<SettingsHeader title="Notifications" description="An email for each new comment on the blog.">
+		<SettingsHeader title="Notifications">
 			<template #actions>
 				<Button
 					variant="solid"
@@ -13,21 +13,12 @@
 			</template>
 		</SettingsHeader>
 		<SettingsBody>
-			<ErrorMessage :message="errorMessage(settings.error)" />
-			<div class="flex flex-col gap-4">
-				<Switch
-					v-model="draft.notify"
-					label="Email new comments"
-					description="The email has the comment and a link to moderate it in OS. It goes out through the account in Email → Sending."
-				/>
-				<TextInput
-					v-if="draft.notify"
-					v-model="draft.email"
-					type="email"
-					label="Send to"
-					placeholder="Your email"
-					description="Leave empty to use your own email."
-				/>
+			<div class="flex flex-col gap-4 pt-3">
+				<ErrorMessage :message="errorMessage(settings.error)" />
+				<SettingsRow title="Email new comments" description="With a link to moderate.">
+					<Switch v-model="draft.notify" />
+				</SettingsRow>
+				<TextInput v-if="draft.notify" v-model="draft.email" type="email" label="Send to" placeholder="Your email" />
 			</div>
 		</SettingsBody>
 	</SettingsPanel>
@@ -41,6 +32,7 @@ import {
 	SettingsBody,
 	SettingsHeader,
 	SettingsPanel,
+	SettingsRow,
 	Switch,
 	TextInput,
 	toast,
@@ -75,7 +67,7 @@ async function save() {
 			notify_blog_comments: draft.notify ? 1 : 0,
 			blog_notification_email: draft.email.trim() || null,
 		})
-		toast.success('Blog notifications saved')
+		toast.success('Saved')
 	} catch (error) {
 		toast.error(errorMessage(error as Error))
 	}

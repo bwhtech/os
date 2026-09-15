@@ -1,50 +1,47 @@
 <template>
 	<SettingsPanel value="sending">
-		<SettingsHeader title="Sending" description="The account that sends every list email.">
+		<SettingsHeader title="Sending">
 			<template #actions>
 				<SaveButton />
 			</template>
 		</SettingsHeader>
 		<SettingsBody>
-			<ErrorMessage :message="errorMessage(settings.error)" />
-			<div class="flex flex-col gap-4">
+			<div class="flex flex-col gap-4 pt-6">
+				<ErrorMessage :message="errorMessage(settings.error)" />
 				<Select
 					v-model="draft.emailAccount"
-					label="Email Account"
+					label="Email account"
 					placeholder="Default outgoing account"
 					:options="accountOptions"
-					description="Only accounts with outgoing email on. Set up accounts in the desk."
+					description="Add accounts in Desk."
 				/>
 				<TextInput
 					v-model.number="draft.defaultHourlyLimit"
 					type="number"
 					:min="1"
-					label="Default hourly limit"
-					description="Most newsletter emails per hour. New newsletters copy this value."
+					label="Hourly limit"
+					description="Default for new newsletters."
 				/>
 				<p class="text-p-sm text-ink-gray-5">
-					From address:
-					<span class="text-ink-gray-7">{{ senderAddress || 'the default outgoing account' }}</span>
+					Sends from <span class="text-ink-gray-7">{{ senderAddress || 'the default account' }}</span>
 				</p>
 			</div>
 		</SettingsBody>
 	</SettingsPanel>
 
 	<SettingsPanel value="footer">
-		<SettingsHeader title="Footer" description="Shown at the bottom of every list email.">
+		<SettingsHeader title="Footer">
 			<template #actions>
 				<SaveButton />
 			</template>
 		</SettingsHeader>
 		<SettingsBody>
-			<ErrorMessage :message="errorMessage(settings.error)" />
-			<div class="flex flex-col gap-4">
+			<div class="flex flex-col gap-4 pt-6">
+				<ErrorMessage :message="errorMessage(settings.error)" />
 				<TextInput v-model="draft.companyName" label="Company name" />
 				<TextInput v-model="draft.gstin" label="GSTIN" />
 				<Textarea v-model="draft.postalAddress" label="Postal address" :rows="3" />
-				<p class="text-p-sm text-ink-gray-5">
-					Social links show above the company details. Leave a link empty to hide it.
-				</p>
+				<h3 class="pt-2 text-base-medium text-ink-gray-8">Social links</h3>
 				<TextInput
 					v-for="link in SOCIAL_LINKS"
 					:key="link.key"
@@ -155,7 +152,7 @@ async function save() {
 			postal_address: draft.postalAddress,
 			...socialLinks((key) => draft[key]),
 		})
-		toast.success('Email settings saved')
+		toast.success('Saved')
 	} catch (error) {
 		toast.error(errorMessage(error as Error))
 	}

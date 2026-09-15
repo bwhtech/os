@@ -1,15 +1,7 @@
 <template>
 	<SettingsPanel value="lms-sync">
-		<SettingsHeader title="LMS Sync" description="Adds new LMS users to the list.">
+		<SettingsHeader title="LMS Sync">
 			<template #actions>
-				<Button
-					label="Sync now"
-					icon-left="lucide-refresh-cw"
-					:loading="syncNow.loading"
-					:disabled="dirty || !canSync"
-					:tooltip="dirty ? 'Save first' : undefined"
-					@click="sync"
-				/>
 				<Button
 					variant="solid"
 					theme="gray"
@@ -21,36 +13,30 @@
 			</template>
 		</SettingsHeader>
 		<SettingsBody>
-			<ErrorMessage :message="errorMessage(settings.error)" />
-			<div class="flex flex-col gap-4">
-				<Switch
-					v-model="draft.enabled"
-					label="Sync every day"
-					description="New users join as Active, with no welcome email. People already on the list stay as they are."
-				/>
+			<div class="flex flex-col gap-4 pt-3">
+				<ErrorMessage :message="errorMessage(settings.error)" />
+				<SettingsRow title="Sync daily" description="New users join as Active, without a welcome email.">
+					<Switch v-model="draft.enabled" />
+				</SettingsRow>
 				<TextInput v-model="draft.siteUrl" type="url" label="Site URL" placeholder="https://school.bwh.tech" />
 				<TextInput
 					v-model="draft.apiKey"
 					label="API key"
-					description="Of an LMS user that can read User and LMS Batch Enrollment."
+					description="Needs read access to User and LMS Batch Enrollment."
 				/>
 				<TextInput v-model="draft.apiSecret" type="password" label="API secret" />
-				<TagPicker
-					v-model="draft.userTags"
-					label="Tags for new users"
-					description="Added to each LMS user that joins the list."
-				/>
-				<TagPicker
-					v-model="draft.enrollmentTags"
-					label="Tags for enrollees"
-					description="Added to subscribers who enroll in an LMS batch. Tags are never removed."
-				/>
-				<p v-if="settings.doc?.last_synced_on" class="text-p-sm text-ink-gray-5">
-					Last sync {{ dayjs(settings.doc.last_synced_on).fromNow() }}:
-					<span :class="settings.doc.last_sync_status === 'Failed' ? 'text-ink-red-4' : 'text-ink-gray-7'">
-						{{ settings.doc.last_sync_message }}
-					</span>
-				</p>
+				<TagPicker v-model="draft.userTags" label="Tags for new users" />
+				<TagPicker v-model="draft.enrollmentTags" label="Tags for enrollees" />
+				<SettingsRow title="Last sync" :description="lastSync">
+					<Button
+						label="Sync now"
+						icon-left="lucide-refresh-cw"
+						:loading="syncNow.loading"
+						:disabled="dirty || !canSync"
+						:tooltip="dirty ? 'Save first' : undefined"
+						@click="sync"
+					/>
+				</SettingsRow>
 			</div>
 		</SettingsBody>
 	</SettingsPanel>
@@ -64,6 +50,7 @@ import {
 	SettingsBody,
 	SettingsHeader,
 	SettingsPanel,
+	SettingsRow,
 	Switch,
 	TextInput,
 	dayjs,
@@ -112,6 +99,12 @@ const saved = computed(() => {
 
 const dirty = computed(() => Boolean(saved.value) && JSON.stringify(saved.value) !== JSON.stringify(draft))
 
+const lastSync = computed(() => {
+	const doc = settings.doc
+	if (!doc?.last_synced_on) return 'Never'
+	return `${dayjs(doc.last_synced_on).fromNow()} · ${doc.last_sync_message}`
+})
+
 const canSync = computed(() => Boolean(saved.value?.siteUrl && saved.value.apiKey && saved.value.apiSecret))
 
 // Start each opening from the saved values, so closing the dialog drops unsaved changes.
@@ -129,7 +122,7 @@ async function save() {
 			user_tags: draft.userTags.map((tag) => ({ tag })),
 			enrollment_tags: draft.enrollmentTags.map((tag) => ({ tag })),
 		})
-		toast.success('LMS sync saved')
+		toast.success('Saved')
 	} catch (error) {
 		toast.error(errorMessage(error as Error))
 	}

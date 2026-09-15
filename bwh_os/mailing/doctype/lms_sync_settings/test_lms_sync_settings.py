@@ -48,6 +48,7 @@ class IntegrationTestLMSSyncSettings(IntegrationTestCase):
 		self.assertEqual(subscriber.first_name, "Asha")
 		self.assertEqual([row.tag for row in subscriber.tags], ["test-lms-user"])
 		self.assertEqual(result["added"], 1)
+		self.assertEqual(result["message"], "Added 1 user")
 		self.assertEqual(self.settings.last_sync_status, "Success")
 
 	def test_known_emails_are_skipped_and_stay_unsubscribed(self):
@@ -108,7 +109,7 @@ class IntegrationTestLMSSyncSettings(IntegrationTestCase):
 		saved = frappe.get_single("LMS Sync Settings")
 		self.assertEqual(str(saved.users_synced_until), "2026-09-01 00:00:00")
 		self.assertEqual(saved.last_sync_status, "Failed")
-		self.assertIn("LMS is down", saved.last_sync_message)
+		self.assertEqual(saved.last_sync_message, "Failed: LMS is down")
 
 
 def user(email: str, first_name: str, creation: str) -> dict:
