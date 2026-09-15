@@ -50,6 +50,34 @@ def add_subscriber(email: str, first_name: str | None = None, tags: list[str] | 
 
 
 @frappe.whitelist(methods=["POST"])
+def set_subscriber_status(names: list[str], status: str) -> int:
+	"""Give many subscribers the same status. Returns how many changed."""
+	changed = 0
+	for name in names:
+		subscriber = frappe.get_doc("Subscriber", name)
+		if subscriber.status == status:
+			continue
+		subscriber.set_status(status)
+		subscriber.save()
+		changed += 1
+	return changed
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_subscribers(names: list[str]) -> dict:
+	"""Delete many subscribers. One with newsletter or download history is kept, as that history links to it."""
+	deleted, kept = [], []
+	for name in names:
+		try:
+			frappe.delete_doc("Subscriber", name)
+			deleted.append(name)
+		except frappe.LinkExistsError:
+			frappe.clear_last_message()
+			kept.append(name)
+	return {"deleted": deleted, "kept": kept}
+
+
+@frappe.whitelist(methods=["POST"])
 def preview_subscriber_import(
 	content: str, mapping: dict | None = None, tags: list[str] | None = None
 ) -> dict:

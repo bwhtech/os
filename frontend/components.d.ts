@@ -57,6 +57,7 @@ declare module 'vue' {
     SeriesSidebar: typeof import('./src/components/videos/SeriesSidebar.vue')['default']
     SeriesStats: typeof import('./src/components/videos/SeriesStats.vue')['default']
     SeriesVideoList: typeof import('./src/components/videos/SeriesVideoList.vue')['default']
+    SubscriberBulkActions: typeof import('./src/components/subscribers/SubscriberBulkActions.vue')['default']
     SubscriberEmptyState: typeof import('./src/components/subscribers/SubscriberEmptyState.vue')['default']
     SubscriberFilters: typeof import('./src/components/subscribers/SubscriberFilters.vue')['default']
     SubscriberList: typeof import('./src/components/subscribers/SubscriberList.vue')['default']

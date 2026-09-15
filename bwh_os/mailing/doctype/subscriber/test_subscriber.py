@@ -3,8 +3,10 @@
 
 import frappe
 from frappe.tests import IntegrationTestCase
+from frappe.utils import now_datetime
 
-from bwh_os.mailing.api import add_subscriber
+from bwh_os.mailing.api import add_subscriber, delete_subscribers, set_subscriber_status
+from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import make_lead_magnet
 
 
 class IntegrationTestSubscriber(IntegrationTestCase):
@@ -33,3 +35,31 @@ class IntegrationTestSubscriber(IntegrationTestCase):
 	def test_invalid_email_is_rejected(self):
 		with self.assertRaises(frappe.InvalidEmailAddressError):
 			add_subscriber("not-an-email")
+
+	def test_bulk_status_change_sets_the_dates(self):
+		names = [add_subscriber("bulk-one@example.com"), add_subscriber("bulk-two@example.com")]
+
+		self.assertEqual(set_subscriber_status(names, "Unsubscribed"), 2)
+		self.assertEqual(set_subscriber_status(names, "Unsubscribed"), 0)
+		for name in names:
+			subscriber = frappe.get_doc("Subscriber", name)
+			self.assertEqual(subscriber.status, "Unsubscribed")
+			self.assertIsNotNone(subscriber.unsubscribed_on)
+
+	def test_bulk_delete_keeps_subscribers_with_history(self):
+		plain = add_subscriber("bulk-plain@example.com")
+		downloader = add_subscriber("bulk-downloader@example.com")
+		frappe.get_doc(
+			{
+				"doctype": "Lead Magnet Download",
+				"lead_magnet": make_lead_magnet().name,
+				"subscriber": downloader,
+				"downloaded_on": now_datetime(),
+			}
+		).insert()
+
+		result = delete_subscribers([plain, downloader])
+
+		self.assertEqual(result, {"deleted": [plain], "kept": [downloader]})
+		self.assertFalse(frappe.db.exists("Subscriber", plain))
+		self.assertTrue(frappe.db.exists("Subscriber", downloader))

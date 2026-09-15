@@ -5,6 +5,8 @@
 			class="min-w-[56rem] list-row-px-0"
 			:columns="['minmax(14rem,1fr)', '10rem', '7rem', '9rem', 'minmax(10rem,14rem)', '8rem']"
 			:row-height="44"
+			selectable
+			v-model:selection="selection"
 		>
 			<ListHeader>
 				<ListHeaderCell>Email</ListHeaderCell>
@@ -60,6 +62,9 @@ import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'f
 import type { Subscriber, SubscriberStatus } from '@/types'
 
 defineProps<{ subscribers: Subscriber[] }>()
+
+/** Checked subscriber names. */
+const selection = defineModel<string[]>('selection', { default: () => [] })
 
 const STATUS_THEMES: Record<SubscriberStatus, 'green' | 'amber' | 'gray' | 'red'> = {
 	Active: 'green',

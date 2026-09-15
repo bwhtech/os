@@ -1,17 +1,35 @@
 <template>
 	<AppPageHeader title="Subscribers">
+		<template v-if="selection.length" #title-suffix>
+			<span class="whitespace-nowrap text-sm text-ink-gray-5">{{ selection.length }} selected</span>
+		</template>
 		<template #actions>
-			<Button icon-left="lucide-upload" label="Import" @click="importOpen = true" />
-			<Button
-				variant="solid"
-				theme="gray"
-				icon-left="lucide-plus"
-				label="Add Subscriber"
-				@click="addOpen = true"
+			<SubscriberBulkActions
+				v-if="selection.length"
+				:names="selection"
+				@done="onBulkDone"
+				@clear="selection = []"
 			/>
+			<template v-else>
+				<Button icon-left="lucide-upload" label="Import" @click="importOpen = true" />
+				<Button
+					variant="solid"
+					theme="gray"
+					icon-left="lucide-plus"
+					label="Add Subscriber"
+					@click="addOpen = true"
+				/>
+			</template>
 		</template>
 		<template #mobile-actions>
-			<Dropdown :options="addMenu" align="end">
+			<SubscriberBulkActions
+				v-if="selection.length"
+				compact
+				:names="selection"
+				@done="onBulkDone"
+				@clear="selection = []"
+			/>
+			<Dropdown v-else :options="addMenu" align="end">
 				<Button variant="ghost" size="md" icon="lucide-plus" aria-label="Add subscribers" />
 			</Dropdown>
 		</template>
@@ -31,6 +49,7 @@
 		<template v-else>
 			<!-- Dim the old page while the next one loads, so the pager does not jump. -->
 			<SubscriberList
+				v-model:selection="selection"
 				:subscribers="rows.data ?? []"
 				:class="{ 'opacity-60 transition-opacity': rows.loading }"
 			/>
@@ -54,6 +73,7 @@ import {
 import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import ListSkeleton from '@/components/list/ListSkeleton.vue'
 import ListPagination from '@/components/list/ListPagination.vue'
+import SubscriberBulkActions from '@/components/subscribers/SubscriberBulkActions.vue'
 import AddSubscriberDialog from '@/components/subscribers/AddSubscriberDialog.vue'
 import SubscriberEmptyState from '@/components/subscribers/SubscriberEmptyState.vue'
 import SubscriberFilters, {
@@ -102,6 +122,17 @@ function listFilters() {
 		...(tag && { 'tags.tag': tag }),
 		...(form && { source_form: form }),
 	}
+}
+
+// Selection belongs to the rows on screen, so a new page or filter clears it.
+const selection = ref<string[]>([])
+watch([page, pageLength, listFilters], () => {
+	selection.value = []
+})
+
+function onBulkDone() {
+	selection.value = []
+	onImported()
 }
 
 function onImported() {

@@ -58,6 +58,16 @@ class Subscriber(Document):
 			self.status = "Unsubscribed"
 			self.unsubscribed_on = now_datetime()
 
+	def set_status(self, status: str):
+		"""Change the status by hand. The dates follow it, but no email is sent."""
+		if status == "Active":
+			self.activate()
+		elif status == "Unsubscribed":
+			self.status = status
+			self.unsubscribed_on = self.unsubscribed_on or now_datetime()
+		else:
+			self.status = status
+
 	def get_unsubscribe_url(self) -> str:
 		return get_url(f"/api/method/bwh_os.mailing.api.unsubscribe?token={self.token}")
 
