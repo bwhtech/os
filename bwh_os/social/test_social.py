@@ -2,8 +2,11 @@ from unittest.mock import MagicMock, patch
 
 import frappe
 from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
+from frappe.model.document import Document
 from frappe.tests import IntegrationTestCase
+from frappe.utils import add_days, getdate, now_datetime, today
 
+from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import last_email_to, use_test_email_account
 from bwh_os.social.api import (
 	connect_channel,
 	disconnect_channel,
@@ -11,6 +14,7 @@ from bwh_os.social.api import (
 	get_provider_apps,
 	set_credentials,
 )
+from bwh_os.social.channels import check_expiry
 from bwh_os.social.oauth import upsert_channel
 from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Retryable
@@ -274,3 +278,100 @@ class IntegrationTestLinkedInProvider(SocialTestCase):
 		response = MagicMock(ok=False, status_code=422, text="no")
 
 		self.assertIsInstance(LinkedInProvider.error_for(response), BadRequest)
+
+
+class IntegrationTestSocialExpiry(SocialTestCase):
+	"""The daily watch over the tokens. See `bwh_os.social.channels`."""
+
+	def setUp(self):
+		super().setUp()
+		use_test_email_account()
+
+	def make_channel(self, provider: str = "LinkedIn", **values) -> str:
+		values.setdefault("user", "Administrator")
+		return super().make_channel(provider, **values)
+
+	def expiring_in(self, days: int, **values) -> Document:
+		"""A connected channel whose token dies in `days` days. A negative number is the past."""
+		expires_on = add_days(now_datetime(), days)
+		return frappe.get_doc("Social Channel", self.make_channel(expires_on=expires_on, **values))
+
+	def emails_about(self, channel: Document) -> int:
+		return frappe.db.count(
+			"Email Queue", {"reference_doctype": "Social Channel", "reference_name": channel.name}
+		)
+
+	def test_a_token_that_ran_out_turns_the_channel_red(self):
+		channel = self.expiring_in(-1)
+
+		check_expiry()
+
+		channel.reload()
+		self.assertEqual(channel.status, "Expired")
+		self.assertIn("Connect LinkedIn again", channel.last_error)
+
+	def test_a_token_with_a_week_left_gets_one_reminder(self):
+		channel = self.expiring_in(5)
+
+		check_expiry()
+		check_expiry()
+
+		channel.reload()
+		self.assertEqual(channel.status, "Connected")
+		self.assertEqual(channel.reminder_sent_on, getdate(today()))
+		self.assertEqual(self.emails_about(channel), 1)
+
+	def test_the_reminder_says_when_the_token_goes_and_where_to_fix_it(self):
+		self.expiring_in(5)
+
+		check_expiry()
+
+		email = last_email_to(frappe.db.get_value("User", "Administrator", "email"))
+		self.assertIn("LinkedIn disconnects from BWH OS in 5 days", email["Subject"])
+		self.assertIn("/os/social", email.get_body(("html",)).get_content())
+
+	def test_a_young_token_is_left_alone(self):
+		channel = self.expiring_in(30)
+
+		check_expiry()
+
+		channel.reload()
+		self.assertIsNone(channel.reminder_sent_on)
+		self.assertEqual(self.emails_about(channel), 0)
+
+	def test_a_disconnected_channel_is_not_reminded(self):
+		channel = self.expiring_in(2, status="Disconnected")
+
+		check_expiry()
+
+		self.assertEqual(self.emails_about(channel), 0)
+
+	def test_a_channel_without_an_expiry_is_skipped(self):
+		channel = frappe.get_doc("Social Channel", self.make_channel("X"))
+
+		check_expiry()
+
+		channel.reload()
+		self.assertEqual(channel.status, "Connected")
+		self.assertEqual(self.emails_about(channel), 0)
+
+	def test_one_broken_channel_does_not_stop_the_rest(self):
+		broken = self.expiring_in(-1)
+		other = self.expiring_in(-1)
+
+		with patch("bwh_os.social.channels.send_reminder", side_effect=[Exception("no mail"), None]):
+			check_expiry()
+
+		self.assertEqual(
+			{frappe.db.get_value("Social Channel", name, "status") for name in (broken.name, other.name)},
+			{"Expired"},
+		)
+
+	def test_a_reconnect_opens_a_new_reminder_window(self):
+		channel = self.expiring_in(3)
+		check_expiry()
+
+		channel.db_set({"status": "Connected", "reminder_sent_on": None})
+		check_expiry()
+
+		self.assertEqual(self.emails_about(channel), 2)

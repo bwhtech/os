@@ -320,6 +320,8 @@ scheduler_events = {
 	"daily": [
 		# Adds new LMS users to the list. See bwh_os.mailing.lms_sync.
 		"bwh_os.mailing.lms_sync.sync_daily",
+		# Warns before a social token dies and marks it when it does. See bwh_os.social.channels.
+		"bwh_os.social.channels.check_expiry",
 	],
 	"cron": {
 		# Starts Scheduled newsletters. See bwh_os.mailing.newsletter_schedule.

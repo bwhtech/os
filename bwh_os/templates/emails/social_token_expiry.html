@@ -1,0 +1,20 @@
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.5; color: #1f2937; max-width: 560px;">
+	<p style="margin: 0 0 4px; color: #6b7280;">{{ provider | e }} connection</p>
+	<p style="margin: 0 0 20px; font-size: 17px; font-weight: 600;">
+		{% if expired %}
+			{{ account | e }} can no longer post
+		{% elif days_left == 1 %}
+			{{ account | e }} stops posting tomorrow
+		{% else %}
+			{{ account | e }} stops posting in {{ days_left }} days
+		{% endif %}
+	</p>
+	<p style="margin: 0 0 24px;">
+		{{ provider | e }} ends a connection 60 days after you make it, and this one
+		{% if expired %}ran out on{% else %}runs out on{% endif %} {{ expires_on | e }}.
+		Scheduled posts for this channel fail until you connect it again in the OS.
+	</p>
+	<p style="margin: 0;">
+		<a class="btn" href="{{ settings_url | e }}" style="display: inline-block; padding: 8px 16px; background: #171717; color: #ffffff; border-radius: 8px; text-decoration: none;">Reconnect {{ provider | e }}</a>
+	</p>
+</div>
