@@ -29,6 +29,10 @@ export const SECTIONS: NavSection[] = [
 		],
 	},
 	{
+		label: 'Social',
+		items: [{ to: '/social', label: 'Posts', icon: 'lucide-megaphone' }],
+	},
+	{
 		label: 'Videos',
 		items: [
 			{ to: '/videos', label: 'All Videos', icon: 'lucide-clapperboard' },

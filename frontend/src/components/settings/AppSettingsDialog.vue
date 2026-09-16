@@ -16,6 +16,7 @@
 			<EmailSettings :open="open" />
 			<LMSSyncSettings :open="open" />
 			<BlogSettings :open="open" />
+			<SocialChannelsSettings :open="open" />
 		</SettingsContent>
 	</SettingsDialog>
 </template>
@@ -32,6 +33,7 @@ import {
 import BlogSettings from '@/components/settings/BlogSettings.vue'
 import EmailSettings from '@/components/settings/EmailSettings.vue'
 import LMSSyncSettings from '@/components/settings/LMSSyncSettings.vue'
+import SocialChannelsSettings from '@/components/settings/SocialChannelsSettings.vue'
 
 /** All OS settings. Each module adds a group here and a component with its panels. */
 const open = defineModel<boolean>('open', { required: true })
@@ -48,6 +50,10 @@ const GROUPS = [
 	{
 		label: 'Blog',
 		items: [{ label: 'Notifications', value: 'blog-notifications', icon: 'lucide-bell' }],
+	},
+	{
+		label: 'Social',
+		items: [{ label: 'Channels', value: 'social-channels', icon: 'lucide-share-2' }],
 	},
 ]
 

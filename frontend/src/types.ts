@@ -338,3 +338,35 @@ export interface VideoFile {
 	file_size: number
 	is_private: 0 | 1
 }
+
+export type SocialProvider = 'LinkedIn' | 'X'
+
+export type SocialChannelStatus = 'Connected' | 'Expired' | 'Disconnected'
+
+/** A `Social Channel`, from `bwh_os.social.api.get_channels` */
+export interface SocialChannel {
+	name: string
+	provider: SocialProvider
+	display_name: string | null
+	handle: string | null
+	avatar_url: string | null
+	profile_url: string | null
+	status: SocialChannelStatus
+	connected_on: string | null
+	expires_on: string | null
+	last_error: string | null
+	/** Whole days until the token expires. Null when the channel has no expiry. */
+	days_left: number | null
+}
+
+/** The OAuth app of a platform, from `bwh_os.social.api.get_provider_apps` */
+export interface SocialProviderApp {
+	provider: SocialProvider
+	/** The name of the `Connected App` */
+	app: string
+	/** The URI to register in the console of the platform */
+	redirect_uri: string
+	scopes: string[]
+	client_id: string | null
+	has_credentials: boolean
+}

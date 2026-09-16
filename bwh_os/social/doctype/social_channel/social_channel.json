@@ -1,0 +1,171 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:{provider}-{account_id}",
+ "creation": "2026-09-16 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "provider",
+  "display_name",
+  "handle",
+  "column_break_account",
+  "account_id",
+  "avatar_url",
+  "profile_url",
+  "token_section",
+  "user",
+  "connected_app",
+  "token_cache",
+  "column_break_token",
+  "status",
+  "connected_on",
+  "expires_on",
+  "reminder_sent_on",
+  "last_error"
+ ],
+ "fields": [
+  {
+   "fieldname": "provider",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Provider",
+   "options": "LinkedIn\nX",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "display_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Display Name"
+  },
+  {
+   "description": "The X username. LinkedIn personal profiles have none.",
+   "fieldname": "handle",
+   "fieldtype": "Data",
+   "label": "Handle"
+  },
+  {
+   "fieldname": "column_break_account",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The id of the account on the platform",
+   "fieldname": "account_id",
+   "fieldtype": "Data",
+   "label": "Account ID",
+   "read_only": 1,
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "avatar_url",
+   "fieldtype": "Data",
+   "label": "Avatar URL",
+   "options": "URL"
+  },
+  {
+   "fieldname": "profile_url",
+   "fieldtype": "Data",
+   "label": "Profile URL",
+   "options": "URL"
+  },
+  {
+   "fieldname": "token_section",
+   "fieldtype": "Section Break",
+   "label": "Token"
+  },
+  {
+   "description": "The token of this user is the one the publisher sends",
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "connected_app",
+   "fieldtype": "Link",
+   "label": "Connected App",
+   "options": "Connected App",
+   "reqd": 1
+  },
+  {
+   "fieldname": "token_cache",
+   "fieldtype": "Link",
+   "label": "Token Cache",
+   "options": "Token Cache",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_token",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Connected",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Connected\nExpired\nDisconnected",
+   "reqd": 1
+  },
+  {
+   "fieldname": "connected_on",
+   "fieldtype": "Datetime",
+   "label": "Connected On",
+   "read_only": 1
+  },
+  {
+   "description": "LinkedIn gives no refresh token, so the token dies 60 days after the connect",
+   "fieldname": "expires_on",
+   "fieldtype": "Datetime",
+   "label": "Expires On",
+   "read_only": 1
+  },
+  {
+   "description": "The window of the last reminder email, so one window sends one email",
+   "fieldname": "reminder_sent_on",
+   "fieldtype": "Date",
+   "label": "Reminder Sent On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_error",
+   "fieldtype": "Small Text",
+   "label": "Last Error",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "links": [],
+ "modified": "2026-09-16 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Social",
+ "name": "Social Channel",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "display_name",
+ "track_changes": 1
+}

@@ -1,14 +1,17 @@
 import frappe
 
 from bwh_os.mailing.api import SIGNUP_API_ROLE
+from bwh_os.social.oauth_apps import ensure_connected_apps
 
 
 def after_install():
 	ensure_signup_api_role()
+	ensure_connected_apps()
 
 
 def after_migrate():
 	ensure_signup_api_role()
+	ensure_connected_apps()
 
 
 def ensure_signup_api_role():
