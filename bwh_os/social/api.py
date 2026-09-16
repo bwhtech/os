@@ -10,7 +10,7 @@ from frappe.utils import date_diff, now_datetime
 
 from bwh_os.social.oauth import LINKEDIN_SUCCESS_URI
 from bwh_os.social.oauth_apps import PROVIDERS, get_app, redirect_uri
-from bwh_os.social.publisher import Publisher
+from bwh_os.social.publisher import Publisher, Schedule
 from bwh_os.social.validation import PostValidator
 
 CHANNEL_FIELDS = [
@@ -124,6 +124,33 @@ def publish_post(post: str | int) -> str:
 	frappe.only_for("System Manager")
 	doc = frappe.get_doc("Social Post", post)
 	Publisher(doc).start()
+	return doc.status
+
+
+@frappe.whitelist(methods=["POST"])
+def schedule_post(post: str | int, scheduled_at: str) -> str:
+	"""Set the time this post goes out. The scheduler takes it from there."""
+	frappe.only_for("System Manager")
+	doc = frappe.get_doc("Social Post", post)
+	Schedule(doc).schedule(scheduled_at)
+	return doc.status
+
+
+@frappe.whitelist(methods=["POST"])
+def reschedule_post(post: str | int, scheduled_at: str) -> str:
+	"""Move the time of a post that has not gone out. Also the calendar drag."""
+	frappe.only_for("System Manager")
+	doc = frappe.get_doc("Social Post", post)
+	Schedule(doc).reschedule(scheduled_at)
+	return doc.status
+
+
+@frappe.whitelist(methods=["POST"])
+def unschedule_post(post: str | int) -> str:
+	"""Take the post off the clock. It stays where it was, as a draft."""
+	frappe.only_for("System Manager")
+	doc = frappe.get_doc("Social Post", post)
+	Schedule(doc).unschedule()
 	return doc.status
 
 

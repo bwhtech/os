@@ -13,7 +13,7 @@ from the part after the last one that made it.
 
 import frappe
 from frappe import _
-from frappe.utils import now_datetime
+from frappe.utils import add_to_date, get_datetime, now_datetime
 from frappe.utils.background_jobs import is_job_enqueued
 
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, get_provider
@@ -21,6 +21,7 @@ from bwh_os.social.providers.base import Account
 from bwh_os.social.tokens import get_token
 
 SAVEPOINT = "social_target"
+SCHEDULE_SAVEPOINT = "social_schedule"
 # A video upload is slow, so the job gets half an hour before the queue gives up on it.
 JOB_TIMEOUT = 30 * 60
 
@@ -192,3 +193,110 @@ def run_publish_job(post: str):
 
 def has_job(post: str) -> bool:
 	return is_job_enqueued(f"social_post::{post}")
+
+
+class Schedule:
+	"""A time on a post, and the clock that keeps it.
+
+	A Scheduled post is not frozen, unlike a scheduled newsletter. A post is short, the
+	wording keeps moving until the minute comes, and the publisher reads the content when
+	the job runs. Only the start of a publish locks it.
+	"""
+
+	def __init__(self, post):
+		self.post = post
+
+	def schedule(self, at: str):
+		"""Give a draft a time. The strict pass runs now, so a bad post is caught while
+		someone is looking at it rather than at midnight."""
+		if self.post.status != "Draft":
+			frappe.throw(_("Only a draft can be scheduled"))
+		self.post.check()
+		self.set(status="Scheduled", scheduled_at=self.future(at))
+
+	def reschedule(self, at: str):
+		"""Move the time. A draft may hold one too: the calendar shows it where it is
+		meant to go, and it goes out only once it is scheduled."""
+		if self.post.status not in ("Draft", "Scheduled"):
+			frappe.throw(_("A post that is {0} cannot move").format(_(self.post.status).lower()))
+		self.set(scheduled_at=self.future(at))
+
+	def unschedule(self):
+		"""Back to a draft, keeping the time as a plan rather than a promise."""
+		if self.post.status != "Scheduled":
+			frappe.throw(_("This post is not scheduled"))
+		self.set(status="Draft")
+
+	def start(self):
+		"""The scheduler's go. A post that cannot go out any more becomes Failed and says
+		why, instead of being tried again every minute until someone notices."""
+		frappe.db.savepoint(SCHEDULE_SAVEPOINT)
+		try:
+			Publisher(self.post).start()
+		except frappe.ValidationError as error:
+			frappe.db.rollback(save_point=SCHEDULE_SAVEPOINT)
+			self.give_up(str(error))
+
+	def give_up(self, reason: str):
+		"""Nothing was called, so every target failed before it started. The reason goes on
+		each one, because that is where the composer shows it."""
+		for target in self.post.targets:
+			target.db_set(
+				{"status": "Failed", "error_kind": "Bad Request", "error": reason[:500]}, commit=False
+			)
+		self.set(status="Failed")
+		frappe.log_error(
+			title=_("Scheduled post did not go out"),
+			message=reason,
+			reference_doctype=self.post.doctype,
+			reference_name=self.post.name,
+		)
+
+	def future(self, at: str):
+		at = get_datetime(at)
+		if at <= now_datetime():
+			frappe.throw(_("Pick a time in the future"))
+		return at
+
+	def set(self, **values):
+		"""The list page is open while this happens, so the write tells the browser."""
+		self.post.db_set(values, notify=True)
+
+
+def publish_due_posts():
+	"""Scheduler job, every minute. Starts every post whose time has come.
+
+	`start` flips the status inside the same transaction that queues the job, so a second
+	tick landing on the same post finds it Publishing and leaves it alone.
+	"""
+	due = frappe.get_all(
+		"Social Post",
+		filters={"status": "Scheduled", "scheduled_at": ("<=", now_datetime())},
+		order_by="scheduled_at asc",
+		pluck="name",
+	)
+	for name in due:
+		Schedule(frappe.get_doc("Social Post", name)).start()
+		frappe.db.commit()
+
+
+def resume_stuck_posts():
+	"""Scheduler job, every 5 minutes. Picks up a post whose worker died.
+
+	A job that is killed leaves the post Publishing with nothing behind it. Anything that
+	has sat there longer than the job is allowed to run is queued again; the arm flag on
+	each target is what keeps a part that may already be out from going out twice.
+	"""
+	stuck = frappe.get_all(
+		"Social Post",
+		filters={
+			"status": "Publishing",
+			"modified": ("<", add_to_date(now_datetime(), seconds=-JOB_TIMEOUT)),
+		},
+		pluck="name",
+	)
+	for name in stuck:
+		if has_job(name):
+			continue
+		Publisher(frappe.get_doc("Social Post", name)).enqueue()
+		frappe.db.commit()

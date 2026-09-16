@@ -4,16 +4,13 @@
 			<Badge v-if="post.doc" :theme="POST_STATUS_THEMES[post.doc.status]" :label="post.doc.status" />
 		</template>
 		<template #actions>
-			<span class="self-center text-p-sm text-ink-gray-5">{{ savedLabel }}</span>
-			<Button
-				v-if="post.doc?.status === 'Draft'"
-				variant="solid"
-				theme="gray"
-				label="Publish now"
-				:loading="publish.loading"
-				:disabled="!canPublish"
-				:tooltip="canPublish ? undefined : 'Fix what the platforms flag first'"
-				@click="askPublish"
+			<PublishBar
+				v-if="post.doc"
+				:post="post.doc"
+				:can-publish="canPublish"
+				:saved-label="savedLabel"
+				:channels="validation.data?.length ?? 0"
+				@changed="post.reload()"
 			/>
 			<Dropdown :options="menu">
 				<Button variant="ghost" icon="lucide-ellipsis" aria-label="More actions" />
@@ -78,6 +75,7 @@ import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import ChannelPicker from '@/components/social/ChannelPicker.vue'
 import PartEditor from '@/components/social/PartEditor.vue'
 import PostPreviews from '@/components/social/PostPreviews.vue'
+import PublishBar from '@/components/social/PublishBar.vue'
 import TargetResults from '@/components/social/TargetResults.vue'
 import { useAutosave } from '@/composables/useAutosave'
 import { useSocialChannels } from '@/composables/useSocialChannels'
@@ -209,30 +207,10 @@ const partName = computed(() =>
 		: 'Comment',
 )
 
-const publish = useCall<string, { post: string }>({
-	url: '/api/v2/method/bwh_os.social.api.publish_post',
-	method: 'POST',
-	immediate: false,
-})
-
 /** The server checks again before anything goes out. This only keeps the button honest. */
 const canPublish = computed(
 	() => Boolean(validation.data?.length) && validation.data!.every((result) => !result.errors.length),
 )
-
-function askPublish() {
-	const channels = validation.data?.length ?? 0
-	dialog.confirm({
-		title: 'Publish now',
-		message: `This goes out to ${channels === 1 ? 'the channel' : `${channels} channels`} right away.`,
-		confirmLabel: 'Publish',
-		onConfirm: async () => {
-			await publish.submit({ post: props.postId })
-			toast.success('Publishing')
-			post.reload()
-		},
-	})
-}
 
 function remove() {
 	dialog.danger({

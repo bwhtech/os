@@ -5,7 +5,7 @@ import frappe
 from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
 from frappe.model.document import Document
 from frappe.tests import IntegrationTestCase
-from frappe.utils import add_days, getdate, now_datetime, today
+from frappe.utils import add_days, add_to_date, get_datetime, getdate, now_datetime, today
 
 from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import last_email_to, use_test_email_account
 from bwh_os.social.api import (
@@ -15,13 +15,16 @@ from bwh_os.social.api import (
 	get_posts,
 	get_provider_apps,
 	publish_post,
+	reschedule_post,
+	schedule_post,
 	set_credentials,
+	unschedule_post,
 	validate_post,
 )
 from bwh_os.social.channels import check_expiry
 from bwh_os.social.oauth import upsert_channel
 from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
-from bwh_os.social.publisher import Publisher
+from bwh_os.social.publisher import JOB_TIMEOUT, Publisher, publish_due_posts, resume_stuck_posts
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, Retryable
 from bwh_os.social.providers.linkedin import LinkedInProvider
 from bwh_os.social.tokens import SKEW_SECONDS, get_token
@@ -655,6 +658,120 @@ class IntegrationTestSocialPublishing(IntegrationTestSocialPosts):
 		self.publish(post, side_effect=release_parts)
 
 		self.assertRaises(frappe.ValidationError, publish_post, post.name)
+
+
+class IntegrationTestSocialSchedule(IntegrationTestSocialPosts):
+	"""A time on a post, and the minute that acts on it. See `bwh_os.social.publisher`."""
+
+	def in_an_hour(self) -> str:
+		return add_to_date(now_datetime(), hours=1).strftime("%Y-%m-%d %H:%M:%S")
+
+	def due_post(self, channels: list[str], **values):
+		"""A scheduled post whose time has passed. The clock is set behind the record's back,
+		because scheduling into the past is exactly what the API refuses."""
+		post = self.make_post(channels, **values)
+		post.db_set({"status": "Scheduled", "scheduled_at": add_to_date(now_datetime(), minutes=-1)})
+		return post
+
+	def test_a_draft_takes_a_time_and_goes_on_the_clock(self):
+		post = self.make_post([self.make_channel()])
+		at = self.in_an_hour()
+
+		self.assertEqual(schedule_post(post.name, at), "Scheduled")
+
+		post.reload()
+		self.assertEqual(post.status, "Scheduled")
+		self.assertEqual(post.scheduled_at, get_datetime(at))
+
+	def test_a_time_that_has_gone_is_refused(self):
+		post = self.make_post([self.make_channel()])
+		past = add_to_date(now_datetime(), hours=-1).strftime("%Y-%m-%d %H:%M:%S")
+
+		self.assertRaises(frappe.ValidationError, schedule_post, post.name, past)
+
+	def test_a_post_the_platform_would_refuse_is_never_scheduled(self):
+		post = self.make_post([self.make_channel()], parts=[{"text": "A" * 3001}])
+
+		self.assertRaises(frappe.ValidationError, schedule_post, post.name, self.in_an_hour())
+		self.assertEqual(frappe.db.get_value("Social Post", post.name, "status"), "Draft")
+
+	def test_a_scheduled_post_can_still_be_written(self):
+		post = self.make_post([self.make_channel()])
+		schedule_post(post.name, self.in_an_hour())
+
+		post.reload()
+		post.parts[0].text = "A second thought"
+		post.save()
+
+		self.assertEqual(post.status, "Scheduled")
+
+	def test_only_a_post_that_has_not_gone_out_can_move(self):
+		channel = self.make_channel()
+		draft = self.make_post([channel])
+		published = self.make_post([channel], status="Published")
+
+		self.assertEqual(reschedule_post(draft.name, self.in_an_hour()), "Draft")
+		self.assertRaises(frappe.ValidationError, reschedule_post, published.name, self.in_an_hour())
+
+	def test_unscheduling_gives_the_draft_back_and_keeps_the_slot(self):
+		post = self.make_post([self.make_channel()])
+		at = self.in_an_hour()
+		schedule_post(post.name, at)
+
+		self.assertEqual(unschedule_post(post.name), "Draft")
+
+		post.reload()
+		self.assertEqual(post.scheduled_at, get_datetime(at))
+		self.assertRaises(frappe.ValidationError, unschedule_post, post.name)
+
+	def test_the_minute_starts_a_due_post_once(self):
+		post = self.due_post([self.make_channel()])
+
+		with patch("frappe.enqueue") as enqueue:
+			publish_due_posts()
+			publish_due_posts()
+
+		post.reload()
+		self.assertEqual(post.status, "Publishing")
+		self.assertEqual(post.targets[0].status, "Pending")
+		self.assertEqual(enqueue.call_count, 1)
+
+	def test_a_post_that_cannot_go_out_any_more_says_so_instead_of_trying_again(self):
+		channel = self.make_channel()
+		post = self.due_post([channel])
+		frappe.db.set_value("Social Channel", channel, "status", "Expired")
+
+		with patch("frappe.enqueue") as enqueue:
+			publish_due_posts()
+
+		post.reload()
+		self.assertEqual(post.status, "Failed")
+		self.assertEqual(enqueue.call_count, 0)
+		self.assertIn("Expired", post.targets[0].error)
+		self.assertEqual(post.targets[0].status, "Failed")
+
+	def test_a_post_whose_worker_died_is_queued_again(self):
+		post = self.make_post([self.make_channel()], status="Publishing")
+		frappe.db.set_value(
+			"Social Post",
+			post.name,
+			"modified",
+			add_to_date(now_datetime(), seconds=-JOB_TIMEOUT - 60),
+			update_modified=False,
+		)
+
+		with patch("bwh_os.social.publisher.has_job", return_value=False), patch("frappe.enqueue") as enqueue:
+			resume_stuck_posts()
+
+		self.assertEqual(enqueue.call_count, 1)
+
+	def test_a_post_still_within_its_time_is_left_to_work(self):
+		self.make_post([self.make_channel()], status="Publishing")
+
+		with patch("bwh_os.social.publisher.has_job", return_value=False), patch("frappe.enqueue") as enqueue:
+			resume_stuck_posts()
+
+		self.assertEqual(enqueue.call_count, 0)
 
 
 def release_parts(account, parts, settings, released, on_release):

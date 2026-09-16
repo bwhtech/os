@@ -53,6 +53,7 @@ declare module 'vue' {
     PartEditor: typeof import('./src/components/social/PartEditor.vue')['default']
     PlatformIcon: typeof import('./src/components/social/PlatformIcon.vue')['default']
     PostPreviews: typeof import('./src/components/social/PostPreviews.vue')['default']
+    PublishBar: typeof import('./src/components/social/PublishBar.vue')['default']
     PublishDialog: typeof import('./src/components/newsletters/PublishDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

@@ -324,9 +324,15 @@ scheduler_events = {
 		"bwh_os.social.channels.check_expiry",
 	],
 	"cron": {
-		# Starts Scheduled newsletters. See bwh_os.mailing.newsletter_schedule.
-		"* * * * *": ["bwh_os.mailing.newsletter_schedule.send_due_issues"],
+		"* * * * *": [
+			# Starts Scheduled newsletters. See bwh_os.mailing.newsletter_schedule.
+			"bwh_os.mailing.newsletter_schedule.send_due_issues",
+			# Starts Scheduled social posts. See bwh_os.social.publisher.
+			"bwh_os.social.publisher.publish_due_posts",
+		],
 		# Follows newsletters that are Sending. See bwh_os.mailing.newsletter_send.
 		"*/2 * * * *": ["bwh_os.mailing.newsletter_send.sync_sending_issues"],
+		# Picks up a post whose worker died. See bwh_os.social.publisher.
+		"*/5 * * * *": ["bwh_os.social.publisher.resume_stuck_posts"],
 	},
 }
