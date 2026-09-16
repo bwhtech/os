@@ -48,11 +48,7 @@ Track each video from idea to publish, alone or in an ordered series. Write the 
 
 ### 4. Social Posts
 
-Plan posts for X, LinkedIn, the YouTube community tab, and Discord.
-
-- `Social Post`: platform, text, media, status, scheduled date, and an optional link to a `Video`.
-
-Posts show on the same calendar as videos.
+Write a post once, preview it per platform, and publish it to LinkedIn and X at a set time. Posts and videos share one calendar. See [04-social-posts.md](04-social-posts.md).
 
 ### 5. YouTube Integration
 
@@ -77,7 +73,7 @@ Show the health of the core products (buzz, commera): stars, open issues, open p
 | 01 | [Email List](01-email-list.md) | Draft |
 | 02 | [Blog](02-blog.md) | Draft |
 | 03 | Content Pipeline | Not started |
-| 04 | Social Posts | Not started |
+| 04 | [Social Posts](04-social-posts.md) | Draft |
 | 05 | YouTube Integration | Not started |
 | 06 | LMS Integration | Not started |
 | 07 | GitHub Integration | Not started |
