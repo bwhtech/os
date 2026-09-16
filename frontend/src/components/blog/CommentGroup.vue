@@ -19,7 +19,7 @@
 					icon="lucide-external-link"
 					label="Open the post"
 					class="mr-1"
-					:link="post.url"
+					:href="post.url"
 				/>
 			</Tooltip>
 		</div>

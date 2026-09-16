@@ -2,7 +2,7 @@
 	<!-- The mobile header centers the current page and goes back to its parent. -->
 	<PageHeaderMobile v-if="isMobile" :title="mobileTitle">
 		<template v-if="backTo" #prefix>
-			<PageHeaderBackButton :to="backTo" />
+			<PageHeaderBackButton :fallback-route="backTo" />
 		</template>
 		<template v-if="slots['mobile-actions'] || slots.actions" #suffix>
 			<div class="flex items-center gap-1">

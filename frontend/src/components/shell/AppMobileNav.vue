@@ -5,7 +5,7 @@
 			:key="tab.to"
 			:label="tab.label"
 			:icon="tab.icon"
-			:to="tab.to"
+			:route="tab.to"
 			:active="route.path.startsWith(tab.to)"
 		/>
 		<MobileNavItem label="More" :active="moreOpen || !onTab" @click="moreOpen = true">

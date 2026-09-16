@@ -18,7 +18,7 @@
 				<SidebarItem
 					icon="lucide-layout-list"
 					label="Overview"
-					:to="`/series/${seriesId}`"
+					:route="`/series/${seriesId}`"
 					:active="route.path === `/series/${seriesId}`"
 				/>
 			</SidebarSection>
@@ -38,7 +38,7 @@
 				>
 					<SidebarItem
 						:label="video.title"
-						:to="`/series/${seriesId}/videos/${video.name}`"
+						:route="`/series/${seriesId}/videos/${video.name}`"
 						:active="String(route.params.videoId) === String(video.name)"
 					>
 						<template #prefix>

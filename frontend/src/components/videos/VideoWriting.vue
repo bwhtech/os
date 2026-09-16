@@ -17,7 +17,7 @@
 				<div class="mt-4 rounded-4 border border-outline-gray-2 focus-within:border-outline-gray-3">
 					<!-- Scrolls sideways on phones, without the native scrollbar. -->
 					<div class="overflow-x-auto border-b border-outline-gray-2 px-2 py-1 [scrollbar-width:none]">
-						<EditorFixedMenu :editor="editor" :items="articleToolbar" button-size="xs" />
+						<EditorFixedMenu :editor="editor" :items="articleToolbar" size="xs" />
 					</div>
 					<EditorContent :editor="editor" class="min-h-[24rem] px-5 py-4" />
 				</div>

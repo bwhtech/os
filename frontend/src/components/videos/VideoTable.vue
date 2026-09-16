@@ -15,7 +15,7 @@
 			</ListHeader>
 			<ListRows :items="videos" row-key="name">
 				<template #default="{ item, value }">
-					<ListRow :value="value" :to="videoRoute(item)">
+					<ListRow :value="value" :route="videoRoute(item)">
 						<ListCell>
 							<span class="truncate text-base text-ink-gray-8">{{ item.title }}</span>
 						</ListCell>

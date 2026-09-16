@@ -8,7 +8,7 @@
 		>
 			<ListRows :items="videos" row-key="name">
 				<template #default="{ item, value }">
-					<ListRow :value="value" :to="videoRoute(item)">
+					<ListRow :value="value" :route="videoRoute(item)">
 						<ListCell>
 							<span class="text-sm tabular-nums text-ink-gray-4">{{ String(item.position).padStart(2, '0') }}</span>
 						</ListCell>

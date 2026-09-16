@@ -52,7 +52,7 @@
 				</ListHeader>
 				<ListRows :items="forms.data" row-key="name">
 					<template #default="{ item, value }">
-						<ListRow :value="value" :to="`/forms/${item.name}`">
+						<ListRow :value="value" :route="`/forms/${item.name}`">
 							<ListCell>
 								<span class="truncate text-base text-ink-gray-8">{{ item.title }}</span>
 							</ListCell>

@@ -23,7 +23,7 @@
 						variant="ghost"
 						icon-left="lucide-external-link"
 						label="Open Page"
-						:link="pageUrl"
+						:href="pageUrl"
 					/>
 					<div class="ml-auto flex gap-2">
 						<Button label="Cancel" @click="close" />

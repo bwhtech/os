@@ -54,7 +54,7 @@
 				</ListHeader>
 				<ListRows :items="issues.data" row-key="name">
 					<template #default="{ item, value }">
-						<ListRow :value="value" :to="`/newsletters/${item.name}`">
+						<ListRow :value="value" :route="`/newsletters/${item.name}`">
 							<ListCell>
 								<span class="truncate text-base text-ink-gray-8">{{ item.subject }}</span>
 								<span
