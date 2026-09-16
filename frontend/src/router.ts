@@ -63,6 +63,12 @@ const routes: RouteRecordRaw[] = [
 		component: () => import('@/pages/SocialPostsPage.vue'),
 	},
 	{
+		path: '/social/:postId',
+		name: 'Social Post',
+		component: () => import('@/pages/SocialPostPage.vue'),
+		props: true,
+	},
+	{
 		path: '/videos',
 		name: 'Videos',
 		component: () => import('@/pages/VideosPage.vue'),

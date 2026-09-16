@@ -31,6 +31,14 @@ class Provider(ABC):
 	key: ClassVar[str]
 	timeout: ClassVar[int] = 30
 
+	# What the platform takes in one part. Postiz learnt these the hard way, so the
+	# numbers and the rules below follow `gitroomhq/postiz-app`.
+	max_length: ClassVar[int]
+	max_images: ClassVar[int]
+	max_videos: ClassVar[int] = 1
+	# A LinkedIn comment and an X reply differ here: LinkedIn takes text only.
+	media_after_part_one: ClassVar[bool] = True
+
 	@classmethod
 	@abstractmethod
 	def identity(cls, token_cache: Document) -> dict:
@@ -39,6 +47,61 @@ class Provider(ABC):
 		Returns `account_id`, `display_name`, `handle`, `avatar_url` and `profile_url`.
 		The channel is named after `account_id`, so it has to be the id that never changes.
 		"""
+
+	@classmethod
+	def count(cls, text: str) -> int:
+		"""What the platform counts as the length of a text. X weighs its characters."""
+		return len(text or "")
+
+	@classmethod
+	def validate(cls, parts: list[dict], settings: dict | None = None) -> list[str]:
+		"""Everything wrong with this content, in the words the composer shows.
+
+		`parts` are dicts of `text` and `media`, part 1 first. An empty list is a
+		problem of the post, not of the platform, so the caller reports that one.
+		"""
+		problems = []
+		for index, part in enumerate(parts):
+			problems += cls.validate_part(part, part_no=index + 1)
+		return problems
+
+	@classmethod
+	def validate_part(cls, part: dict, part_no: int) -> list[str]:
+		problems = []
+		text = part.get("text") or ""
+		media = part.get("media") or []
+		length = cls.count(text)
+		if not text.strip() and not media:
+			problems.append(_("Part {0} is empty").format(part_no))
+		if length > cls.max_length:
+			problems.append(
+				_("Part {0} is {1} characters. {2} takes {3}.").format(
+					part_no, length, cls.key, cls.max_length
+				)
+			)
+
+		if media and part_no > 1 and not cls.media_after_part_one:
+			problems.append(_("A {0} comment takes text only").format(cls.key))
+			return problems
+
+		videos = [item for item in media if item.get("kind") == "video"]
+		images = [item for item in media if item.get("kind") != "video"]
+		if videos and len(media) > 1:
+			# Postiz: a video goes on its own, whatever the platform allows for images.
+			problems.append(_("Part {0} can hold a video or images, not both").format(part_no))
+		if len(videos) > cls.max_videos:
+			problems.append(
+				_("Part {0} has {1} videos. {2} takes {3}.").format(
+					part_no, len(videos), cls.key, cls.max_videos
+				)
+			)
+		if len(images) > cls.max_images:
+			problems.append(
+				_("Part {0} has {1} images. {2} takes {3}.").format(
+					part_no, len(images), cls.key, cls.max_images
+				)
+			)
+		return problems
 
 	@classmethod
 	def request(cls, method: str, url: str, token_cache: Document, **kwargs) -> requests.Response:

@@ -1,11 +1,16 @@
 """Social channels and posts for the OS. See specs/04-social-posts.md."""
 
+import json
+
 import frappe
 from frappe import _
+from frappe.query_builder import Order
+from frappe.query_builder.functions import Coalesce
 from frappe.utils import date_diff, now_datetime
 
 from bwh_os.social.oauth import LINKEDIN_SUCCESS_URI
 from bwh_os.social.oauth_apps import PROVIDERS, get_app, redirect_uri
+from bwh_os.social.validation import PostValidator
 
 CHANNEL_FIELDS = [
 	"name",
@@ -81,10 +86,101 @@ def disconnect_channel(channel: str) -> None:
 	"""Drop the token of a channel. The channel stays, so its posts keep their history."""
 	frappe.only_for("System Manager")
 	doc = frappe.get_doc("Social Channel", channel)
-	frappe.delete_doc(
-		"Token Cache", f"{doc.connected_app}-{doc.user}", force=True, ignore_missing=True
-	)
+	frappe.delete_doc("Token Cache", f"{doc.connected_app}-{doc.user}", force=True, ignore_missing=True)
 	doc.db_set(
 		{"status": "Disconnected", "token_cache": None, "expires_on": None, "last_error": None},
 		notify=True,
 	)
+
+
+@frappe.whitelist(methods=["POST"])
+def validate_post(post: str | int | dict) -> list[dict]:
+	"""What each target would say about this content, without saving anything.
+
+	`post` is the name of a saved post, or the document the composer holds right now.
+	The composer sends the document, so the counter answers while you type.
+	"""
+	frappe.only_for("System Manager")
+	return PostValidator(load_post(post)).results()
+
+
+def load_post(post: str | int | dict) -> "frappe.Document":
+	"""A `Social Post` from a name, or a document made from what the browser sent."""
+	if isinstance(post, str) and post.strip().startswith("{"):
+		post = json.loads(post)
+	if isinstance(post, dict):
+		post = {**post, "doctype": "Social Post"}
+		doc = frappe.get_doc(post)
+		# The rows come from the browser, so the numbers and the orphans need a pass first.
+		PostValidator(doc).structure()
+		return doc
+	return frappe.get_doc("Social Post", post)
+
+
+# What each tab of the list page holds. Everything that has not gone out yet is Upcoming,
+# including the posts that tried and failed, because those are the ones needing a hand.
+VIEWS = {
+	"upcoming": ["Draft", "Scheduled", "Publishing", "Partial", "Failed"],
+	"published": ["Published"],
+	"all": [],
+}
+
+POST_FIELDS = ["name", "title", "status", "scheduled_at", "published_at", "video", "modified"]
+
+
+@frappe.whitelist(methods=["GET"])
+def get_posts(view: str = "upcoming", limit: int = 100) -> list[dict]:
+	"""The posts of one tab, each with the channels it goes to.
+
+	The channels come from a child table, which no list call reads, so they arrive in a
+	second query and go back onto their post here.
+	"""
+	frappe.only_for("System Manager")
+	statuses = VIEWS.get(view, [])
+	post = frappe.qb.DocType("Social Post")
+	query = (
+		frappe.qb.from_(post)
+		.select(*[post[field] for field in POST_FIELDS])
+		# A time beats a save: the next post out is the one to look at first. `get_all` takes
+		# no expression in `order_by`, so the query is built here.
+		.orderby(Coalesce(post.scheduled_at, post.published_at, post.modified), order=Order.desc)
+		.limit(frappe.utils.cint(limit))
+	)
+	if statuses:
+		query = query.where(post.status.isin(statuses))
+	posts = query.run(as_dict=True)
+	targets = targets_of([post.name for post in posts])
+	for post in posts:
+		post["targets"] = targets.get(str(post.name), [])
+	return posts
+
+
+def targets_of(posts: list) -> dict[str, list[dict]]:
+	"""The targets of each post, with the look of the channel, keyed by the post."""
+	if not posts:
+		return {}
+
+	target = frappe.qb.DocType("Social Post Target")
+	rows = (
+		frappe.qb.from_(target)
+		.select(target.parent, target.channel, target.provider, target.status, target.release_url)
+		.where(target.parenttype == "Social Post")
+		.where(target.parent.isin([str(post) for post in posts]))
+		.orderby(target.parent)
+		.orderby(target.idx)
+		.run(as_dict=True)
+	)
+	channels = {
+		channel.name: channel
+		for channel in frappe.get_all(
+			"Social Channel", fields=["name", "display_name", "handle", "avatar_url", "status"]
+		)
+	}
+	by_post: dict[str, list[dict]] = {}
+	for row in rows:
+		channel = channels.get(row.channel, {})
+		row["display_name"] = channel.get("display_name")
+		row["avatar_url"] = channel.get("avatar_url")
+		row["channel_status"] = channel.get("status")
+		by_post.setdefault(row.parent, []).append(row)
+	return by_post

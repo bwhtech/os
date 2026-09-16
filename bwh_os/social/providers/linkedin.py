@@ -8,6 +8,11 @@ from bwh_os.social.providers.base import Provider
 class LinkedInProvider(Provider):
 	key = "LinkedIn"
 
+	max_length = 3000
+	# `multiImage` holds 20. A comment on a personal post is text, so media stops at part 1.
+	max_images = 20
+	media_after_part_one = False
+
 	USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
 
 	@classmethod

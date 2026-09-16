@@ -1,0 +1,138 @@
+{
+ "actions": [],
+ "creation": "2026-09-16 21:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "channel",
+  "provider",
+  "use_custom_content",
+  "settings",
+  "result_section",
+  "status",
+  "publish_attempted_at",
+  "published_at",
+  "column_break_result",
+  "release_id",
+  "release_url",
+  "released_parts",
+  "error_section",
+  "error_kind",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "channel",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Channel",
+   "options": "Social Channel",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "channel.provider",
+   "fieldname": "provider",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Provider",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "The target reads the parts written for this channel instead of the shared ones",
+   "fieldname": "use_custom_content",
+   "fieldtype": "Check",
+   "label": "Use Custom Content"
+  },
+  {
+   "description": "What this platform needs beyond the text. X: {\"reply_settings\": \"everyone\"}",
+   "fieldname": "settings",
+   "fieldtype": "JSON",
+   "label": "Settings"
+  },
+  {
+   "fieldname": "result_section",
+   "fieldtype": "Section Break",
+   "label": "Result"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Pending\nPublishing\nPublished\nFailed",
+   "read_only": 1
+  },
+  {
+   "description": "Set before the first call goes out, so a crashed job never posts twice",
+   "fieldname": "publish_attempted_at",
+   "fieldtype": "Datetime",
+   "label": "Publish Attempted At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "published_at",
+   "fieldtype": "Datetime",
+   "label": "Published At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_result",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The id of part 1 on the platform",
+   "fieldname": "release_id",
+   "fieldtype": "Data",
+   "label": "Release ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "release_url",
+   "fieldtype": "Data",
+   "label": "Release URL",
+   "options": "URL",
+   "read_only": 1
+  },
+  {
+   "description": "[{\"part_no\": 1, \"id\": \"...\", \"url\": \"...\"}], written after each part goes out",
+   "fieldname": "released_parts",
+   "fieldtype": "JSON",
+   "label": "Released Parts",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error_section",
+   "fieldtype": "Section Break",
+   "label": "Error"
+  },
+  {
+   "fieldname": "error_kind",
+   "fieldtype": "Select",
+   "label": "Error Kind",
+   "options": "\nReconnect\nBad Request\nRetryable\nUnconfirmed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-16 21:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Social",
+ "name": "Social Post Target",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

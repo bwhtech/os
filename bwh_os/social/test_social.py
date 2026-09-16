@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, patch
 
 import frappe
@@ -11,8 +12,10 @@ from bwh_os.social.api import (
 	connect_channel,
 	disconnect_channel,
 	get_channels,
+	get_posts,
 	get_provider_apps,
 	set_credentials,
+	validate_post,
 )
 from bwh_os.social.channels import check_expiry
 from bwh_os.social.oauth import upsert_channel
@@ -375,3 +378,157 @@ class IntegrationTestSocialExpiry(SocialTestCase):
 		check_expiry()
 
 		self.assertEqual(self.emails_about(channel), 2)
+
+
+class IntegrationTestSocialPosts(SocialTestCase):
+	"""The post document: what it cleans up on save, and what it refuses. See `bwh_os.social.validation`."""
+
+	def setUp(self):
+		super().setUp()
+		self.posts: list[str] = []
+
+	def tearDown(self):
+		for name in self.posts:
+			frappe.delete_doc("Social Post", name, force=True, ignore_missing=True)
+		super().tearDown()
+
+	def make_post(
+		self,
+		channels: list[str] | None = None,
+		parts: list[dict] | None = None,
+		custom: bool = False,
+		**values,
+	):
+		post = frappe.get_doc(
+			{
+				"doctype": "Social Post",
+				"targets": [
+					{"channel": channel, "use_custom_content": int(custom)} for channel in (channels or [])
+				],
+				"parts": parts if parts is not None else [{"text": "Hello from the OS"}],
+				**values,
+			}
+		).insert()
+		self.posts.append(post.name)
+		return post
+
+	def test_the_title_is_the_start_of_the_first_part(self):
+		post = self.make_post(parts=[{"text": "A" * 80 + "\nthe second line"}])
+
+		self.assertEqual(post.title, "A" * 60)
+
+	def test_a_title_you_wrote_stays(self):
+		post = self.make_post(title="Launch thread", parts=[{"text": "Something else"}])
+
+		self.assertEqual(post.title, "Launch thread")
+
+	def test_parts_are_numbered_from_one_inside_each_group(self):
+		channel = self.make_channel()
+		post = self.make_post(
+			[channel],
+			parts=[
+				{"text": "shared one"},
+				{"text": "custom one", "channel": channel},
+				{"text": "shared two"},
+			],
+			custom=True,
+		)
+
+		numbers = [(row.channel, row.part_no) for row in post.parts]
+		self.assertEqual(numbers, [(None, 1), (channel, 1), (None, 2)])
+
+	def test_custom_content_goes_when_the_target_stops_wanting_it(self):
+		channel = self.make_channel()
+		post = self.make_post(
+			[channel],
+			parts=[{"text": "shared"}, {"text": "custom", "channel": channel}],
+			custom=True,
+		)
+		self.assertEqual(len(post.parts), 2)
+
+		post.targets[0].use_custom_content = 0
+		post.save()
+
+		self.assertEqual([row.text for row in post.parts], ["shared"])
+
+	def test_a_target_reads_its_own_parts_when_it_customizes(self):
+		channel = self.make_channel()
+		post = self.make_post(
+			[channel],
+			parts=[{"text": "shared"}, {"text": "custom", "channel": channel}],
+			custom=True,
+		)
+
+		self.assertEqual([part["text"] for part in post.parts_for(post.targets[0])], ["custom"])
+
+	def test_a_channel_takes_one_row_per_post(self):
+		channel = self.make_channel()
+
+		self.assertRaises(frappe.ValidationError, self.make_post, [channel, channel])
+
+	def test_media_needs_a_file_and_a_kind(self):
+		self.assertRaises(
+			frappe.ValidationError,
+			self.make_post,
+			parts=[{"text": "Look", "media": json.dumps([{"kind": "image"}])}],
+		)
+		self.assertRaises(
+			frappe.ValidationError,
+			self.make_post,
+			parts=[{"text": "Look", "media": json.dumps([{"file_url": "/files/a.pdf", "kind": "pdf"}])}],
+		)
+
+	def test_a_text_over_the_limit_of_the_platform_is_reported(self):
+		channel = self.make_channel()
+		post = self.make_post([channel], parts=[{"text": "A" * 3001}])
+
+		result = validate_post(post.name)[0]
+
+		self.assertEqual(result["limit"], 3000)
+		self.assertEqual(result["counts"], [3001])
+		self.assertIn("LinkedIn takes 3000", result["errors"][0])
+		self.assertRaises(frappe.ValidationError, post.check)
+
+	def test_a_linkedin_comment_takes_no_media(self):
+		channel = self.make_channel()
+		media = json.dumps([{"file_url": "/private/files/a.png", "kind": "image"}])
+		post = self.make_post(
+			[channel], parts=[{"text": "The post"}, {"text": "The comment", "media": media}]
+		)
+
+		self.assertIn("comment takes text only", validate_post(post.name)[0]["errors"][0])
+
+	def test_a_post_without_a_channel_cannot_go_out(self):
+		post = self.make_post()
+
+		self.assertRaises(frappe.ValidationError, post.check)
+
+	def test_a_dead_channel_stops_the_post(self):
+		channel = self.make_channel(status="Expired")
+		post = self.make_post([channel])
+
+		self.assertIn("Expired", validate_post(post.name)[0]["errors"][0])
+
+	def test_the_composer_validates_a_post_it_has_not_saved(self):
+		channel = self.make_channel()
+
+		results = validate_post(
+			json.dumps({"targets": [{"channel": channel}], "parts": [{"text": "A" * 3001}]})
+		)
+
+		self.assertEqual(results[0]["counts"], [3001])
+		self.assertTrue(results[0]["errors"])
+
+	def test_the_list_holds_the_tabs_apart_and_carries_the_channels(self):
+		channel = self.make_channel()
+		draft = self.make_post([channel])
+		published = self.make_post([channel], status="Published")
+
+		upcoming = [row["name"] for row in get_posts("upcoming")]
+		self.assertIn(draft.name, upcoming)
+		self.assertNotIn(published.name, upcoming)
+		self.assertIn(published.name, [row["name"] for row in get_posts("published")])
+
+		row = next(row for row in get_posts("all") if row["name"] == draft.name)
+		self.assertEqual([target["channel"] for target in row["targets"]], [channel])
+		self.assertEqual(row["targets"][0]["display_name"], "Hussain Nagaria")

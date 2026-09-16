@@ -370,3 +370,88 @@ export interface SocialProviderApp {
 	client_id: string | null
 	has_credentials: boolean
 }
+
+export type SocialPostStatus = 'Draft' | 'Scheduled' | 'Publishing' | 'Published' | 'Partial' | 'Failed'
+
+export type SocialTargetStatus = 'Pending' | 'Publishing' | 'Published' | 'Failed'
+
+export type SocialErrorKind = '' | 'Reconnect' | 'Bad Request' | 'Retryable' | 'Unconfirmed'
+
+/** One file on a part. The server keeps it as JSON. */
+export interface SocialMedia {
+	file_url: string
+	kind: 'image' | 'video'
+}
+
+/** A `Social Post Target` row: one channel this post goes to */
+export interface SocialPostTarget {
+	name?: string
+	channel: string
+	provider: SocialProvider
+	use_custom_content: 0 | 1
+	/** The API returns JSON fields as a string */
+	settings: string | Record<string, unknown> | null
+	status: SocialTargetStatus
+	release_id: string | null
+	release_url: string | null
+	published_at: string | null
+	error: string | null
+	error_kind: SocialErrorKind | null
+}
+
+/** A `Social Post Part` row. An empty `channel` is the content every target uses. */
+export interface SocialPostPart {
+	name?: string
+	channel: string | null
+	/** From 1 inside its group. The server sets it. */
+	part_no: number
+	text: string | null
+	/** The API returns JSON fields as a string */
+	media: string | SocialMedia[] | null
+}
+
+/** A `Social Post` */
+export interface SocialPost {
+	/** Autoincrement. The server sends a number, and useDoc types every name as a string. */
+	name: string
+	title: string | null
+	status: SocialPostStatus
+	scheduled_at: string | null
+	published_at: string | null
+	video: string | null
+	targets: SocialPostTarget[]
+	parts: SocialPostPart[]
+	modified: string
+}
+
+/** A row of `bwh_os.social.api.get_posts`: the post with the channels it goes to */
+export interface SocialPostRow {
+	name: string
+	title: string | null
+	status: SocialPostStatus
+	scheduled_at: string | null
+	published_at: string | null
+	video: string | null
+	modified: string
+	targets: {
+		channel: string
+		provider: SocialProvider
+		status: SocialTargetStatus
+		release_url: string | null
+		display_name: string | null
+		avatar_url: string | null
+		channel_status: SocialChannelStatus | null
+	}[]
+}
+
+/** One target's verdict, from `bwh_os.social.api.validate_post` */
+export interface TargetValidation {
+	channel: string
+	provider: SocialProvider
+	use_custom_content: boolean
+	/** The character limit of the platform */
+	limit: number
+	/** The length of each part, part 1 first */
+	counts: number[]
+	errors: string[]
+}
