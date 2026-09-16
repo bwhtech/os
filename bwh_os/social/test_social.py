@@ -641,6 +641,15 @@ class IntegrationTestSocialPosts(SocialTestCase):
 		self.assertEqual(result["max_images"], 20)
 		self.assertFalse(result["media_after_part_one"])
 
+	def test_a_platform_the_os_cannot_post_to_yet_is_one_target_s_problem(self):
+		post = self.make_post([self.make_channel("LinkedIn"), self.make_channel("X")])
+
+		results = {result["provider"]: result for result in validate_post(post.name)}
+
+		self.assertEqual(results["LinkedIn"]["errors"], [])
+		self.assertIn("cannot post to X yet", results["X"]["errors"][0])
+		self.assertRaises(frappe.ValidationError, post.check)
+
 	def test_a_post_without_a_channel_cannot_go_out(self):
 		post = self.make_post()
 
@@ -789,6 +798,26 @@ class IntegrationTestSocialPublishing(IntegrationTestSocialPosts):
 		self.publish(post, side_effect=publish)
 		self.assertEqual(asked, [[]])
 		self.assertEqual([row["part_no"] for row in json.loads(post.targets[0].released_parts)], [1, 2])
+
+	def test_a_channel_that_customizes_publishes_its_own_text(self):
+		shared = self.make_channel(account_id="shared")
+		own = self.make_channel(account_id="own")
+		post = self.make_post([shared, own])
+		post.targets[1].use_custom_content = 1
+		post.append("parts", {"channel": own, "text": "Written for this one"})
+		post.save()
+
+		sent: dict[str, list[str]] = {}
+
+		def publish(account, parts, settings, released, on_release):
+			sent[account.account_id] = [part["text"] for part in parts]
+			release_parts(account, parts, settings, released, on_release)
+
+		self.publish(post, side_effect=publish)
+
+		self.assertEqual(post.status, "Published")
+		self.assertEqual(sent["shared"], ["Hello from the OS"])
+		self.assertEqual(sent["own"], ["Written for this one"])
 
 	def test_a_post_cannot_go_out_twice(self):
 		channel = self.make_channel()

@@ -26,6 +26,7 @@ declare module 'vue' {
     CommentToolbar: typeof import('./src/components/blog/CommentToolbar.vue')['default']
     ConfirmEmailSection: typeof import('./src/components/forms/ConfirmEmailSection.vue')['default']
     ConfirmRateCard: typeof import('./src/components/forms/ConfirmRateCard.vue')['default']
+    ContentTabs: typeof import('./src/components/social/ContentTabs.vue')['default']
     CsvFileStep: typeof import('./src/components/subscribers/import/CsvFileStep.vue')['default']
     DeliveryList: typeof import('./src/components/newsletters/DeliveryList.vue')['default']
     DetailSkeleton: typeof import('./src/components/stats/DetailSkeleton.vue')['default']

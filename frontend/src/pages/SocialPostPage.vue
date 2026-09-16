@@ -32,15 +32,29 @@
 					<ChannelPicker v-model="picked" :channels="channels.data ?? []" :disabled="locked" />
 				</div>
 
+				<div v-if="previews.length > 1" class="border-t border-outline-gray-1 pt-4">
+					<ContentTabs
+						v-model="tab"
+						:targets="previews"
+						:customized="customized"
+						:disabled="locked"
+						@customize="customize"
+					/>
+				</div>
+
+				<p v-if="tab && !customized.includes(tab)" class="text-p-sm text-ink-gray-5">
+					This channel posts what every channel gets. Turn on Customize to write for it alone.
+				</p>
+
 				<PartEditor
-					v-model="parts"
+					v-model="editing"
 					:post-name="postId"
 					:counts="strictest?.counts"
 					:limit="strictest?.limit ?? 0"
 					:max-images="maxImages"
 					:media-after-part-one="mediaAfterPartOne"
 					:part-name="partName"
-					:disabled="locked"
+					:disabled="locked || (Boolean(tab) && !customized.includes(tab))"
 				/>
 
 				<p v-if="locked" class="text-p-sm text-ink-gray-5">
@@ -55,7 +69,7 @@
 
 				<!-- On narrow screens the preview sits under the composer instead of beside it. -->
 				<div class="border-t border-outline-gray-1 pt-6 xl:hidden">
-					<PostPreviews :targets="previews" :parts="parts" />
+					<PostPreviews :targets="previews" />
 				</div>
 			</div>
 		</div>
@@ -63,7 +77,7 @@
 		<aside class="hidden w-[24rem] shrink-0 border-l border-outline-gray-1 xl:block">
 			<div class="space-y-4 px-5 py-6">
 				<p class="text-p-sm text-ink-gray-5">Preview</p>
-				<PostPreviews :targets="previews" :parts="parts" />
+				<PostPreviews :targets="previews" />
 			</div>
 		</aside>
 	</div>
@@ -76,6 +90,7 @@ import { Badge, Button, Dropdown, ErrorMessage, debounce, dialog, toast, useCall
 import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import ChannelPicker from '@/components/social/ChannelPicker.vue'
+import ContentTabs from '@/components/social/ContentTabs.vue'
 import PartEditor from '@/components/social/PartEditor.vue'
 import PostPreviews from '@/components/social/PostPreviews.vue'
 import PublishBar from '@/components/social/PublishBar.vue'
@@ -96,9 +111,25 @@ const { channels, byName } = useSocialChannels()
 
 const post = useDoc<SocialPost>({ doctype: 'Social Post', name: computed(() => props.postId) })
 
-// What the composer holds. The document is the copy on the server, and autosave moves one to the other.
-const parts = ref<DraftPart[]>([])
+/**
+ * What the composer holds. The document is the copy on the server, and autosave moves
+ * one to the other. Content comes in groups: the empty key is what every channel gets,
+ * and a channel key is the text written for that channel alone.
+ */
+const groups = ref<Record<string, DraftPart[]>>({ '': [{ text: '', media: [] }] })
 const picked = ref<string[]>([])
+/** The channels writing their own content, which is `use_custom_content` on their row. */
+const customized = ref<string[]>([])
+/** The group being written. The empty value is the one every channel gets. */
+const tab = ref('')
+
+/** A channel that writes nothing of its own shows the shared content, and cannot edit it. */
+const editing = computed({
+	get: () => groups.value[group.value] ?? [],
+	set: (parts: DraftPart[]) => (groups.value = { ...groups.value, [group.value]: parts }),
+})
+
+const group = computed(() => (tab.value && customized.value.includes(tab.value) ? tab.value : ''))
 
 const locked = computed(() => isLocked(post.doc?.status))
 
@@ -136,15 +167,41 @@ const savedLabel = computed(() => {
 watch(
 	() => post.doc?.name,
 	() => {
-		parts.value = draftPartsOf(post.doc)
-		picked.value = (post.doc?.targets ?? []).map((target) => target.channel)
+		const targets = post.doc?.targets ?? []
+		customized.value = targets.filter((target) => target.use_custom_content).map((row) => row.channel)
+		groups.value = Object.fromEntries([
+			['', draftPartsOf(post.doc)],
+			...customized.value.map((channel) => [channel, draftPartsOf(post.doc, channel)]),
+		])
+		picked.value = targets.map((target) => target.channel)
+		tab.value = ''
 	},
 	{ immediate: true },
 )
 
-watch(parts, () => {
+watch(groups, () => {
 	if (!locked.value) autosave.queue({ parts: buildParts() })
 })
+
+/**
+ * Turning Customize on starts this channel from the shared content, so nobody rewrites a
+ * post to change one line. Turning it off drops what was written for it, as the server does.
+ */
+function customize(channel: string, on: boolean) {
+	if (on) {
+		customized.value = [...customized.value, channel]
+		groups.value = { ...groups.value, [channel]: clone(groups.value[channel] ?? groups.value['']) }
+	} else {
+		customized.value = customized.value.filter((name) => name !== channel)
+		const { [channel]: _dropped, ...rest } = groups.value
+		groups.value = rest
+	}
+	autosave.queue({ parts: buildParts(), targets: buildTargets() })
+}
+
+function clone(parts: DraftPart[]): DraftPart[] {
+	return parts.map((part) => ({ text: part.text, media: [...part.media] }))
+}
 
 watch(picked, () => {
 	if (!locked.value) autosave.queue({ targets: buildTargets() })
@@ -155,26 +212,29 @@ watch(picked, () => {
  * channel stays as it is: the picker and this editor never touch it.
  */
 function buildParts(): SocialPostPart[] {
-	const existing = partsOf(post.doc)
-	const shared = parts.value.map((part, index) => ({
+	return ['', ...customized.value].flatMap((channel) => rowsOf(channel))
+}
+
+/** One group as rows, keeping the row a text already had so its name and media survive. */
+function rowsOf(channel: string): SocialPostPart[] {
+	const existing = partsOf(post.doc, channel || null)
+	return (groups.value[channel] ?? []).map((part, index) => ({
 		...(existing[index] ?? {}),
-		channel: null,
+		channel: channel || null,
 		part_no: index + 1,
 		text: part.text,
 		// The column holds JSON, and the document API stores what it is given.
 		media: JSON.stringify(part.media),
 	})) as SocialPostPart[]
-	const custom = (post.doc?.parts ?? []).filter((part) => part.channel)
-	return [...shared, ...custom]
 }
 
 /** A channel that stays keeps its row, so its result and its released parts survive an edit. */
 function buildTargets(): SocialPostTarget[] {
 	const rows = new Map((post.doc?.targets ?? []).map((target) => [target.channel, target]))
-	return picked.value.map(
-		(channel) =>
-			rows.get(channel) ?? ({ channel, provider: byName.value[channel]?.provider } as SocialPostTarget),
-	)
+	return picked.value.map((channel) => ({
+		...(rows.get(channel) ?? { channel, provider: byName.value[channel]?.provider }),
+		use_custom_content: customized.value.includes(channel) ? 1 : 0,
+	})) as SocialPostTarget[]
 }
 
 const validation = useCall<TargetValidation[], { post: string }>({
@@ -191,36 +251,48 @@ const check = debounce(() => {
 	})
 }, 400)
 
-watch([parts, picked, () => post.doc?.name], check, { immediate: true })
+watch([groups, picked, customized, () => post.doc?.name], check, { immediate: true })
 
-/** The platform that would refuse first: the composer counts against that one. */
-const strictest = computed(() =>
-	(validation.data ?? []).reduce<TargetValidation | undefined>(
+/**
+ * The platform the counter answers to. On a channel's own tab that is the channel; on the
+ * shared tab it is whichever of the channels reading the shared text would refuse first.
+ */
+const strictest = computed(() => {
+	// A platform the OS cannot post to yet has no rules to hold the writing to.
+	const results = (validation.data ?? []).filter((result) => result.limit > 0)
+	if (group.value) return results.find((result) => result.channel === group.value)
+	const sharing = results.filter((result) => !result.use_custom_content)
+	return (sharing.length ? sharing : results).reduce<TargetValidation | undefined>(
 		(tightest, result) => (!tightest || result.limit < tightest.limit ? result : tightest),
 		undefined,
-	),
-)
+	)
+})
 
 /** Images stop at the tightest of the platforms picked, as the counter does for text. */
-const maxImages = computed(() =>
-	(validation.data ?? []).reduce((tightest, result) => Math.min(tightest, result.max_images), 4),
-)
+const maxImages = computed(() => strictest.value?.max_images ?? 4)
 
 /** A part after the first takes media only where every platform picked allows it. */
-const mediaAfterPartOne = computed(
-	() => Boolean(validation.data?.length) && validation.data!.every((result) => result.media_after_part_one),
+const mediaAfterPartOne = computed(() =>
+	group.value
+		? Boolean(strictest.value?.media_after_part_one)
+		: Boolean(validation.data?.length) && validation.data!.every((result) => result.media_after_part_one),
 )
 
 const previews = computed(() =>
-	(validation.data ?? []).map((result) => ({ result, channel: byName.value[result.channel] })),
+	(validation.data ?? []).map((result) => ({
+		result,
+		channel: byName.value[result.channel],
+		parts: groups.value[result.use_custom_content ? result.channel : ''] ?? [],
+	})),
 )
 
 /** LinkedIn calls part 2 a comment, X calls it a reply. */
-const partName = computed(() =>
-	validation.data?.length && validation.data.every((result) => result.provider === 'X')
-		? 'Reply'
-		: 'Comment',
-)
+const partName = computed(() => {
+	const results = group.value
+		? (validation.data ?? []).filter((result) => result.channel === group.value)
+		: (validation.data ?? [])
+	return results.length && results.every((result) => result.provider === 'X') ? 'Reply' : 'Comment'
+})
 
 /** The server checks again before anything goes out. This only keeps the button honest. */
 const canPublish = computed(

@@ -49,9 +49,12 @@ export interface DraftPart {
 	media: SocialMedia[]
 }
 
-/** The shared parts of a post, ready for the editor. A post with none starts with one. */
-export function draftPartsOf(post: SocialPost | null | undefined): DraftPart[] {
-	const parts = partsOf(post).map((part) => ({ text: part.text ?? '', media: mediaOf(part) }))
+/** One group of parts, ready for the editor. A group with nothing in it starts with one part. */
+export function draftPartsOf(
+	post: SocialPost | null | undefined,
+	channel: string | null = null,
+): DraftPart[] {
+	const parts = partsOf(post, channel).map((part) => ({ text: part.text ?? '', media: mediaOf(part) }))
 	return parts.length ? parts : [{ text: '', media: [] }]
 }
 

@@ -13,9 +13,13 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-from bwh_os.social.providers import get_provider
+from bwh_os.social.providers import PROVIDERS, get_provider
 
 MEDIA_KINDS = ("image", "video")
+
+
+def unsupported(provider: str) -> str:
+	return _("The OS cannot post to {0} yet").format(provider)
 
 
 class PostValidator:
@@ -47,19 +51,46 @@ class PostValidator:
 	def result_for(self, target: Document) -> dict:
 		parts = self.parts_for(target)
 		name = self.provider_name(target)
+		if name not in PROVIDERS:
+			# One channel the OS cannot post to yet is that channel's problem, not the post's:
+			# the composer keeps working for the others and says what this one is waiting for.
+			return self.result(target, name, limit=0, counts=[], errors=[unsupported(name)])
+
 		provider = get_provider(name)
 		errors = [] if parts else [_("Write the post first")]
 		errors += provider.validate(parts, self.settings_of(target))
 		errors += self.missing_media(parts)
 		errors += self.channel_errors(target)
+		return self.result(
+			target,
+			name,
+			limit=provider.max_length,
+			counts=[provider.count(part["text"]) for part in parts],
+			errors=errors,
+			max_images=provider.max_images,
+			media_after_part_one=provider.media_after_part_one,
+		)
+
+	def result(
+		self,
+		target: Document,
+		provider: str,
+		*,
+		limit: int,
+		counts: list[int],
+		errors: list[str],
+		max_images: int = 0,
+		media_after_part_one: bool = False,
+	) -> dict:
+		"""One target's verdict, in the shape the composer reads."""
 		return {
 			"channel": target.channel,
-			"provider": name,
+			"provider": provider,
 			"use_custom_content": bool(target.use_custom_content),
-			"limit": provider.max_length,
-			"max_images": provider.max_images,
-			"media_after_part_one": provider.media_after_part_one,
-			"counts": [provider.count(part["text"]) for part in parts],
+			"limit": limit,
+			"max_images": max_images,
+			"media_after_part_one": media_after_part_one,
+			"counts": counts,
 			"errors": errors,
 		}
 
