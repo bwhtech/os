@@ -1,12 +1,18 @@
 # Copyright (c) 2026, BWH and contributors
 # For license information, please see license.txt
 
+import frappe
+from frappe import _
 from frappe.model.document import Document
 
 from bwh_os.social.validation import PostValidator
 
 # What fits in a list row. A title is a handle for the post, not the post.
 TITLE_LENGTH = 60
+
+# Once a publish starts, what went out has to stay what the record says went out.
+# A Scheduled post is not here: it can still change until its time comes.
+LOCKED_STATUSES = ("Publishing", "Published", "Partial", "Failed")
 
 
 class SocialPost(Document):
@@ -36,8 +42,17 @@ class SocialPost(Document):
 		return PostValidator(self)
 
 	def validate(self):
+		self.ensure_unchanged_after_publish()
 		self.validator.structure()
 		self.set_title()
+
+	def ensure_unchanged_after_publish(self):
+		"""A post that has gone out, or is going out, keeps the content it went out with."""
+		before = self.get_doc_before_save()
+		if not before or before.status not in LOCKED_STATUSES:
+			return
+		if content_of(self) != content_of(before):
+			frappe.throw(_("A post cannot change after the publish starts"))
 
 	def set_title(self):
 		"""A post you never titled is known by how it starts."""
@@ -57,6 +72,18 @@ class SocialPost(Document):
 		"""What one target publishes: its own parts, or else the shared ones."""
 		return self.validator.parts_for(target)
 
+	def settings_of(self, target: Document) -> dict:
+		"""What the platform needs beyond the text, as a dict."""
+		return self.validator.settings_of(target)
+
 	def check(self):
 		"""The strict pass. Throws the first thing that would stop a publish."""
 		self.validator.check()
+
+
+def content_of(post: Document) -> tuple:
+	"""What the reader would see. Statuses and results change while publishing; this does not."""
+	return (
+		tuple((row.channel, row.part_no, row.text, row.media) for row in post.parts),
+		tuple((row.channel, row.use_custom_content) for row in post.targets),
+	)

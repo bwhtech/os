@@ -1,4 +1,4 @@
-import type { SocialMedia, SocialPost, SocialPostPart, SocialPostStatus } from '@/types'
+import type { SocialMedia, SocialPost, SocialPostPart, SocialPostStatus, SocialTargetStatus } from '@/types'
 
 /** Grey while it waits, blue once it has a time, green when it is out, red when it is not. */
 export const POST_STATUS_THEMES: Record<SocialPostStatus, 'gray' | 'blue' | 'amber' | 'green' | 'red'> = {
@@ -9,6 +9,18 @@ export const POST_STATUS_THEMES: Record<SocialPostStatus, 'gray' | 'blue' | 'amb
 	// Some targets made it and some did not, so the badge warns without calling it a failure.
 	Partial: 'amber',
 	Failed: 'red',
+}
+
+export const TARGET_THEMES: Record<SocialTargetStatus, 'gray' | 'amber' | 'green' | 'red'> = {
+	Pending: 'gray',
+	Publishing: 'amber',
+	Published: 'green',
+	Failed: 'red',
+}
+
+/** A post that is out, or on its way out, cannot be written any more. */
+export function isLocked(status: SocialPostStatus | undefined): boolean {
+	return Boolean(status) && status !== 'Draft' && status !== 'Scheduled'
 }
 
 /** Anything that changes the list page or the composer. */

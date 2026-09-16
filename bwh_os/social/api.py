@@ -10,6 +10,7 @@ from frappe.utils import date_diff, now_datetime
 
 from bwh_os.social.oauth import LINKEDIN_SUCCESS_URI
 from bwh_os.social.oauth_apps import PROVIDERS, get_app, redirect_uri
+from bwh_os.social.publisher import Publisher
 from bwh_os.social.validation import PostValidator
 
 CHANNEL_FIELDS = [
@@ -115,6 +116,15 @@ def load_post(post: str | int | dict) -> "frappe.Document":
 		PostValidator(doc).structure()
 		return doc
 	return frappe.get_doc("Social Post", post)
+
+
+@frappe.whitelist(methods=["POST"])
+def publish_post(post: str | int) -> str:
+	"""Put the post out now. Returns the status the post is in once the job is queued."""
+	frappe.only_for("System Manager")
+	doc = frappe.get_doc("Social Post", post)
+	Publisher(doc).start()
+	return doc.status
 
 
 # What each tab of the list page holds. Everything that has not gone out yet is Upcoming,

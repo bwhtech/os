@@ -5,6 +5,16 @@
 		</template>
 		<template #actions>
 			<span class="self-center text-p-sm text-ink-gray-5">{{ savedLabel }}</span>
+			<Button
+				v-if="post.doc?.status === 'Draft'"
+				variant="solid"
+				theme="gray"
+				label="Publish now"
+				:loading="publish.loading"
+				:disabled="!canPublish"
+				:tooltip="canPublish ? undefined : 'Fix what the platforms flag first'"
+				@click="askPublish"
+			/>
 			<Dropdown :options="menu">
 				<Button variant="ghost" icon="lucide-ellipsis" aria-label="More actions" />
 			</Dropdown>
@@ -37,6 +47,12 @@
 					A {{ post.doc.status.toLowerCase() }} post cannot change.
 				</p>
 
+				<!-- What each channel made of it. Nothing to show until a publish has run. -->
+				<div v-if="locked" class="border-t border-outline-gray-1 pt-6">
+					<p class="mb-2 text-p-sm text-ink-gray-5">Results</p>
+					<TargetResults :targets="post.doc.targets" :channels="byName" />
+				</div>
+
 				<!-- On narrow screens the preview sits under the composer instead of beside it. -->
 				<div class="border-t border-outline-gray-1 pt-6 xl:hidden">
 					<PostPreviews :targets="previews" :texts="texts" />
@@ -62,10 +78,12 @@ import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import ChannelPicker from '@/components/social/ChannelPicker.vue'
 import PartEditor from '@/components/social/PartEditor.vue'
 import PostPreviews from '@/components/social/PostPreviews.vue'
+import TargetResults from '@/components/social/TargetResults.vue'
 import { useAutosave } from '@/composables/useAutosave'
 import { useSocialChannels } from '@/composables/useSocialChannels'
 import { errorMessage } from '@/lib/errors'
-import { POST_STATUS_THEMES, partsOf } from '@/lib/social'
+import { onListUpdate } from '@/lib/socket'
+import { POST_STATUS_THEMES, SOCIAL_DOCTYPES, isLocked, partsOf } from '@/lib/social'
 import type { SocialPost, SocialPostPart, SocialPostTarget, TargetValidation } from '@/types'
 
 /** The composer. One text, every platform, and what each platform says about it. */
@@ -80,7 +98,13 @@ const post = useDoc<SocialPost>({ doctype: 'Social Post', name: computed(() => p
 const texts = ref<string[]>([])
 const picked = ref<string[]>([])
 
-const locked = computed(() => Boolean(post.doc) && post.doc!.status !== 'Draft')
+const locked = computed(() => isLocked(post.doc?.status))
+
+// A publish runs in a worker and writes as it goes, so the page follows it live.
+onListUpdate(
+	SOCIAL_DOCTYPES,
+	debounce(() => post.reload(), 300),
+)
 
 const breadcrumbs = computed(() => [
 	{ label: 'Posts', route: '/social' },
@@ -184,6 +208,31 @@ const partName = computed(() =>
 		? 'Reply'
 		: 'Comment',
 )
+
+const publish = useCall<string, { post: string }>({
+	url: '/api/v2/method/bwh_os.social.api.publish_post',
+	method: 'POST',
+	immediate: false,
+})
+
+/** The server checks again before anything goes out. This only keeps the button honest. */
+const canPublish = computed(
+	() => Boolean(validation.data?.length) && validation.data!.every((result) => !result.errors.length),
+)
+
+function askPublish() {
+	const channels = validation.data?.length ?? 0
+	dialog.confirm({
+		title: 'Publish now',
+		message: `This goes out to ${channels === 1 ? 'the channel' : `${channels} channels`} right away.`,
+		confirmLabel: 'Publish',
+		onConfirm: async () => {
+			await publish.submit({ post: props.postId })
+			toast.success('Publishing')
+			post.reload()
+		},
+	})
+}
 
 function remove() {
 	dialog.danger({

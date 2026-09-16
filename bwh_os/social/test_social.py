@@ -14,13 +14,15 @@ from bwh_os.social.api import (
 	get_channels,
 	get_posts,
 	get_provider_apps,
+	publish_post,
 	set_credentials,
 	validate_post,
 )
 from bwh_os.social.channels import check_expiry
 from bwh_os.social.oauth import upsert_channel
 from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
-from bwh_os.social.providers import BadRequest, ReconnectRequired, Retryable
+from bwh_os.social.publisher import Publisher
+from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, Retryable
 from bwh_os.social.providers.linkedin import LinkedInProvider
 from bwh_os.social.tokens import SKEW_SECONDS, get_token
 
@@ -532,3 +534,137 @@ class IntegrationTestSocialPosts(SocialTestCase):
 		row = next(row for row in get_posts("all") if row["name"] == draft.name)
 		self.assertEqual([target["channel"] for target in row["targets"]], [channel])
 		self.assertEqual(row["targets"][0]["display_name"], "Hussain Nagaria")
+
+
+class IntegrationTestSocialPublishing(IntegrationTestSocialPosts):
+	"""Putting a post out. The platform is never really called: `Provider.request` is patched
+	and `tokens.get_token` hands back a fake, so the tests are about the publisher's own rules."""
+
+	def setUp(self):
+		super().setUp()
+		self.token_patch = patch("bwh_os.social.publisher.get_token", return_value=MagicMock())
+		self.token_patch.start()
+		self.addCleanup(self.token_patch.stop)
+
+	def publish(self, post, **patches):
+		"""Run the job inline, so a test sees the result without a worker."""
+		with patch("frappe.enqueue"), patch.object(LinkedInProvider, "post", **patches) as posted:
+			publish_post(post.name)
+			Publisher(frappe.get_doc("Social Post", post.name)).run()
+		post.reload()
+		return posted
+
+	def test_publishing_queues_one_job_and_locks_the_post(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+
+		with patch("frappe.enqueue") as enqueue:
+			publish_post(post.name)
+
+		post.reload()
+		self.assertEqual(post.status, "Publishing")
+		self.assertEqual(post.targets[0].status, "Pending")
+		self.assertEqual(enqueue.call_count, 1)
+		self.assertEqual(enqueue.call_args.kwargs["job_id"], f"social_post::{post.name}")
+
+	def test_a_post_that_went_out_cannot_change(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+		self.publish(post, side_effect=release_parts)
+
+		post.parts[0].text = "A different post"
+
+		self.assertRaises(frappe.ValidationError, post.save)
+
+	def test_a_published_post_keeps_the_link_of_the_platform(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+
+		self.publish(post, side_effect=release_parts)
+
+		target = post.targets[0]
+		self.assertEqual(post.status, "Published")
+		self.assertEqual(target.status, "Published")
+		self.assertEqual(target.release_id, "urn:li:share:1")
+		self.assertIn("linkedin.com/feed/update", target.release_url)
+		self.assertTrue(post.published_at)
+
+	def test_one_channel_out_of_two_makes_the_post_partial(self):
+		good = self.make_channel(account_id="good")
+		bad = self.make_channel(account_id="bad")
+		post = self.make_post([good, bad])
+
+		def publish(account, parts, settings, released, on_release):
+			if account.account_id == "bad":
+				raise BadRequest("LinkedIn said no")
+			release_parts(account, parts, settings, released, on_release)
+
+		self.publish(post, side_effect=publish)
+
+		self.assertEqual(post.status, "Partial")
+		self.assertEqual({target.status for target in post.targets}, {"Published", "Failed"})
+		failed = next(target for target in post.targets if target.status == "Failed")
+		self.assertEqual(failed.error_kind, "Bad Request")
+
+	def test_every_channel_failing_fails_the_post(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+
+		self.publish(post, side_effect=BadRequest("LinkedIn said no"))
+
+		self.assertEqual(post.status, "Failed")
+		self.assertIsNone(post.published_at)
+
+	def test_a_dead_token_asks_for_a_reconnect_instead_of_a_retry(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+
+		self.publish(post, side_effect=ReconnectRequired("LinkedIn wants a new consent"))
+
+		self.assertEqual(post.targets[0].error_kind, "Reconnect")
+
+	def test_an_attempt_that_never_answered_is_not_made_again(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+		# A job that died between the call and the answer leaves the flag and nothing else.
+		post.targets[0].db_set("publish_attempted_at", frappe.utils.now_datetime())
+
+		posted = self.publish(post, side_effect=release_parts)
+
+		self.assertEqual(posted.call_count, 0)
+		self.assertEqual(post.targets[0].error_kind, "Unconfirmed")
+		self.assertEqual(post.status, "Failed")
+
+	def test_a_thread_carries_on_from_the_part_that_landed(self):
+		channel = self.make_channel()
+		post = self.make_post([channel], parts=[{"text": "The post"}, {"text": "The comment"}])
+
+		asked = []
+
+		def publish(account, parts, settings, released, on_release):
+			asked.append([row["part_no"] for row in released])
+			release_parts(account, parts, settings, released, on_release)
+
+		self.publish(post, side_effect=publish)
+		self.assertEqual(asked, [[]])
+		self.assertEqual([row["part_no"] for row in json.loads(post.targets[0].released_parts)], [1, 2])
+
+	def test_a_post_cannot_go_out_twice(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+		self.publish(post, side_effect=release_parts)
+
+		self.assertRaises(frappe.ValidationError, publish_post, post.name)
+
+
+def release_parts(account, parts, settings, released, on_release):
+	"""A LinkedIn that always takes the post. Part 1 gets a share urn, the rest comment ids."""
+	done = {row["part_no"] for row in released}
+	for part_no, _part in enumerate(parts, start=1):
+		if part_no in done:
+			continue
+		if part_no == 1:
+			urn = "urn:li:share:1"
+			on_release(Release(part_no=1, id=urn, url=f"https://www.linkedin.com/feed/update/{urn}"))
+		else:
+			on_release(Release(part_no=part_no, id=f"urn:li:comment:{part_no}"))

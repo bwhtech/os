@@ -4,18 +4,22 @@ import frappe
 from frappe import _
 
 from bwh_os.social.providers.base import (
+	Account,
 	BadRequest,
 	Provider,
 	ReconnectRequired,
+	Release,
 	Retryable,
 	SocialError,
 )
 from bwh_os.social.providers.linkedin import LinkedInProvider
 
 __all__ = [
+	"Account",
 	"BadRequest",
 	"Provider",
 	"ReconnectRequired",
+	"Release",
 	"Retryable",
 	"SocialError",
 	"get_provider",

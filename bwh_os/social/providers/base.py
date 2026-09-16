@@ -1,11 +1,14 @@
 """What every platform can do, and what can go wrong. See specs/04-social-posts.md."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import ClassVar
 
 import frappe
 import requests
 from frappe import _
+from frappe.integrations.utils import create_request_log
 from frappe.model.document import Document
 
 
@@ -23,6 +26,28 @@ class BadRequest(SocialError):
 
 class Retryable(SocialError):
 	"""The platform was busy or unreachable. The same call may work later."""
+
+
+@dataclass(frozen=True)
+class Account:
+	"""Who the post goes out as. The publisher reads the token, so no provider has to."""
+
+	token_cache: Document
+	account_id: str
+	# The post the calls belong to, for the `Integration Request` records.
+	post_name: str
+
+
+@dataclass(frozen=True)
+class Release:
+	"""One part that made it onto the platform."""
+
+	part_no: int
+	id: str
+	url: str | None = None
+
+	def as_dict(self) -> dict:
+		return {"part_no": self.part_no, "id": self.id, "url": self.url}
 
 
 class Provider(ABC):
@@ -104,17 +129,57 @@ class Provider(ABC):
 		return problems
 
 	@classmethod
-	def request(cls, method: str, url: str, token_cache: Document, **kwargs) -> requests.Response:
-		"""A call to the platform with the token of a channel, with the failures named."""
+	@abstractmethod
+	def post(
+		cls,
+		account: Account,
+		parts: list[dict],
+		settings: dict,
+		released: list[dict],
+		on_release: Callable[[Release], None],
+	) -> None:
+		"""Put each part on the platform, oldest first.
+
+		A part already in `released` is skipped, so a job that died halfway carries on
+		where it stopped. `on_release` runs after each part and is what makes that work:
+		it writes the part down before the next call goes out.
+		"""
+
+	@classmethod
+	def request(
+		cls, method: str, url: str, token_cache: Document, post_name: str | None = None, **kwargs
+	) -> requests.Response:
+		"""A call to the platform with the token of a channel, with the failures named.
+
+		A call that writes keeps an `Integration Request`, so every post has a record of
+		what went out and what came back.
+		"""
 		headers = {**token_cache.get_auth_header(), **kwargs.pop("headers", {})}
+		log = cls.log_request(method, url, post_name, kwargs.get("json"))
 		try:
 			response = requests.request(method, url, headers=headers, timeout=cls.timeout, **kwargs)
 		except requests.RequestException as error:
+			finish_log(log, "Failed", str(error))
 			raise Retryable(_("{0} did not answer: {1}").format(cls.key, error)) from error
 
+		finish_log(log, "Completed" if response.ok else "Failed", response.text[:5000])
 		if not response.ok:
 			raise cls.error_for(response)
 		return response
+
+	@classmethod
+	def log_request(cls, method: str, url: str, post_name: str | None, data) -> Document | None:
+		"""A record of one write call. Reads are noise, so they keep none."""
+		if method == "GET" or not post_name:
+			return None
+		return create_request_log(
+			data or {},
+			service_name=cls.key,
+			url=url,
+			reference_doctype="Social Post",
+			reference_docname=post_name,
+			is_remote_request=True,
+		)
 
 	@classmethod
 	def error_for(cls, response: requests.Response) -> SocialError:
@@ -125,3 +190,10 @@ class Provider(ABC):
 		if response.status_code == 429 or response.status_code >= 500:
 			return Retryable(message)
 		return BadRequest(message)
+
+
+def finish_log(log: Document | None, status: str, output: str) -> None:
+	"""Close an `Integration Request` with what the platform said."""
+	if not log:
+		return
+	log.db_set({"status": status, "output": output}, commit=False)

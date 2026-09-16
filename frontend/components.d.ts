@@ -70,6 +70,7 @@ declare module 'vue' {
     SubscriberFilters: typeof import('./src/components/subscribers/SubscriberFilters.vue')['default']
     SubscriberList: typeof import('./src/components/subscribers/SubscriberList.vue')['default']
     TagPicker: typeof import('./src/components/tags/TagPicker.vue')['default']
+    TargetResults: typeof import('./src/components/social/TargetResults.vue')['default']
     VideoAttachments: typeof import('./src/components/videos/VideoAttachments.vue')['default']
     VideoBoard: typeof import('./src/components/videos/VideoBoard.vue')['default']
     VideoBoardCard: typeof import('./src/components/videos/VideoBoardCard.vue')['default']
