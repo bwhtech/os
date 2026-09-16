@@ -13,7 +13,20 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { toast } from 'frappe-ui'
 import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 
 /** Social posts. The list, the composer, and the calendar land here. See specs/04-social-posts.md. */
+const route = useRoute()
+const router = useRouter()
+
+// A connect ends on the platform and comes back here. Say it worked, then drop the query.
+onMounted(() => {
+	const connected = route.query.connected
+	if (!connected) return
+	toast.success(`${connected} connected`)
+	router.replace({ query: {} })
+})
 </script>

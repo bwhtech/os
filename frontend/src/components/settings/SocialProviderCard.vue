@@ -12,6 +12,16 @@
 				variant="ghost"
 				@click="credentialsOpen = !credentialsOpen"
 			/>
+			<Button
+				v-if="connectLabel"
+				variant="solid"
+				theme="gray"
+				:label="connectLabel"
+				:loading="connect.loading"
+				:disabled="!app.has_credentials"
+				:tooltip="app.has_credentials ? undefined : 'Add the client id and secret first'"
+				@click="startConnect"
+			/>
 		</div>
 
 		<div v-if="channel" class="flex items-center gap-3 border-t border-outline-gray-2 px-4 py-3">
@@ -20,6 +30,12 @@
 				<p class="truncate text-base text-ink-gray-8">{{ channel.display_name }}</p>
 				<p class="truncate text-p-sm text-ink-gray-5">{{ expiry }}</p>
 			</div>
+			<Button
+				v-if="channel.status !== 'Disconnected'"
+				label="Disconnect"
+				:loading="disconnect.loading"
+				@click="askDisconnect"
+			/>
 		</div>
 
 		<p v-if="channel?.last_error" class="border-t border-outline-gray-2 px-4 py-3 text-p-sm text-ink-red-3">
@@ -72,7 +88,18 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { Avatar, Badge, Button, ErrorMessage, ScrollArea, TextInput, dayjs, toast, useCall } from 'frappe-ui'
+import {
+	Avatar,
+	Badge,
+	Button,
+	ErrorMessage,
+	ScrollArea,
+	TextInput,
+	dayjs,
+	dialog,
+	toast,
+	useCall,
+} from 'frappe-ui'
 import PlatformIcon from '@/components/social/PlatformIcon.vue'
 import { errorMessage } from '@/lib/errors'
 import type { SocialChannel, SocialProviderApp } from '@/types'
@@ -90,9 +117,29 @@ const save = useCall<void, { provider: string; client_id: string; client_secret:
 	immediate: false,
 })
 
+const connect = useCall<string, { provider: string }>({
+	url: '/api/v2/method/bwh_os.social.api.connect_channel',
+	method: 'POST',
+	immediate: false,
+})
+
+const disconnect = useCall<void, { channel: string }>({
+	url: '/api/v2/method/bwh_os.social.api.disconnect_channel',
+	method: 'POST',
+	immediate: false,
+})
+
+const connectLabel = computed(() => {
+	if (!props.channel) return 'Connect'
+	return props.channel.status === 'Connected' ? '' : 'Reconnect'
+})
+
 const summary = computed(() => {
-	if (props.channel) return props.channel.handle ? `@${props.channel.handle}` : 'Connected'
-	return props.app.has_credentials ? 'Ready to connect' : 'Add the client id and secret'
+	const channel = props.channel
+	if (!channel) return props.app.has_credentials ? 'Ready to connect' : 'Add the client id and secret'
+	if (channel.status === 'Expired') return 'The token has run out'
+	if (channel.status === 'Disconnected') return 'Connect again to post'
+	return channel.handle ? `@${channel.handle}` : 'Connected'
 })
 
 const statusTheme = computed(() => {
@@ -102,7 +149,8 @@ const statusTheme = computed(() => {
 
 const expiry = computed(() => {
 	const channel = props.channel
-	if (!channel?.expires_on) return 'The token does not expire'
+	if (!channel || channel.status === 'Disconnected') return 'The OS holds no token for it'
+	if (!channel.expires_on) return 'The token does not expire'
 	const left = channel.days_left ?? 0
 	if (left <= 0) return `The token expired ${dayjs(channel.expires_on).fromNow()}`
 	return `The token expires in ${left} ${left === 1 ? 'day' : 'days'}`
@@ -121,6 +169,35 @@ watch(
 	},
 	{ immediate: true },
 )
+
+async function startConnect() {
+	try {
+		const url = await connect.submit({ provider: props.app.provider })
+		// The platform takes over the tab. It comes back to /os/social when it is done.
+		if (url) window.location.href = url
+	} catch (error) {
+		toast.error(errorMessage(error as Error))
+	}
+}
+
+function askDisconnect() {
+	if (!props.channel) return
+	const name = props.channel.display_name ?? props.app.provider
+	dialog.danger({
+		title: `Disconnect ${props.app.provider}`,
+		message: `The OS drops the token of ${name} and stops posting for it. Scheduled posts fail until you connect again.`,
+		confirmLabel: 'Disconnect',
+		onConfirm: async () => {
+			try {
+				await disconnect.submit({ channel: props.channel!.name })
+				toast.success('Disconnected')
+				emit('saved')
+			} catch (error) {
+				toast.error(errorMessage(error as Error))
+			}
+		},
+	})
+}
 
 async function copy(text: string) {
 	await navigator.clipboard.writeText(text)

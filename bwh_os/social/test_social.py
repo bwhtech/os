@@ -1,8 +1,21 @@
+from unittest.mock import MagicMock, patch
+
 import frappe
+from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
 from frappe.tests import IntegrationTestCase
 
-from bwh_os.social.api import get_channels, get_provider_apps, set_credentials
+from bwh_os.social.api import (
+	connect_channel,
+	disconnect_channel,
+	get_channels,
+	get_provider_apps,
+	set_credentials,
+)
+from bwh_os.social.oauth import upsert_channel
 from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
+from bwh_os.social.providers import BadRequest, ReconnectRequired, Retryable
+from bwh_os.social.providers.linkedin import LinkedInProvider
+from bwh_os.social.tokens import SKEW_SECONDS, get_token
 
 
 class SocialTestCase(IntegrationTestCase):
@@ -125,3 +138,139 @@ class IntegrationTestSocialChannels(SocialTestCase):
 
 		self.assertRaises(frappe.PermissionError, get_channels)
 		self.assertRaises(frappe.PermissionError, get_provider_apps)
+
+
+class IntegrationTestSocialConnect(SocialTestCase):
+	IDENTITY = {
+		"account_id": "urn-connect",
+		"display_name": "Hussain Nagaria",
+		"handle": None,
+		"avatar_url": "https://media.licdn.com/pic.jpg",
+		"profile_url": None,
+	}
+
+	def make_token_cache(self, provider: str = "LinkedIn", expires_in: int = 60 * 60 * 24 * 60) -> str:
+		app = get_app(provider)
+		name = f"{app.name}-Administrator"
+		frappe.delete_doc("Token Cache", name, force=True, ignore_missing=True)
+		cache = frappe.new_doc("Token Cache")
+		cache.update(
+			{
+				"user": "Administrator",
+				"connected_app": app.name,
+				"access_token": "a-token",
+				"expires_in": expires_in,
+				"token_type": "bearer",
+			}
+		)
+		cache.insert(ignore_permissions=True)
+		self.addCleanup(frappe.delete_doc, "Token Cache", name, force=True, ignore_missing=True)
+		return cache.name
+
+	def test_connecting_writes_the_channel(self):
+		self.make_token_cache()
+
+		with patch.object(LinkedInProvider, "identity", return_value=self.IDENTITY):
+			name = upsert_channel("LinkedIn", "Administrator")
+		self.channels.append(name)
+
+		channel = frappe.get_doc("Social Channel", name)
+		self.assertEqual(name, "LinkedIn-urn-connect")
+		self.assertEqual(channel.status, "Connected")
+		self.assertEqual(channel.display_name, "Hussain Nagaria")
+		self.assertTrue(channel.expires_on)
+
+	def test_connecting_again_clears_the_old_failure(self):
+		self.make_token_cache()
+		with patch.object(LinkedInProvider, "identity", return_value=self.IDENTITY):
+			name = upsert_channel("LinkedIn", "Administrator")
+			self.channels.append(name)
+			frappe.get_doc("Social Channel", name).mark_expired("The token has run out")
+
+			self.assertEqual(upsert_channel("LinkedIn", "Administrator"), name)
+
+		channel = frappe.get_doc("Social Channel", name)
+		self.assertEqual(channel.status, "Connected")
+		self.assertIsNone(channel.last_error)
+
+	def test_a_connect_without_a_token_says_to_start_again(self):
+		app = get_app("LinkedIn")
+		frappe.delete_doc("Token Cache", f"{app.name}-Administrator", force=True, ignore_missing=True)
+
+		self.assertRaises(frappe.ValidationError, upsert_channel, "LinkedIn", "Administrator")
+
+	def test_connecting_needs_the_credentials_first(self):
+		self.assertRaises(frappe.ValidationError, connect_channel, "LinkedIn")
+
+	def test_x_cannot_connect_yet(self):
+		set_credentials("X", "client", "secret")
+
+		self.assertRaises(frappe.ValidationError, connect_channel, "X")
+
+	def test_disconnecting_drops_the_token_and_keeps_the_channel(self):
+		cache = self.make_token_cache()
+		with patch.object(LinkedInProvider, "identity", return_value=self.IDENTITY):
+			name = upsert_channel("LinkedIn", "Administrator")
+		self.channels.append(name)
+
+		disconnect_channel(name)
+
+		channel = frappe.get_doc("Social Channel", name)
+		self.assertEqual(channel.status, "Disconnected")
+		self.assertIsNone(channel.expires_on)
+		self.assertFalse(frappe.db.exists("Token Cache", cache))
+
+
+class IntegrationTestSocialTokens(SocialTestCase):
+	def test_a_token_that_cannot_refresh_expires_the_channel(self):
+		channel = frappe.get_doc("Social Channel", self.make_channel())
+
+		with patch.object(ConnectedApp, "get_active_token", return_value=None):
+			self.assertRaises(ReconnectRequired, get_token, channel)
+
+		self.assertEqual(frappe.db.get_value("Social Channel", channel.name, "status"), "Expired")
+
+	def test_a_token_in_its_last_seconds_counts_as_gone(self):
+		channel = frappe.get_doc("Social Channel", self.make_channel())
+		token_cache = MagicMock()
+		token_cache.get_expires_in.return_value = SKEW_SECONDS - 1
+
+		with patch.object(ConnectedApp, "get_active_token", return_value=token_cache):
+			self.assertRaises(ReconnectRequired, get_token, channel)
+
+	def test_a_live_token_comes_back(self):
+		channel = frappe.get_doc("Social Channel", self.make_channel())
+		token_cache = MagicMock()
+		token_cache.get_expires_in.return_value = 3600
+
+		with patch.object(ConnectedApp, "get_active_token", return_value=token_cache):
+			self.assertIs(get_token(channel), token_cache)
+
+
+class IntegrationTestLinkedInProvider(SocialTestCase):
+	def test_the_identity_comes_from_userinfo(self):
+		response = MagicMock()
+		response.json.return_value = {"sub": "abc", "name": "Hussain", "picture": "https://p.jpg"}
+
+		with patch.object(LinkedInProvider, "request", return_value=response):
+			identity = LinkedInProvider.identity(MagicMock())
+
+		self.assertEqual(identity["account_id"], "abc")
+		self.assertEqual(identity["display_name"], "Hussain")
+		self.assertEqual(identity["avatar_url"], "https://p.jpg")
+
+	def test_a_dead_token_asks_for_a_reconnect(self):
+		response = MagicMock(ok=False, status_code=401, text="expired")
+
+		self.assertIsInstance(LinkedInProvider.error_for(response), ReconnectRequired)
+
+	def test_a_busy_platform_is_worth_another_go(self):
+		for status in (429, 503):
+			response = MagicMock(ok=False, status_code=status, text="busy")
+
+			self.assertIsInstance(LinkedInProvider.error_for(response), Retryable)
+
+	def test_a_refused_body_is_not(self):
+		response = MagicMock(ok=False, status_code=422, text="no")
+
+		self.assertIsInstance(LinkedInProvider.error_for(response), BadRequest)
