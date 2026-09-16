@@ -44,6 +44,7 @@ declare module 'vue' {
     ListPagination: typeof import('./src/components/list/ListPagination.vue')['default']
     ListSkeleton: typeof import('./src/components/list/ListSkeleton.vue')['default']
     LMSSyncSettings: typeof import('./src/components/settings/LMSSyncSettings.vue')['default']
+    MediaPicker: typeof import('./src/components/social/MediaPicker.vue')['default']
     NewFormDialog: typeof import('./src/components/forms/NewFormDialog.vue')['default']
     NewLeadMagnetDialog: typeof import('./src/components/lead-magnets/NewLeadMagnetDialog.vue')['default']
     NewNewsletterDialog: typeof import('./src/components/newsletters/NewNewsletterDialog.vue')['default']

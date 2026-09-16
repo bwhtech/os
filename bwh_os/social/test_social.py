@@ -26,7 +26,8 @@ from bwh_os.social.oauth import upsert_channel
 from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
 from bwh_os.social.publisher import JOB_TIMEOUT, Publisher, publish_due_posts, resume_stuck_posts
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, Retryable
-from bwh_os.social.providers.linkedin import LinkedInProvider
+from bwh_os.social.providers.base import Account
+from bwh_os.social.providers.linkedin import IMAGE_WAIT_SECONDS, LinkedInProvider
 from bwh_os.social.tokens import SKEW_SECONDS, get_token
 
 
@@ -288,6 +289,120 @@ class IntegrationTestLinkedInProvider(SocialTestCase):
 		self.assertIsInstance(LinkedInProvider.error_for(response), BadRequest)
 
 
+class IntegrationTestLinkedInMedia(SocialTestCase):
+	"""Images go up before the post names them. See `bwh_os.social.providers.linkedin`."""
+
+	def setUp(self):
+		super().setUp()
+		self.account = Account(token_cache=MagicMock(), account_id="abc", post_name="1")
+		self.files: list[str] = []
+		# The wait is real seconds LinkedIn needs, and no test has that long.
+		self.wait = patch("bwh_os.social.providers.linkedin.time.sleep")
+		self.wait.start()
+		self.addCleanup(self.wait.stop)
+
+	def tearDown(self):
+		for name in self.files:
+			frappe.delete_doc("File", name, force=True, ignore_missing=True)
+		super().tearDown()
+
+	def make_image(self, name: str = "shot.png") -> dict:
+		"""A private `File` like the one the composer uploads onto a post."""
+		image = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"{frappe.generate_hash(length=6)}-{name}",
+				"is_private": 1,
+				"content": b"\x89PNG\r\n\x1a\n",
+				"decode": False,
+			}
+		).insert()
+		self.files.append(image.name)
+		return {"file_url": image.file_url, "kind": "image"}
+
+	def responses(self, urns: list[str]):
+		"""What LinkedIn answers: an upload slot per image, then the id of the post."""
+		calls = []
+		for urn in urns:
+			slot = MagicMock()
+			slot.json.return_value = {"value": {"uploadUrl": f"https://upload/{urn}", "image": urn}}
+			calls += [slot, MagicMock()]
+		post = MagicMock()
+		post.headers = {"x-restli-id": "urn:li:share:1"}
+		return [*calls, post]
+
+	def published_body(self, media: list[dict]) -> dict:
+		"""Publish one part with this media and give back the body the post went out with."""
+		with patch.object(
+			LinkedInProvider, "request", side_effect=self.responses(["urn:li:image:1", "urn:li:image:2"])
+		) as request:
+			LinkedInProvider.post(self.account, [{"text": "Look", "media": media}], {}, [], lambda _: None)
+		return request.call_args.kwargs["json"]
+
+	def test_one_image_rides_along_as_media(self):
+		body = self.published_body([self.make_image()])
+
+		self.assertEqual(body["content"], {"media": {"id": "urn:li:image:1", "altText": ""}})
+
+	def test_two_images_become_a_multi_image_post(self):
+		body = self.published_body([self.make_image(), self.make_image()])
+
+		self.assertEqual(
+			body["content"]["multiImage"]["images"],
+			[{"id": "urn:li:image:1", "altText": ""}, {"id": "urn:li:image:2", "altText": ""}],
+		)
+
+	def test_a_post_without_images_names_no_content(self):
+		body = self.published_body([])
+
+		self.assertNotIn("content", body)
+
+	def test_the_post_waits_for_the_images_it_cannot_ask_about(self):
+		with (
+			patch("bwh_os.social.providers.linkedin.time.sleep") as sleep,
+			patch.object(LinkedInProvider, "request", side_effect=self.responses(["urn:li:image:1"])),
+		):
+			LinkedInProvider.post(
+				self.account, [{"text": "Look", "media": [self.make_image()]}], {}, [], lambda _: None
+			)
+
+		sleep.assert_called_once_with(IMAGE_WAIT_SECONDS)
+
+	def test_the_file_goes_up_before_the_post_asks_for_it(self):
+		image = self.make_image()
+
+		with patch.object(
+			LinkedInProvider, "request", side_effect=self.responses(["urn:li:image:1"])
+		) as request:
+			LinkedInProvider.post(self.account, [{"text": "Look", "media": [image]}], {}, [], lambda _: None)
+
+		methods = [call.args[0] for call in request.call_args_list]
+		self.assertEqual(methods, ["POST", "PUT", "POST"])
+		self.assertEqual(request.call_args_list[1].kwargs["data"], b"\x89PNG\r\n\x1a\n")
+
+	def test_a_file_that_is_gone_stops_the_post(self):
+		self.assertRaises(
+			BadRequest,
+			LinkedInProvider.post,
+			self.account,
+			[{"text": "Look", "media": [{"file_url": "/private/files/nothing.png", "kind": "image"}]}],
+			{},
+			[],
+			lambda _: None,
+		)
+
+	def test_a_video_waits_for_its_own_slice(self):
+		self.assertRaises(
+			BadRequest,
+			LinkedInProvider.post,
+			self.account,
+			[{"text": "Look", "media": [{"file_url": "/private/files/clip.mp4", "kind": "video"}]}],
+			{},
+			[],
+			lambda _: None,
+		)
+
+
 class IntegrationTestSocialExpiry(SocialTestCase):
 	"""The daily watch over the tokens. See `bwh_os.social.channels`."""
 
@@ -502,6 +617,29 @@ class IntegrationTestSocialPosts(SocialTestCase):
 		)
 
 		self.assertIn("comment takes text only", validate_post(post.name)[0]["errors"][0])
+
+	def test_media_that_left_the_post_is_reported(self):
+		channel = self.make_channel()
+		post = self.make_post(
+			[channel],
+			parts=[
+				{
+					"text": "Look",
+					"media": json.dumps([{"file_url": "/private/files/gone.png", "kind": "image"}]),
+				}
+			],
+		)
+
+		self.assertIn("not on the post any more", validate_post(post.name)[0]["errors"][0])
+
+	def test_the_composer_learns_what_the_platform_takes(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+
+		result = validate_post(post.name)[0]
+
+		self.assertEqual(result["max_images"], 20)
+		self.assertFalse(result["media_after_part_one"])
 
 	def test_a_post_without_a_channel_cannot_go_out(self):
 		post = self.make_post()

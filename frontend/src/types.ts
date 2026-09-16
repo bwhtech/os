@@ -451,6 +451,10 @@ export interface TargetValidation {
 	use_custom_content: boolean
 	/** The character limit of the platform */
 	limit: number
+	/** How many images the platform takes in one part */
+	max_images: number
+	/** Whether the platform takes media on a part after the first */
+	media_after_part_one: boolean
 	/** The length of each part, part 1 first */
 	counts: number[]
 	errors: string[]

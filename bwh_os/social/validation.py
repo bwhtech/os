@@ -50,12 +50,15 @@ class PostValidator:
 		provider = get_provider(name)
 		errors = [] if parts else [_("Write the post first")]
 		errors += provider.validate(parts, self.settings_of(target))
+		errors += self.missing_media(parts)
 		errors += self.channel_errors(target)
 		return {
 			"channel": target.channel,
 			"provider": name,
 			"use_custom_content": bool(target.use_custom_content),
 			"limit": provider.max_length,
+			"max_images": provider.max_images,
+			"media_after_part_one": provider.media_after_part_one,
 			"counts": [provider.count(part["text"]) for part in parts],
 			"errors": errors,
 		}
@@ -79,6 +82,14 @@ class PostValidator:
 			key=lambda row: row.part_no,
 		)
 		return [{"text": row.text or "", "media": media_of(row)} for row in rows]
+
+	def missing_media(self, parts: list[dict]) -> list[str]:
+		"""A file that is no longer on the post cannot go out with it."""
+		urls = [item.get("file_url") for part in parts for item in part["media"]]
+		if not urls:
+			return []
+		kept = set(frappe.get_all("File", filters={"file_url": ("in", urls)}, pluck="file_url"))
+		return [_("{0} is not on the post any more").format(url) for url in urls if url not in kept]
 
 	def settings_of(self, target: Document) -> dict:
 		return parse_json(target.settings) or {}

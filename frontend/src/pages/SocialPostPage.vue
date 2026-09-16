@@ -33,9 +33,12 @@
 				</div>
 
 				<PartEditor
-					v-model="texts"
+					v-model="parts"
+					:post-name="postId"
 					:counts="strictest?.counts"
 					:limit="strictest?.limit ?? 0"
+					:max-images="maxImages"
+					:media-after-part-one="mediaAfterPartOne"
 					:part-name="partName"
 					:disabled="locked"
 				/>
@@ -52,7 +55,7 @@
 
 				<!-- On narrow screens the preview sits under the composer instead of beside it. -->
 				<div class="border-t border-outline-gray-1 pt-6 xl:hidden">
-					<PostPreviews :targets="previews" :texts="texts" />
+					<PostPreviews :targets="previews" :parts="parts" />
 				</div>
 			</div>
 		</div>
@@ -60,7 +63,7 @@
 		<aside class="hidden w-[24rem] shrink-0 border-l border-outline-gray-1 xl:block">
 			<div class="space-y-4 px-5 py-6">
 				<p class="text-p-sm text-ink-gray-5">Preview</p>
-				<PostPreviews :targets="previews" :texts="texts" />
+				<PostPreviews :targets="previews" :parts="parts" />
 			</div>
 		</aside>
 	</div>
@@ -81,7 +84,8 @@ import { useAutosave } from '@/composables/useAutosave'
 import { useSocialChannels } from '@/composables/useSocialChannels'
 import { errorMessage } from '@/lib/errors'
 import { onListUpdate } from '@/lib/socket'
-import { POST_STATUS_THEMES, SOCIAL_DOCTYPES, isLocked, partsOf } from '@/lib/social'
+import { POST_STATUS_THEMES, SOCIAL_DOCTYPES, draftPartsOf, isLocked, partsOf } from '@/lib/social'
+import type { DraftPart } from '@/lib/social'
 import type { SocialPost, SocialPostPart, SocialPostTarget, TargetValidation } from '@/types'
 
 /** The composer. One text, every platform, and what each platform says about it. */
@@ -93,7 +97,7 @@ const { channels, byName } = useSocialChannels()
 const post = useDoc<SocialPost>({ doctype: 'Social Post', name: computed(() => props.postId) })
 
 // What the composer holds. The document is the copy on the server, and autosave moves one to the other.
-const texts = ref<string[]>([])
+const parts = ref<DraftPart[]>([])
 const picked = ref<string[]>([])
 
 const locked = computed(() => isLocked(post.doc?.status))
@@ -132,14 +136,13 @@ const savedLabel = computed(() => {
 watch(
 	() => post.doc?.name,
 	() => {
-		texts.value = partsOf(post.doc).map((part) => part.text ?? '')
-		if (!texts.value.length) texts.value = ['']
+		parts.value = draftPartsOf(post.doc)
 		picked.value = (post.doc?.targets ?? []).map((target) => target.channel)
 	},
 	{ immediate: true },
 )
 
-watch(texts, () => {
+watch(parts, () => {
 	if (!locked.value) autosave.queue({ parts: buildParts() })
 })
 
@@ -153,11 +156,13 @@ watch(picked, () => {
  */
 function buildParts(): SocialPostPart[] {
 	const existing = partsOf(post.doc)
-	const shared = texts.value.map((text, index) => ({
+	const shared = parts.value.map((part, index) => ({
 		...(existing[index] ?? {}),
 		channel: null,
 		part_no: index + 1,
-		text,
+		text: part.text,
+		// The column holds JSON, and the document API stores what it is given.
+		media: JSON.stringify(part.media),
 	})) as SocialPostPart[]
 	const custom = (post.doc?.parts ?? []).filter((part) => part.channel)
 	return [...shared, ...custom]
@@ -186,7 +191,7 @@ const check = debounce(() => {
 	})
 }, 400)
 
-watch([texts, picked, () => post.doc?.name], check, { immediate: true })
+watch([parts, picked, () => post.doc?.name], check, { immediate: true })
 
 /** The platform that would refuse first: the composer counts against that one. */
 const strictest = computed(() =>
@@ -194,6 +199,16 @@ const strictest = computed(() =>
 		(tightest, result) => (!tightest || result.limit < tightest.limit ? result : tightest),
 		undefined,
 	),
+)
+
+/** Images stop at the tightest of the platforms picked, as the counter does for text. */
+const maxImages = computed(() =>
+	(validation.data ?? []).reduce((tightest, result) => Math.min(tightest, result.max_images), 4),
+)
+
+/** A part after the first takes media only where every platform picked allows it. */
+const mediaAfterPartOne = computed(
+	() => Boolean(validation.data?.length) && validation.data!.every((result) => result.media_after_part_one),
 )
 
 const previews = computed(() =>

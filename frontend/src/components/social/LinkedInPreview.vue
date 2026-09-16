@@ -40,6 +40,22 @@
 					<span v-else class="li-muted">Your post shows up here.</span>
 				</p>
 
+				<!-- Images run the full width of the card, the way the feed shows them. -->
+				<div
+					v-if="images.length"
+					class="mt-3 grid gap-0.5"
+					:class="images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'"
+				>
+					<img
+						v-for="(image, index) in images"
+						:key="image.file_url"
+						:src="image.file_url"
+						alt=""
+						class="w-full bg-black/5 object-cover"
+						:class="tile(index)"
+					/>
+				</div>
+
 				<div class="li-line mx-4 mt-3 flex items-center justify-between border-t py-1">
 					<span v-for="action in ACTIONS" :key="action.label" class="li-action">
 						<span :class="[action.icon, 'size-[18px]']" aria-hidden="true" />
@@ -93,6 +109,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import type { DraftPart } from '@/lib/social'
 import type { SocialChannel } from '@/types'
 
 /** The post as LinkedIn shows it: the feed card, the action bar, then each comment under it. */
@@ -100,7 +117,7 @@ const props = withDefaults(
 	defineProps<{
 		channel?: SocialChannel
 		/** Part 1 first */
-		texts: string[]
+		parts: DraftPart[]
 		limit: number
 		errors?: string[]
 	}>(),
@@ -121,8 +138,9 @@ const expanded = ref(false)
 
 const name = computed(() => props.channel?.display_name ?? 'LinkedIn')
 const initial = computed(() => name.value.trim().charAt(0).toUpperCase() || 'L')
-const text = computed(() => props.texts[0] ?? '')
-const comments = computed(() => props.texts.slice(1))
+const text = computed(() => props.parts[0]?.text ?? '')
+const images = computed(() => (props.parts[0]?.media ?? []).filter((item) => item.kind === 'image'))
+const comments = computed(() => props.parts.slice(1))
 
 // The fold stays open while you keep writing, and closes again for another channel.
 watch(
@@ -142,9 +160,16 @@ const shown = computed(() => {
 	return { kept: (lastSpace > FOLD - 30 ? cut.slice(0, lastSpace) : cut).trimEnd(), over: '' }
 })
 
+/** How the feed lays images out: one fills the card, three put the first across the top. */
+function tile(index: number): string {
+	if (images.value.length === 1) return 'max-h-[360px] object-contain'
+	if (images.value.length === 3 && index === 0) return 'col-span-2 h-[180px]'
+	return 'h-[150px]'
+}
+
 /** What the platform would keep, and what falls past its limit. */
 function body(index: number): { kept: string; over: string } {
-	const value = props.texts[index] ?? ''
+	const value = props.parts[index]?.text ?? ''
 	if (!props.limit || value.length <= props.limit) return { kept: value, over: '' }
 	return { kept: value.slice(0, props.limit), over: value.slice(props.limit) }
 }

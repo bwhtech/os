@@ -43,6 +43,18 @@ export function partsOf(
 		.sort((a, b) => a.part_no - b.part_no)
 }
 
+/** One part as the composer holds it: the text and the images, with no row bookkeeping. */
+export interface DraftPart {
+	text: string
+	media: SocialMedia[]
+}
+
+/** The shared parts of a post, ready for the editor. A post with none starts with one. */
+export function draftPartsOf(post: SocialPost | null | undefined): DraftPart[] {
+	const parts = partsOf(post).map((part) => ({ text: part.text ?? '', media: mediaOf(part) }))
+	return parts.length ? parts : [{ text: '', media: [] }]
+}
+
 /** The media of a part. The document API hands JSON fields back as a string. */
 export function mediaOf(part: Pick<SocialPostPart, 'media'>): SocialMedia[] {
 	if (!part.media) return []

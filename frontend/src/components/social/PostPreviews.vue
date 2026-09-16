@@ -4,7 +4,7 @@
 			v-for="target in linkedin"
 			:key="target.result.channel"
 			:channel="target.channel"
-			:texts="texts"
+			:parts="parts"
 			:limit="target.result.limit"
 			:errors="target.result.errors"
 		/>
@@ -33,12 +33,13 @@
 import { computed } from 'vue'
 import LinkedInPreview from '@/components/social/LinkedInPreview.vue'
 import PlatformIcon from '@/components/social/PlatformIcon.vue'
+import type { DraftPart } from '@/lib/social'
 import type { SocialChannel, TargetValidation } from '@/types'
 
 /** The post as each picked platform would show it, with what that platform refuses. */
 const props = defineProps<{
 	targets: { result: TargetValidation; channel?: SocialChannel }[]
-	texts: string[]
+	parts: DraftPart[]
 }>()
 
 const linkedin = computed(() => props.targets.filter((target) => target.result.provider === 'LinkedIn'))

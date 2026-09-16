@@ -129,6 +129,14 @@ class Provider(ABC):
 		return problems
 
 	@classmethod
+	def upload_media(cls, account: Account, media: list[dict]) -> list[str]:
+		"""Put each file on the platform and give back the ids the post refers to.
+
+		Media goes up before the post does, because both platforms take an id, never a file.
+		"""
+		raise NotImplementedError
+
+	@classmethod
 	@abstractmethod
 	def post(
 		cls,
@@ -190,6 +198,24 @@ class Provider(ABC):
 		if response.status_code == 429 or response.status_code >= 500:
 			return Retryable(message)
 		return BadRequest(message)
+
+
+def file_bytes(file_url: str) -> bytes:
+	"""The content of one piece of media. It lives in a private `File` on the post."""
+	name = frappe.db.get_value("File", {"file_url": file_url})
+	if not name:
+		raise BadRequest(_("{0} is not on the post any more").format(file_url))
+	content = frappe.get_doc("File", name).get_content()
+	return content.encode() if isinstance(content, str) else content
+
+
+def images_of(part: dict) -> list[dict]:
+	"""The images of a part. A video takes another road, and never shares a part."""
+	return [item for item in (part.get("media") or []) if item.get("kind") != "video"]
+
+
+def videos_of(part: dict) -> list[dict]:
+	return [item for item in (part.get("media") or []) if item.get("kind") == "video"]
 
 
 def finish_log(log: Document | None, status: str, output: str) -> None:
