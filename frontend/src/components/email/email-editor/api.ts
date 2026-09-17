@@ -26,6 +26,8 @@ export interface MountOptions {
 export interface MountedEmailEditor {
 	/** Restyle the current content. The undo history starts again. */
 	setTheme: (theme: NewsletterTheme) => void
+	/** Put a block at the end of the email, for the ones a page offers to write for you. */
+	insertBlock: (node: JSONContent) => void
 	unmount: () => void
 }
 

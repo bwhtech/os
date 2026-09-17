@@ -12,6 +12,12 @@
 		</template>
 	</AppPageHeader>
 
+	<!-- A refused save keeps the page as it was, so the reason has to stay too: a toast is
+	     gone in four seconds and the work goes with it on the next reload. -->
+	<div v-if="saveError" class="sticky top-0 z-10 border-b border-outline-red-1 bg-surface-red-1 px-3 py-2 sm:px-5">
+		<p class="text-p-sm text-ink-red-4">Not saved. {{ saveError }}</p>
+	</div>
+
 	<!-- Wide enough for the email editor and its inspector. Form fields keep a narrow column. -->
 	<div class="mx-auto max-w-5xl space-y-8 px-3 py-6 pb-20 sm:px-5">
 		<DetailSkeleton v-if="!form.doc && !form.error" />
@@ -103,6 +109,7 @@ import ActivityCards from "@/components/stats/ActivityCards.vue";
 import WelcomeEmailSection from "@/components/forms/WelcomeEmailSection.vue";
 import TagPicker from "@/components/tags/TagPicker.vue";
 import { confirmStarter, parseEmailDocument, welcomeStarter } from "@/lib/emailStarters";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 import { errorMessage } from "@/lib/errors";
 import type { EmailDocument, NewsletterTheme, SignupForm } from "@/types";
 
@@ -129,9 +136,13 @@ const draft = reactive({
 	welcomeTheme: "Frappe UI" as NewsletterTheme,
 });
 
+const saveError = ref("");
+
 const confirmEmail = useTemplateRef<InstanceType<typeof ConfirmEmailSection>>("confirmEmail");
 const welcomeEmail = useTemplateRef<InstanceType<typeof WelcomeEmailSection>>("welcomeEmail");
 const loaded = ref(false);
+/** The form the draft was read from. See the watcher below. */
+const loadedName = ref("");
 
 const breadcrumbs = computed(() => [
 	{ label: "Forms", route: "/forms" },
@@ -165,11 +176,21 @@ const dirty = computed(
 	() => Boolean(saved.value) && JSON.stringify(saved.value) !== JSON.stringify(draft)
 );
 
-// Load the draft on first fetch and again after each save. The editors keep their own content.
+// Everything on this page is written by hand and saved by a button, so a reload is how an
+// afternoon disappears.
+useUnsavedChanges(dirty, "This form has changes that are not saved. Leave anyway?");
+
+/**
+ * Load the draft once per form. The document comes back from the server on its own — after
+ * a save, on a socket update, when the tab wakes — and reading it again would throw away
+ * whatever is being written. Keying on the name means another form still loads.
+ */
 watch(
 	saved,
 	(value) => {
-		if (!value) return;
+		const name = form.doc?.name;
+		if (!value || !name || name === loadedName.value) return;
+		loadedName.value = name;
 		Object.assign(draft, structuredClone(value));
 		loaded.value = true;
 	},
@@ -198,9 +219,11 @@ async function save() {
 			welcome_content_json: JSON.stringify(draft.welcomeContent),
 			welcome_content_html: (await welcomeEmail.value?.getHtml()) ?? form.doc?.welcome_content_html,
 		});
+		saveError.value = "";
 		toast.success("Form saved");
 	} catch (error) {
-		toast.error(errorMessage(error as Error));
+		saveError.value = errorMessage(error as Error);
+		toast.error(saveError.value);
 	}
 }
 </script>

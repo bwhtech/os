@@ -25,6 +25,20 @@
 			:required="Boolean(leadMagnet)"
 		/>
 
+		<!-- The save is refused without this link, and it is the one thing nobody can guess.
+		     Better to say so while the email is being written, with the fix one click away. -->
+		<div
+			v-if="needsDownloadLink"
+			class="flex flex-wrap items-center gap-3 rounded-6 bg-surface-amber-1 px-3 py-2.5"
+		>
+			<p class="text-p-sm text-ink-gray-7">
+				This email gives away
+				<span class="font-medium">{{ leadMagnetTitle }}</span>
+				but has no download link, so it cannot be saved yet.
+			</p>
+			<Button class="ml-auto" label="Add download button" @click="addDownloadButton" />
+		</div>
+
 		<EmailComposer
 			ref="composer"
 			v-model:content="content"
@@ -35,9 +49,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useTemplateRef } from "vue";
-import { Select, TextInput, useCall, useList } from "frappe-ui";
+import { computed, useTemplateRef, watch } from "vue";
+import { Button, Select, TextInput, useCall, useList } from "frappe-ui";
 import EmailComposer from "@/components/email/EmailComposer.vue";
+import { downloadButton } from "@/lib/emailStarters";
 import { WELCOME_VARIABLES } from "@/lib/emailVariables";
 import type { EmailDocument, LeadMagnet, NewsletterTheme } from "@/types";
 
@@ -69,6 +84,29 @@ const leadMagnetDescription = computed(() => {
 	const count = counts.data?.[leadMagnet.value] ?? 0;
 	return `${count} ${count === 1 ? "download" : "downloads"} so far, from all forms.`;
 });
+
+const leadMagnetTitle = computed(
+	() => leadMagnets.data?.find((item) => item.name === leadMagnet.value)?.title ?? "a file",
+);
+
+/**
+ * A form with a lead magnet has to hand the file over, and `{{ download_url }}` is the only
+ * way to do it. The server refuses the save without it, so the page says so first. The token
+ * cannot appear anywhere else in the document, so looking for the text is enough.
+ */
+const needsDownloadLink = computed(
+	() => Boolean(leadMagnet.value) && !JSON.stringify(content.value ?? {}).includes("download_url"),
+);
+
+// Picking a file to give away is the moment the email needs a way to give it: the button
+// goes in by itself, and the warning above is left for an email that loses it later.
+watch(leadMagnet, (magnet) => {
+	if (magnet && needsDownloadLink.value) addDownloadButton();
+});
+
+function addDownloadButton() {
+	composer.value?.insertBlock(downloadButton());
+}
 
 defineExpose({
 	getHtml: () => composer.value?.getHtml() ?? Promise.resolve(""),

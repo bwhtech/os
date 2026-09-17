@@ -71,5 +71,7 @@ function getHtml() {
 defineExpose({
 	/** Email HTML for the current content, with the variables left in. Empty until the editor is ready. */
 	getHtml,
+	/** Put a block at the end of the email, for the ones a page offers to write for you. */
+	insertBlock: (node: EmailDocument) => editor.value?.insertBlock(node),
 })
 </script>

@@ -12,10 +12,15 @@ export interface EmailVariable {
 	sample: string
 }
 
-/** The tooltip text of a variable */
+/** What to type for this variable, which is not its label. */
+export function token(variable: EmailVariable): string {
+	return `{{ ${variable.key} }}`
+}
+
+/** The tooltip text of a variable. It names the token, because a link field has no chips. */
 export function describe(variable: EmailVariable): string {
 	const fallback = variable.fallback ? ` When empty: “${variable.fallback}”.` : ''
-	return `${variable.description}${fallback}`
+	return `${token(variable)} — ${variable.description}${fallback}`
 }
 
 const FIRST_NAME: EmailVariable = {

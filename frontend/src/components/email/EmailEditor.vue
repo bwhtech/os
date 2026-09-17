@@ -78,6 +78,8 @@ async function uploadImage(file: File): Promise<{ url: string }> {
 }
 
 defineExpose({
+	/** Put a block at the end of the email. The editor announces it, so the model follows. */
+	insertBlock: (node: EmailDocument) => mounted?.insertBlock(node),
 	/** Email HTML for the current content. Empty until the editor is ready. */
 	getHtml: (previewText: string) => api?.getHtml(previewText) ?? Promise.resolve(''),
 })

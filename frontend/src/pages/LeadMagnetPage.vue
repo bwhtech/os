@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import {
 	Button,
 	ErrorMessage,
@@ -55,6 +55,7 @@ import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import LeadMagnetDownloads from '@/components/lead-magnets/LeadMagnetDownloads.vue'
 import LeadMagnetFileInput from '@/components/lead-magnets/LeadMagnetFileInput.vue'
 import ActivityCards from '@/components/stats/ActivityCards.vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { errorMessage } from '@/lib/errors'
 import type { LeadMagnet } from '@/types'
 
@@ -88,8 +89,24 @@ const dirty = computed(
 	() => Boolean(saved.value) && JSON.stringify(saved.value) !== JSON.stringify(draft),
 )
 
-// Load the draft on first fetch and again after each save.
-watch(saved, (value) => value && Object.assign(draft, value), { immediate: true })
+useUnsavedChanges(dirty, 'This lead magnet has changes that are not saved. Leave anyway?')
+
+/**
+ * Load the draft once per lead magnet. A document that comes back from the server, after a
+ * save or on its own, must not overwrite what is being typed.
+ */
+const loadedName = ref('')
+
+watch(
+	saved,
+	(value) => {
+		const name = leadMagnet.doc?.name
+		if (!value || !name || name === loadedName.value) return
+		loadedName.value = name
+		Object.assign(draft, value)
+	},
+	{ immediate: true },
+)
 
 async function save() {
 	try {

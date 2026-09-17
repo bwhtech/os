@@ -27,6 +27,11 @@ export function welcomeStarter(withLeadMagnet: boolean): EmailDocument {
 	])
 }
 
+/** The button a welcome email needs when the form gives a lead magnet away. */
+export function downloadButton(): JSONContent {
+	return button('Download', '{{ download_url }}')
+}
+
 export function parseEmailDocument(value: string | EmailDocument | null): EmailDocument | null {
 	if (!value) return null
 	return typeof value === 'string' ? JSON.parse(value) : value

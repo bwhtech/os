@@ -134,11 +134,16 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions): Mou
 
 	const root = createRoot(container)
 	let editorRef: EmailEditorRef | null = null
+	let currentTheme = options.theme
+	// The editor reads `content` when it mounts and never again, so a document written from
+	// outside needs a new editor. The key is what gives it one.
+	let generation = 0
 	const render = (themeName: NewsletterTheme, content: JSONContent | null) => {
 		const theme = EMAIL_THEMES[themeName]
 		extraCss.textContent = extraStylesCss(theme.extra)
 		root.render(
 			<EmailEditor
+				key={generation}
 				content={content ?? undefined}
 				// A new theme object gives a new editor, so the theme applies to the whole document.
 				theme={theme.config}
@@ -166,13 +171,36 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions): Mou
 
 	return {
 		setTheme(theme: NewsletterTheme) {
+			currentTheme = theme
 			const content = editorRef ? withoutThemeStyles(editorRef.getJSON()) : options.content
 			render(theme, content)
+		},
+		insertBlock(node: JSONContent) {
+			// A new editor is how this one takes content it did not type. Nothing outside
+			// watches the document, so the change is announced too.
+			const content = withBlock(editorRef ? editorRef.getJSON() : options.content, node)
+			generation += 1
+			render(currentTheme, content)
+			options.onChange(content)
 		},
 		unmount() {
 			stopMirror()
 			root.unmount()
 		},
+	}
+}
+
+/** The document with one more block at the end of it, inside the container the email keeps. */
+function withBlock(content: JSONContent | null, node: JSONContent): JSONContent {
+	const doc = content ?? { type: 'doc', content: [] }
+	const blocks = doc.content ?? []
+	const container = blocks.findLast((block) => block.type === 'container')
+	if (!container) return { ...doc, content: [...blocks, node] }
+	return {
+		...doc,
+		content: blocks.map((block) =>
+			block === container ? { ...container, content: [...(container.content ?? []), node] } : block,
+		),
 	}
 }
 

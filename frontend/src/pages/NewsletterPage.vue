@@ -153,6 +153,7 @@ import SendTestDialog from '@/components/newsletters/SendTestDialog.vue'
 import { useAudiencePreview } from '@/composables/useAudiencePreview'
 import { parseEmailDocument } from '@/lib/emailStarters'
 import { NEWSLETTER_VARIABLES, fillSamples } from '@/lib/emailVariables'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { errorMessage } from '@/lib/errors'
 import { STATUS_THEMES } from '@/lib/newsletters'
 import type {
@@ -255,10 +256,19 @@ const dirty = computed(
 	() => Boolean(saved.value) && JSON.stringify(saved.value) !== JSON.stringify(draft),
 )
 
+useUnsavedChanges(dirty, 'This newsletter has changes that are not saved. Leave anyway?')
+
+/** The newsletter the draft was read from. See the watcher below. */
+const loadedName = ref('')
+
+// Once per newsletter: a document that comes back from the server must not overwrite what
+// is being written, and another newsletter must still load.
 watch(
 	saved,
 	(value) => {
-		if (!value || loaded.value) return
+		const name = issue.doc?.name
+		if (!value || !name || name === loadedName.value) return
+		loadedName.value = name
 		Object.assign(draft, structuredClone(value))
 		loaded.value = true
 	},
