@@ -6,9 +6,11 @@ and X answers that with a refusal. Both legs of the connect come through this cl
 browser leg in `bwh_os/social/x_oauth.py`, and every later refresh from
 `bwh_os.social.tokens`.
 
-X is not in `PROVIDERS` yet, so nothing can post to it and the composer says so. Slice
-4.2 writes the posting and puts it there.
+A post goes out as a thread: part 1 is a tweet, and each part after it replies to the one
+before, which is how X itself makes one.
 """
+
+from collections.abc import Callable
 
 import frappe
 import requests
@@ -17,28 +19,38 @@ from frappe.model.document import Document
 from frappe.utils.synchronization import filelock
 
 from bwh_os.social.providers.base import (
+	Account,
 	BadRequest,
 	Provider,
 	ReconnectRequired,
+	Release,
 	Retryable,
+	SocialError,
 )
+from bwh_os.social.x_text import weighted_length
 
 # An X access token lives two hours. Refresh it before the last minutes, so a long upload
 # that started on a healthy token does not end on a dead one. This sits above the margin
 # `bwh_os.social.tokens` calls expired, or a token would be refused before it is renewed.
 REFRESH_MARGIN_SECONDS = 300
 
+# Who may reply to the thread. Everyone is the absence of the field rather than a value
+# of it, so it never rides in the body, and a post that says nothing about it gets it.
+REPLY_SETTINGS = ("everyone", "following", "mentionedUsers", "subscribers")
+EVERYONE = "everyone"
+
 
 class XProvider(Provider):
 	key = "X"
 
-	# Weighted characters, which slice 4.2 counts properly. Until then `count` is the
-	# plain length of the base class and nothing posts here anyway.
 	max_length = 280
 	max_images = 4
 
 	USERS_ME_URL = "https://api.x.com/2/users/me?user.fields=profile_image_url,username,name"
 	PROFILE_URL = "https://x.com/{handle}"
+	TWEETS_URL = "https://api.x.com/2/tweets"
+	# The handle is not on the account the publisher carries, and X redirects `i` to it.
+	TWEET_URL = "https://x.com/i/status/{id}"
 
 	# X hands out a refresh token that rotates instead of running out, so the connection
 	# has no day to count down to and the channel keeps no expiry.
@@ -56,6 +68,81 @@ class XProvider(Provider):
 			"avatar_url": data.get("profile_image_url"),
 			"profile_url": cls.PROFILE_URL.format(handle=handle) if handle else None,
 		}
+
+	@classmethod
+	def count(cls, text: str) -> int:
+		"""X counts weight, not characters. See `bwh_os.social.x_text`."""
+		return weighted_length(text)
+
+	@classmethod
+	def validate(cls, parts: list[dict], settings: dict | None = None) -> list[str]:
+		problems = super().validate(parts, settings)
+		# Images and video come in slice 4.3. Until then a post that carries one would go
+		# out as text, which is not what anyone wrote, so it does not go out at all.
+		if any(part.get("media") for part in parts):
+			problems.append(_("The OS cannot put media on X yet"))
+		who = (settings or {}).get("reply_settings") or EVERYONE
+		if who not in REPLY_SETTINGS:
+			problems.append(_("X cannot keep replies to {0}").format(who))
+		return problems
+
+	@classmethod
+	def post(
+		cls,
+		account: Account,
+		parts: list[dict],
+		settings: dict,
+		released: list[dict],
+		on_release: Callable[[Release], None],
+	) -> None:
+		"""The thread, oldest first. Each part replies to the one before it."""
+		done = {row["part_no"]: row for row in released}
+		previous = None
+
+		for part_no, part in enumerate(parts, start=1):
+			if part_no in done:
+				previous = done[part_no]["id"]
+				continue
+
+			# Who may reply is a property of the conversation, so it rides on its first tweet.
+			reply_settings = settings.get("reply_settings") if part_no == 1 else None
+			previous = cls.create_tweet(
+				account, part.get("text") or "", reply_to=previous, reply_settings=reply_settings
+			)
+			on_release(Release(part_no=part_no, id=previous, url=cls.TWEET_URL.format(id=previous)))
+
+	@classmethod
+	def create_tweet(
+		cls,
+		account: Account,
+		text: str,
+		reply_to: str | None = None,
+		reply_settings: str | None = None,
+	) -> str:
+		body: dict = {"text": text}
+		if reply_to:
+			body["reply"] = {"in_reply_to_tweet_id": reply_to}
+		if reply_settings and reply_settings != EVERYONE:
+			body["reply_settings"] = reply_settings
+
+		response = cls.request(
+			"POST", cls.TWEETS_URL, account.token_cache, post_name=account.post_name, json=body
+		)
+		tweet_id = response.json().get("data", {}).get("id")
+		if not tweet_id:
+			raise BadRequest(_("X took the tweet but named no id"))
+		return tweet_id
+
+	@classmethod
+	def error_for(cls, response: requests.Response) -> SocialError:
+		"""X says 403 to a post it will not take, not to a token it does not like.
+
+		The same text twice is the common one, and that is the writing to change rather
+		than the connection to mend, so a 403 here is a refusal and not a reconnect.
+		"""
+		if response.status_code == 403:
+			return BadRequest(_("X said 403: {0}").format(response.text[:500]))
+		return super().error_for(response)
 
 	@classmethod
 	def active_token(cls, app: Document, user: str) -> Document | None:

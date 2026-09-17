@@ -77,7 +77,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
 		code_verifier=flow["verifier"],
 	)
 	store_token(app, frappe.session.user, token)
-	upsert_channel(PROVIDER, frappe.session.user, XProvider)
+	upsert_channel(PROVIDER, frappe.session.user)
 
 	frappe.local.response["type"] = "redirect"
 	frappe.local.response["location"] = DONE_URI.format(provider=PROVIDER)

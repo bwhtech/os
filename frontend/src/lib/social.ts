@@ -1,4 +1,12 @@
-import type { SocialMedia, SocialPost, SocialPostPart, SocialPostStatus, SocialTargetStatus } from '@/types'
+import type {
+	SocialMedia,
+	SocialPost,
+	SocialPostPart,
+	SocialPostStatus,
+	SocialPostTarget,
+	SocialTargetStatus,
+	XReplySettings,
+} from '@/types'
 
 /** Grey while it waits, blue once it has a time, green when it is out, red when it is not. */
 export const POST_STATUS_THEMES: Record<SocialPostStatus, 'gray' | 'blue' | 'amber' | 'green' | 'red'> = {
@@ -89,4 +97,29 @@ export function draftPartsOf(
 export function mediaOf(part: Pick<SocialPostPart, 'media'>): SocialMedia[] {
 	if (!part.media) return []
 	return typeof part.media === 'string' ? JSON.parse(part.media) : part.media
+}
+
+/**
+ * Who X lets reply to a thread. `everyone` is the absence of the rule, which is why the
+ * server never sends it. The values are X's own, so they go on the wire as they are.
+ */
+export const REPLY_OPTIONS: { label: string; value: XReplySettings }[] = [
+	{ label: 'Everyone', value: 'everyone' },
+	{ label: 'Accounts you follow', value: 'following' },
+	{ label: 'Accounts you mention', value: 'mentionedUsers' },
+	{ label: 'Your subscribers', value: 'subscribers' },
+]
+
+/** What X prints under the first tweet. An open thread says nothing, so neither do we. */
+export const REPLY_NOTES: Record<XReplySettings, string> = {
+	everyone: '',
+	following: 'Accounts you follow can reply',
+	mentionedUsers: 'Accounts you mention can reply',
+	subscribers: 'Your subscribers can reply',
+}
+
+/** The settings of a target. The document API hands JSON fields back as a string. */
+export function settingsOf(settings: SocialPostTarget['settings']): Record<string, unknown> {
+	if (!settings) return {}
+	return typeof settings === 'string' ? JSON.parse(settings) : settings
 }

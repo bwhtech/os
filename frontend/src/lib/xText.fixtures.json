@@ -1,0 +1,23 @@
+[
+	{ "text": "", "length": 0, "why": "nothing is nothing" },
+	{ "text": "hello", "length": 5, "why": "latin costs one each" },
+	{ "text": "a\nb", "length": 3, "why": "a line break is a character" },
+	{ "text": "héllo", "length": 5, "why": "NFC puts the accent back on the e" },
+	{ "text": "a—b", "length": 3, "why": "an em dash is in the light range" },
+	{ "text": "日本語", "length": 6, "why": "CJK costs two each" },
+	{ "text": "🙂", "length": 2, "why": "an emoji costs two, not its code units" },
+	{ "text": "https://example.com", "length": 23, "why": "a link is a t.co" },
+	{
+		"text": "https://buildwithhussain.dev/a/very/long/path?with=query",
+		"length": 23,
+		"why": "however long it was written"
+	},
+	{ "text": "www.example.com", "length": 23, "why": "a link without a scheme is still a link" },
+	{ "text": "Read this https://example.com now", "length": 37, "why": "10 + 23 + 4" },
+	{ "text": "See https://example.com.", "length": 28, "why": "the full stop is not part of the link" },
+	{
+		"text": "https://example.com https://example.org",
+		"length": 47,
+		"why": "23 + the space + 23"
+	}
+]

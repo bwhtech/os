@@ -10,7 +10,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from bwh_os.social.oauth_apps import get_app
-from bwh_os.social.providers import Provider, get_provider
+from bwh_os.social.providers import get_provider
 from bwh_os.social.tokens import expires_on
 
 # Where the `Connected App` flow sends the browser once it holds the token.
@@ -27,17 +27,14 @@ def linkedin_connected() -> None:
 	frappe.local.response["location"] = f"/os/social?connected={provider}"
 
 
-def upsert_channel(provider: str, user: str, provider_class: type[Provider] | None = None) -> str:
+def upsert_channel(provider: str, user: str) -> str:
 	"""Write the channel of the account that just connected, and return its name.
 
 	A reconnect lands on the same row, because the channel is named after the
 	account id. So the posts of a channel survive a reconnect.
-
-	`provider_class` is for a platform the OS can connect but cannot post to yet, which
-	is therefore not in `PROVIDERS`. It still knows who its token belongs to.
 	"""
 	app = get_app(provider)
-	provider_class = provider_class or get_provider(provider)
+	provider_class = get_provider(provider)
 	token_cache_name = f"{app.name}-{user}"
 	if not frappe.db.exists("Token Cache", token_cache_name):
 		frappe.throw(_("{0} sent no token. Start the connect again.").format(provider))

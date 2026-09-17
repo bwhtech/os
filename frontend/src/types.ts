@@ -383,6 +383,9 @@ export interface SocialMedia {
 	kind: 'image' | 'video'
 }
 
+/** Who X lets reply to a thread. `everyone` is X's default, and the absence of the rule. */
+export type XReplySettings = 'everyone' | 'following' | 'mentionedUsers' | 'subscribers'
+
 /** A `Social Post Target` row: one channel this post goes to */
 export interface SocialPostTarget {
 	name?: string

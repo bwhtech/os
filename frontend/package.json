@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test src/",
     "typecheck": "vue-tsc --noEmit && tsc --noEmit -p tsconfig.email.json",
     "preview": "vite preview"
   },

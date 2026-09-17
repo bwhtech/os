@@ -13,6 +13,7 @@ from bwh_os.social.providers.base import (
 	SocialError,
 )
 from bwh_os.social.providers.linkedin import LinkedInProvider
+from bwh_os.social.providers.x import XProvider
 
 __all__ = [
 	"Account",
@@ -27,6 +28,7 @@ __all__ = [
 
 PROVIDERS: dict[str, type[Provider]] = {
 	"LinkedIn": LinkedInProvider,
+	"X": XProvider,
 }
 
 

@@ -75,6 +75,7 @@ declare module 'vue' {
     SubscriberList: typeof import('./src/components/subscribers/SubscriberList.vue')['default']
     TagPicker: typeof import('./src/components/tags/TagPicker.vue')['default']
     TargetResults: typeof import('./src/components/social/TargetResults.vue')['default']
+    TargetSettings: typeof import('./src/components/social/TargetSettings.vue')['default']
     VideoAttachments: typeof import('./src/components/videos/VideoAttachments.vue')['default']
     VideoBoard: typeof import('./src/components/videos/VideoBoard.vue')['default']
     VideoBoardCard: typeof import('./src/components/videos/VideoBoardCard.vue')['default']
@@ -85,5 +86,6 @@ declare module 'vue' {
     VideoTable: typeof import('./src/components/videos/VideoTable.vue')['default']
     VideoWriting: typeof import('./src/components/videos/VideoWriting.vue')['default']
     WelcomeEmailSection: typeof import('./src/components/forms/WelcomeEmailSection.vue')['default']
+    XPreview: typeof import('./src/components/social/XPreview.vue')['default']
   }
 }

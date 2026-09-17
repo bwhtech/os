@@ -66,6 +66,19 @@
 					:disabled="locked || (Boolean(tab) && !customized.includes(tab))"
 				/>
 
+				<!-- What a channel needs beyond the text. Only X asks for anything so far. -->
+				<div v-if="withSettings.length" class="space-y-3 border-t border-outline-gray-1 pt-4">
+					<TargetSettings
+						v-for="target in withSettings"
+						:key="target.result.channel"
+						:provider="target.result.provider"
+						:channel="target.channel"
+						:model-value="target.settings"
+						:disabled="locked"
+						@update:model-value="setSettings(target.result.channel, $event)"
+					/>
+				</div>
+
 				<p v-if="locked" class="text-p-sm text-ink-gray-5">
 					A {{ post.doc.status.toLowerCase() }} post cannot change.
 				</p>
@@ -109,12 +122,20 @@ import PartEditor from '@/components/social/PartEditor.vue'
 import PostPreviews from '@/components/social/PostPreviews.vue'
 import PublishBar from '@/components/social/PublishBar.vue'
 import TargetResults from '@/components/social/TargetResults.vue'
+import TargetSettings from '@/components/social/TargetSettings.vue'
 import VideoPicker from '@/components/social/VideoPicker.vue'
 import { useAutosave } from '@/composables/useAutosave'
 import { useSocialChannels } from '@/composables/useSocialChannels'
 import { errorMessage } from '@/lib/errors'
 import { onListUpdate } from '@/lib/socket'
-import { POST_STATUS_THEMES, SOCIAL_DOCTYPES, draftPartsOf, isLocked, partsOf } from '@/lib/social'
+import {
+	POST_STATUS_THEMES,
+	SOCIAL_DOCTYPES,
+	draftPartsOf,
+	isLocked,
+	partsOf,
+	settingsOf,
+} from '@/lib/social'
 import type { DraftPart } from '@/lib/social'
 import type { SocialPost, SocialPostPart, SocialPostTarget, TargetValidation } from '@/types'
 
@@ -135,6 +156,8 @@ const groups = ref<Record<string, DraftPart[]>>({ '': [{ text: '', media: [] }] 
 const picked = ref<string[]>([])
 /** The channels writing their own content, which is `use_custom_content` on their row. */
 const customized = ref<string[]>([])
+/** What each channel needs beyond the text, by channel. X keeps who may reply here. */
+const settings = ref<Record<string, Record<string, unknown>>>({})
 /** The group being written. The empty value is the one every channel gets. */
 const tab = ref('')
 
@@ -236,6 +259,9 @@ watch(
 			...customized.value.map((channel) => [channel, draftPartsOf(post.doc, channel)]),
 		])
 		picked.value = targets.map((target) => target.channel)
+		settings.value = Object.fromEntries(
+			targets.map((target) => [target.channel, settingsOf(target.settings)]),
+		)
 		tab.value = ''
 	},
 	{ immediate: true },
@@ -265,9 +291,13 @@ function clone(parts: DraftPart[]): DraftPart[] {
 	return parts.map((part) => ({ text: part.text, media: [...part.media] }))
 }
 
-watch(picked, () => {
+watch([picked, settings], () => {
 	if (!locked.value) autosave.queue({ targets: buildTargets() })
 })
+
+function setSettings(channel: string, values: Record<string, unknown>) {
+	settings.value = { ...settings.value, [channel]: values }
+}
 
 /**
  * The shared parts, in order, keeping the row a text already had. Content written for one
@@ -296,6 +326,8 @@ function buildTargets(): SocialPostTarget[] {
 	return picked.value.map((channel) => ({
 		...(rows.get(channel) ?? { channel, provider: byName.value[channel]?.provider }),
 		use_custom_content: customized.value.includes(channel) ? 1 : 0,
+		// The column holds JSON, and the document API stores what it is given.
+		settings: JSON.stringify(settings.value[channel] ?? {}),
 	})) as SocialPostTarget[]
 }
 
@@ -313,7 +345,7 @@ const check = debounce(() => {
 	})
 }, 400)
 
-watch([groups, picked, customized, () => post.doc?.name], check, { immediate: true })
+watch([groups, picked, customized, settings, () => post.doc?.name], check, { immediate: true })
 
 /**
  * The platform the counter answers to. On a channel's own tab that is the channel; on the
@@ -345,8 +377,12 @@ const previews = computed(() =>
 		result,
 		channel: byName.value[result.channel],
 		parts: groups.value[result.use_custom_content ? result.channel : ''] ?? [],
+		settings: settings.value[result.channel] ?? {},
 	})),
 )
+
+/** The channels with something to set. A platform that asks nothing draws nothing. */
+const withSettings = computed(() => previews.value.filter((target) => target.result.provider === 'X'))
 
 /** LinkedIn calls part 2 a comment, X calls it a reply. */
 const partName = computed(() => {

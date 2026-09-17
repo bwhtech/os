@@ -35,6 +35,7 @@ from bwh_os.social.publisher import JOB_TIMEOUT, Publisher, publish_due_posts, r
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, Retryable
 from bwh_os.social.providers.base import Account
 from bwh_os.social.providers.x import XProvider
+from bwh_os.social.x_text import weighted_length
 from bwh_os.social.providers.linkedin import (
 	IMAGE_WAIT_SECONDS,
 	VIDEO_POLL_SECONDS,
@@ -962,13 +963,15 @@ class IntegrationTestSocialPosts(SocialTestCase):
 		self.assertEqual(result["max_images"], 20)
 		self.assertFalse(result["media_after_part_one"])
 
-	def test_a_platform_the_os_cannot_post_to_yet_is_one_target_s_problem(self):
-		post = self.make_post([self.make_channel("LinkedIn"), self.make_channel("X")])
+	def test_each_platform_is_held_to_its_own_rules(self):
+		post = self.make_post(
+			[self.make_channel("LinkedIn"), self.make_channel("X")], parts=[{"text": "A" * 500}]
+		)
 
 		results = {result["provider"]: result for result in validate_post(post.name)}
 
 		self.assertEqual(results["LinkedIn"]["errors"], [])
-		self.assertIn("cannot post to X yet", results["X"]["errors"][0])
+		self.assertIn("X takes 280", results["X"]["errors"][0])
 		self.assertRaises(frappe.ValidationError, post.check)
 
 	def test_a_post_without_a_channel_cannot_go_out(self):
@@ -1005,6 +1008,151 @@ class IntegrationTestSocialPosts(SocialTestCase):
 		row = next(row for row in get_posts("all") if row["name"] == draft.name)
 		self.assertEqual([target["channel"] for target in row["targets"]], [channel])
 		self.assertEqual(row["targets"][0]["display_name"], "Hussain Nagaria")
+
+
+class IntegrationTestXText(SocialTestCase):
+	"""The weighted count, against the fixtures `frontend/src/lib/xText.test.ts` reads too."""
+
+	def test_the_count_matches_the_fixtures(self):
+		for fixture in x_text_fixtures():
+			self.assertEqual(weighted_length(fixture["text"]), fixture["length"], fixture["why"])
+
+	def test_a_link_costs_the_same_however_long_it_is(self):
+		short = weighted_length("Read https://x.co")
+		long = weighted_length("Read https://buildwithhussain.dev/a/long/path?and=a&query=too")
+
+		self.assertEqual(short, long)
+
+
+class IntegrationTestXPosting(SocialTestCase):
+	"""One thread on X. The platform is never called: `XProvider.request` answers instead."""
+
+	def setUp(self):
+		super().setUp()
+		self.account = Account(token_cache=MagicMock(), account_id="42", post_name="1")
+
+	def send(self, texts: list[str], settings: dict | None = None, released: list[dict] | None = None):
+		"""Post the parts and hand back what went out and what came of it."""
+		bodies: list[dict] = []
+		releases: list[Release] = []
+
+		def request(method, url, token_cache, post_name=None, **kwargs):
+			bodies.append(kwargs["json"])
+			response = MagicMock()
+			response.json.return_value = {"data": {"id": str(len(bodies))}}
+			return response
+
+		with patch.object(XProvider, "request", side_effect=request):
+			XProvider.post(
+				self.account,
+				[{"text": text, "media": []} for text in texts],
+				settings or {},
+				released or [],
+				releases.append,
+			)
+		return bodies, releases
+
+	def test_a_thread_replies_down_the_chain(self):
+		bodies, releases = self.send(["One", "Two", "Three"])
+
+		self.assertNotIn("reply", bodies[0])
+		self.assertEqual(bodies[1]["reply"], {"in_reply_to_tweet_id": "1"})
+		self.assertEqual(bodies[2]["reply"], {"in_reply_to_tweet_id": "2"})
+		self.assertEqual([release.part_no for release in releases], [1, 2, 3])
+		self.assertEqual(releases[0].url, "https://x.com/i/status/1")
+
+	def test_who_may_reply_is_set_on_the_tweet_that_starts_the_thread(self):
+		bodies, _releases = self.send(["One", "Two"], {"reply_settings": "following"})
+
+		self.assertEqual(bodies[0]["reply_settings"], "following")
+		self.assertNotIn("reply_settings", bodies[1])
+
+	def test_a_thread_anyone_may_reply_to_says_nothing_about_it(self):
+		bodies, _releases = self.send(["One"], {"reply_settings": "everyone"})
+
+		self.assertNotIn("reply_settings", bodies[0])
+
+	def test_a_thread_carries_on_from_the_part_that_landed(self):
+		bodies, releases = self.send(["One", "Two"], released=[{"part_no": 1, "id": "7"}])
+
+		self.assertEqual(len(bodies), 1)
+		self.assertEqual(bodies[0]["reply"], {"in_reply_to_tweet_id": "7"})
+		self.assertEqual([release.part_no for release in releases], [2])
+
+	def test_a_tweet_that_comes_back_without_an_id_is_a_refusal(self):
+		response = MagicMock()
+		response.json.return_value = {"data": {}}
+
+		with patch.object(XProvider, "request", return_value=response):
+			self.assertRaises(BadRequest, XProvider.post, self.account, [{"text": "One"}], {}, [], print)
+
+	def test_the_same_text_twice_is_the_writing_to_change_not_the_connection(self):
+		refused = MagicMock(ok=False, status_code=403, text="duplicate content")
+
+		self.assertIsInstance(XProvider.error_for(refused), BadRequest)
+		self.assertIsInstance(
+			XProvider.error_for(MagicMock(ok=False, status_code=401, text="expired")), ReconnectRequired
+		)
+
+
+class IntegrationTestXPosts(IntegrationTestSocialPosts):
+	"""What the composer says about a post going to X. See `bwh_os.social.providers.x`."""
+
+	def test_x_counts_weight_and_not_characters(self):
+		channel = self.make_channel("X")
+		post = self.make_post([channel], parts=[{"text": "\u65e5" * 141}])
+
+		result = validate_post(post.name)[0]
+
+		self.assertEqual(result["limit"], 280)
+		self.assertEqual(result["counts"], [282])
+		self.assertIn("X takes 280", result["errors"][0])
+
+	def test_a_link_leaves_room_for_the_rest_of_the_tweet(self):
+		channel = self.make_channel("X")
+		post = self.make_post([channel], parts=[{"text": "A" * 250 + " https://" + "a" * 200 + ".dev"}])
+
+		self.assertEqual(validate_post(post.name)[0]["counts"], [274])
+
+	def test_x_takes_no_media_yet(self):
+		channel = self.make_channel("X")
+		media = json.dumps([{"file_url": "/private/files/a.png", "kind": "image"}])
+		post = self.make_post([channel], parts=[{"text": "Look", "media": media}])
+
+		self.assertIn("media on X yet", " ".join(validate_post(post.name)[0]["errors"]))
+
+	def test_a_reply_rule_x_does_not_know_is_refused(self):
+		channel = self.make_channel("X")
+		post = self.make_post([channel])
+		post.targets[0].db_set("settings", json.dumps({"reply_settings": "nobody"}))
+		post.reload()
+
+		self.assertIn("nobody", validate_post(post.name)[0]["errors"][0])
+
+	def test_a_thread_on_x_keeps_the_link_of_its_first_tweet(self):
+		channel = self.make_channel("X", handle="hussain")
+		post = self.make_post([channel], parts=[{"text": "One"}, {"text": "Two"}])
+		sent: list[dict] = []
+
+		def request(method, url, token_cache, post_name=None, **kwargs):
+			sent.append(kwargs["json"])
+			response = MagicMock()
+			response.json.return_value = {"data": {"id": str(len(sent))}}
+			return response
+
+		with (
+			patch("bwh_os.social.publisher.get_token", return_value=MagicMock()),
+			patch("frappe.enqueue"),
+			patch.object(XProvider, "request", side_effect=request),
+		):
+			publish_post(post.name)
+			Publisher(frappe.get_doc("Social Post", post.name)).run()
+
+		post.reload()
+		self.assertEqual(post.status, "Published")
+		self.assertEqual(post.targets[0].release_url, "https://x.com/i/status/1")
+		self.assertEqual([row["part_no"] for row in json.loads(post.targets[0].released_parts)], [1, 2])
+		self.assertEqual([body["text"] for body in sent], ["One", "Two"])
 
 
 class IntegrationTestSocialCalendar(IntegrationTestSocialPosts):
@@ -1409,6 +1557,13 @@ class IntegrationTestSocialSchedule(IntegrationTestSocialPosts):
 			resume_stuck_posts()
 
 		self.assertEqual(enqueue.call_count, 0)
+
+
+def x_text_fixtures() -> list[dict]:
+	"""The cases the browser count is checked against, so both counts move together."""
+	path = frappe.get_app_path("bwh_os", "..", "frontend", "src", "lib", "xText.fixtures.json")
+	with open(path) as fixtures:
+		return json.load(fixtures)
 
 
 def release_parts(account, parts, settings, released, on_release):
