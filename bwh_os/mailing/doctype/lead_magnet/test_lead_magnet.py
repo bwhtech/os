@@ -41,13 +41,14 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 		download_url = self.lead_magnet.get_download_url(token).replace("&", "&amp;")
 		self.assertIn(download_url, email.get_body(("html",)).get_content())
 
-	def test_known_email_gets_no_second_welcome_email(self):
+	def test_known_email_asking_again_gets_the_file_again(self):
+		"""Someone already on the list still came for the manual."""
 		subscribe("test-manual", "twice-magnet@example.com")
 		subscribe("test-manual", "twice-magnet@example.com")
 
 		self.assertEqual(
 			frappe.db.count("Email Queue", {"reference_name": "twice-magnet@example.com"}),
-			1,
+			2,
 		)
 
 	def test_download_logs_and_sends_the_file(self):

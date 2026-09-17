@@ -84,14 +84,16 @@ class IntegrationTestDoubleOptIn(IntegrationTestCase):
 
 		self.assertEqual(emails_to("double-click@example.com"), 2)
 
-	def test_active_subscriber_gets_no_confirm_email(self):
+	def test_active_subscriber_skips_the_confirm_email_and_gets_the_welcome_one(self):
+		"""A confirmed reader has nothing left to confirm, and came for what the form gives away."""
 		make_form("test-single")
 		subscribe("test-single", "already@example.com")
 
 		subscribe("test-double-opt-in", "already@example.com")
 
 		self.assertEqual(frappe.db.get_value("Subscriber", "already@example.com", "status"), "Active")
-		self.assertEqual(emails_to("already@example.com"), 0)
+		self.assertEqual(emails_to("already@example.com"), 1)
+		self.assertEqual(last_email_to("already@example.com")["Subject"], "Your manual")
 
 	def test_unsubscribed_person_must_confirm_again(self):
 		subscribe("test-double-opt-in", "back@example.com")

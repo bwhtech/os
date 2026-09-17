@@ -45,12 +45,10 @@ class Subscriber(Document):
 		self.email = normalize_email(self.email)
 		validate_email_address(self.email, throw=True)
 
-	def activate(self) -> bool:
-		"""Make the subscriber Active. True the first time, when the welcome email is due."""
-		first_time = not self.confirmed_on
+	def activate(self):
+		"""Make the subscriber Active. The confirm date is the first one, not the latest."""
 		self.status = "Active"
 		self.confirmed_on = self.confirmed_on or now_datetime()
-		return first_time
 
 	def unsubscribe(self):
 		"""Remove the subscriber from all sends. A Bounced subscriber stays Bounced."""

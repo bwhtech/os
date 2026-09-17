@@ -104,7 +104,11 @@ class SignupForm(Document):
 		"""Add a signup from this form. A known email gets the form tags.
 
 		Active and Bounced people keep their status. Anyone else becomes Active, or Pending with a
-		confirm email when the form has double opt-in. The welcome email goes out only once.
+		confirm email when the form has double opt-in.
+
+		The welcome email goes out on every signup, not once per person. A reader already on the
+		list who fills in a form is asking for what that form gives away, usually a lead magnet,
+		and the file is in that email. A dead address is the one exception.
 		"""
 		if not self.is_active:
 			frappe.throw(_("This form is closed"), FormClosedError)
@@ -115,6 +119,10 @@ class SignupForm(Document):
 		subscriber.add_tags([row.tag for row in self.tags])
 		if not subscriber.is_new() and subscriber.status in ("Active", "Bounced"):
 			subscriber.save(ignore_permissions=True)
+			# A confirmed reader has no second opt-in to give, so a double opt-in form skips
+			# straight to the email with the file. Bounced gets nothing: the address is dead.
+			if subscriber.status == "Active":
+				self.send_welcome_email(subscriber)
 		elif self.double_opt_in:
 			subscriber.status = "Pending"
 			subscriber.save(ignore_permissions=True)
@@ -130,10 +138,9 @@ class SignupForm(Document):
 			self.activate(subscriber)
 
 	def activate(self, subscriber):
-		send_welcome = subscriber.activate()
+		subscriber.activate()
 		subscriber.save(ignore_permissions=True)
-		if send_welcome:
-			self.send_welcome_email(subscriber)
+		self.send_welcome_email(subscriber)
 
 	def get_or_new_subscriber(
 		self,
