@@ -2,9 +2,10 @@
 	<section class="space-y-3">
 		<div class="space-y-1">
 			<h2 class="text-lg-semibold text-ink-gray-8">Downloads</h2>
+			<!-- The count is people, the list is every download: the same reader can come back. -->
 			<p class="text-p-base text-ink-gray-6">
 				<span class="tabular-nums">{{ count }}</span>
-				{{ count === 1 ? 'download' : 'downloads' }} from welcome email links.
+				{{ count === 1 ? 'subscriber has' : 'subscribers have' }} used a welcome email link.
 			</p>
 		</div>
 
@@ -35,7 +36,7 @@
 					</template>
 				</ListRows>
 			</List>
-			<p v-if="count > downloads.data.length" class="pt-2 text-p-sm text-ink-gray-5">
+			<p v-if="downloads.data.length === LIMIT" class="pt-2 text-p-sm text-ink-gray-5">
 				Showing the last {{ downloads.data.length }} downloads.
 			</p>
 		</div>

@@ -91,7 +91,7 @@ const leadMagnetOptions = computed(() => [
 const leadMagnetDescription = computed(() => {
 	if (!leadMagnet.value) return "The file people get in the welcome email.";
 	const count = counts.data?.[leadMagnet.value] ?? 0;
-	return `${count} ${count === 1 ? "download" : "downloads"} so far, from all forms.`;
+	return `${count} ${count === 1 ? "subscriber has" : "subscribers have"} downloaded it, from all forms.`;
 });
 
 const leadMagnetTitle = computed(

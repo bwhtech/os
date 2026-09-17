@@ -6,7 +6,13 @@ from email import message_from_string, policy
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from bwh_os.mailing.api import add_subscriber, download_lead_magnet, subscribe
+from bwh_os.mailing.api import (
+	add_subscriber,
+	download_lead_magnet,
+	get_download_counts,
+	get_lead_magnet_activity,
+	subscribe,
+)
 from bwh_os.mailing.doctype.signup_form.test_signup_form import email_html, make_form
 
 FILE_BYTES = b"test manual"
@@ -64,6 +70,27 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 				"Lead Magnet Download", {"lead_magnet": self.lead_magnet.name, "subscriber": name}
 			)
 		)
+
+	def test_the_same_reader_downloading_again_counts_once(self):
+		"""The log keeps every download. The summaries count people."""
+		name = add_subscriber("repeat-downloader@example.com")
+		token = frappe.db.get_value("Subscriber", name, "token")
+		before = get_download_counts().get(self.lead_magnet.name, 0)
+		before_activity = get_lead_magnet_activity(self.lead_magnet.name)
+
+		for _ in range(3):
+			download_lead_magnet(self.lead_magnet.name, token)
+
+		self.assertEqual(
+			frappe.db.count(
+				"Lead Magnet Download", {"lead_magnet": self.lead_magnet.name, "subscriber": name}
+			),
+			3,
+		)
+		self.assertEqual(get_download_counts()[self.lead_magnet.name], before + 1)
+		activity = get_lead_magnet_activity(self.lead_magnet.name)
+		self.assertEqual(activity["total"], before_activity["total"] + 1)
+		self.assertEqual(activity["last_period"], before_activity["last_period"] + 1)
 
 	def test_wrong_token_logs_nothing(self):
 		downloads = frappe.db.count("Lead Magnet Download")

@@ -104,7 +104,7 @@ The form page in OS also shows the signup count, the confirm rate, and the embed
 
 **Lead Magnet**: title, description, file (private Attach).
 
-**Lead Magnet Download**: lead_magnet, subscriber, downloaded_on. The lead magnet page lists the last 100 downloads with the subscriber.
+**Lead Magnet Download**: lead_magnet, subscriber, downloaded_on. The lead magnet page lists the last 100 downloads with the subscriber. Every download is logged, but the counts and the cards count each subscriber once per file, dated from their first download: a reader who uses the link five times is one download.
 
 **Newsletter Issue**
 
@@ -301,7 +301,7 @@ Each slice goes through all layers. Merge each slice alone.
 - Set up Mailpit and the dev Email Account (see [Local development](#local-development)).
 - Add `Mailing Settings` with the Email Account and company footer fields.
 - Add `Lead Magnet` and `Lead Magnet Download`.
-- Send the welcome email with the download link when a subscriber becomes Active.
+- Send the welcome email with the download link on every signup, not once per person. A reader already on the list is asking for what the form gives away. A Bounced address gets nothing.
 - Add the download endpoint and the download count on the form and lead magnet pages.
 - Demo: sign up, get the email, click the link, get the PDF, see the count go up.
 

@@ -3,7 +3,7 @@
 from datetime import date, timedelta
 
 import frappe
-from frappe.query_builder.functions import Count, Date
+from frappe.query_builder.functions import Count, Date, Min
 from frappe.utils import getdate, nowdate
 
 from bwh_os.mailing.newsletter_engagement import COUNT_FIELDS, NewsletterEngagement, percent, rates
@@ -13,19 +13,25 @@ PERIOD_DAYS = 30
 ISSUES = 10
 
 
-def activity(doctype: str, date_field: str, filters: dict | None = None) -> dict:
+def activity(
+	doctype: str, date_field: str, filters: dict | None = None, unique_by: tuple[str, ...] = ()
+) -> dict:
 	"""All-time total, the last 30 days against the 30 before, and a count per week.
 
 	`weekly` holds one row per week for the last 12 weeks, oldest first. `week` is the Monday.
+
+	With `unique_by`, rows that share those fields count once. A reader who uses a download
+	link five times is one download, on the day they first asked for the file, so the weeks
+	and the periods still add up to the total.
 	"""
 	today = getdate(nowdate())
 	period_start = today - timedelta(days=PERIOD_DAYS - 1)
 	previous_start = period_start - timedelta(days=PERIOD_DAYS)
 	first_week = week_start(today) - timedelta(weeks=WEEKS - 1)
-	per_day = count_per_day(doctype, date_field, filters, min(first_week, previous_start))
+	per_day = count_per_day(doctype, date_field, filters, min(first_week, previous_start), unique_by)
 
 	return {
-		"total": frappe.db.count(doctype, filters),
+		"total": total(doctype, date_field, filters, unique_by),
 		"last_period": sum_between(per_day, period_start, today),
 		"previous_period": sum_between(per_day, previous_start, period_start - timedelta(days=1)),
 		"weekly": count_per_week(per_day, first_week),
@@ -37,7 +43,10 @@ def list_overview() -> dict:
 	return {
 		"subscribers": activity("Subscriber", "subscribed_on"),
 		"unsubscribes": activity("Subscriber", "unsubscribed_on", {"status": "Unsubscribed"}),
-		"downloads": activity("Lead Magnet Download", "downloaded_on"),
+		# One reader, one file, one download, however many times they use the link.
+		"downloads": activity(
+			"Lead Magnet Download", "downloaded_on", unique_by=("lead_magnet", "subscriber")
+		),
 		"by_status": count_grouped("Subscriber", "status"),
 		"by_form": signups_by_form(),
 		"last_issue": last_issue(),
@@ -127,18 +136,57 @@ def count_grouped(doctype: str, field: str) -> list[dict]:
 	)
 
 
-def count_per_day(doctype: str, date_field: str, filters: dict | None, since: date) -> dict[date, int]:
+def total(doctype: str, date_field: str, filters: dict | None, unique_by: tuple[str, ...]) -> int:
+	if not unique_by:
+		return frappe.db.count(doctype, filters)
+	firsts = first_dates(doctype, date_field, filters, unique_by)
+	return frappe.qb.from_(firsts).select(Count("*")).run()[0][0]
+
+
+def count_per_day(
+	doctype: str,
+	date_field: str,
+	filters: dict | None,
+	since: date,
+	unique_by: tuple[str, ...] = (),
+) -> dict[date, int]:
+	if unique_by:
+		firsts = first_dates(doctype, date_field, filters, unique_by)
+		day = Date(firsts.first)
+		query = (
+			frappe.qb.from_(firsts)
+			.select(day.as_("day"), Count("*").as_("count"))
+			.where(firsts.first >= since)
+			.groupby(day)
+		)
+	else:
+		table = frappe.qb.DocType(doctype)
+		day = Date(table[date_field])
+		query = where_all(
+			frappe.qb.from_(table)
+			.select(day.as_("day"), Count("*").as_("count"))
+			.where(table[date_field] >= since)
+			.groupby(day),
+			table,
+			filters,
+		)
+	return {getdate(row.day): row.count for row in query.run(as_dict=True)}
+
+
+def first_dates(doctype: str, date_field: str, filters: dict | None, unique_by: tuple[str, ...]):
+	"""One row per group named by `unique_by`, holding the earliest date in that group."""
 	table = frappe.qb.DocType(doctype)
-	day = Date(table[date_field])
+	fields = [table[field] for field in unique_by]
 	query = (
-		frappe.qb.from_(table)
-		.select(day.as_("day"), Count("*").as_("count"))
-		.where(table[date_field] >= since)
-		.groupby(day)
+		frappe.qb.from_(table).select(*fields, Min(table[date_field]).as_("first")).groupby(*fields)
 	)
+	return where_all(query, table, filters).as_("firsts")
+
+
+def where_all(query, table, filters: dict | None):
 	for field, value in (filters or {}).items():
 		query = query.where(table[field] == value)
-	return {getdate(row.day): row.count for row in query.run(as_dict=True)}
+	return query
 
 
 def count_per_week(per_day: dict[date, int], first_week: date) -> list[dict]:

@@ -290,8 +290,16 @@ def get_signup_counts() -> dict[str, int]:
 
 @frappe.whitelist(methods=["GET"])
 def get_download_counts() -> dict[str, int]:
-	"""Download count per lead magnet."""
-	return count_by("Lead Magnet Download", "lead_magnet")
+	"""How many subscribers downloaded each lead magnet. A reader counts once per file."""
+	frappe.only_for("System Manager")
+	table = frappe.qb.DocType("Lead Magnet Download")
+	rows = (
+		frappe.qb.from_(table)
+		.select(table.lead_magnet, Count(table.subscriber).distinct().as_("count"))
+		.groupby(table.lead_magnet)
+		.run(as_dict=True)
+	)
+	return {row.lead_magnet: row.count for row in rows}
 
 
 @frappe.whitelist(methods=["GET"])
@@ -303,9 +311,11 @@ def get_list_overview() -> dict:
 
 @frappe.whitelist(methods=["GET"])
 def get_lead_magnet_activity(lead_magnet: str) -> dict:
-	"""Download activity for one lead magnet."""
+	"""Download activity for one lead magnet, counting each subscriber once."""
 	frappe.only_for("System Manager")
-	return stats.activity("Lead Magnet Download", "downloaded_on", {"lead_magnet": lead_magnet})
+	return stats.activity(
+		"Lead Magnet Download", "downloaded_on", {"lead_magnet": lead_magnet}, unique_by=("subscriber",)
+	)
 
 
 @frappe.whitelist(methods=["GET"])
