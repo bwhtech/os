@@ -456,6 +456,9 @@ export interface TargetValidation {
 	limit: number
 	/** How many images the platform takes in one part */
 	max_images: number
+	/** The biggest image and video the platform takes, in bytes */
+	max_image_bytes: number
+	max_video_bytes: number
 	/** Whether the platform takes media on a part after the first */
 	media_after_part_one: boolean
 	/** The length of each part, part 1 first */

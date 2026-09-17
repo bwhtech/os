@@ -65,9 +65,12 @@ const props = withDefaults(
 		postName: string
 		/** How many images the strictest platform picked takes in one part */
 		max?: number
+		/** The biggest file the platforms picked take, in bytes. 0 asks nothing. */
+		maxImageBytes?: number
+		maxVideoBytes?: number
 		disabled?: boolean
 	}>(),
-	{ max: 4 },
+	{ max: 4, maxImageBytes: 0, maxVideoBytes: 0 },
 )
 
 const media = defineModel<SocialMedia[]>({ required: true })
@@ -133,6 +136,16 @@ function refuse(file: File, kind: SocialMedia['kind']): string | null {
 		return 'Pick a PNG, JPEG, GIF or WebP image, or an MP4, MOV or WebM video'
 	}
 	if (kind === 'video' && media.value.length) return 'A video goes on its own, without images'
+
+	// Better to say so now than after the file has spent a minute going up.
+	const allowed = kind === 'video' ? props.maxVideoBytes : props.maxImageBytes
+	if (allowed && file.size > allowed) {
+		return `That ${kind} is ${megabytes(file.size)} MB. The channels you picked take ${megabytes(allowed)} MB.`
+	}
 	return null
+}
+
+function megabytes(bytes: number): number {
+	return Math.round(bytes / (1024 * 1024))
 }
 </script>

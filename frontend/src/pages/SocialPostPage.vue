@@ -60,7 +60,9 @@
 					:post-name="postId"
 					:counts="strictest?.counts"
 					:limit="strictest?.limit ?? 0"
-					:max-images="maxImages"
+					:max-images="limits.images"
+					:max-image-bytes="limits.imageBytes"
+					:max-video-bytes="limits.videoBytes"
 					:media-after-part-one="mediaAfterPartOne"
 					:part-name="partName"
 					:disabled="locked || (Boolean(tab) && !customized.includes(tab))"
@@ -409,36 +411,52 @@ watch(
 // The server owns the rules, so the counter and the errors come from it while you type.
 const check = debounce(() => {
 	if (!post.doc) return
-	validation.submit({
-		post: JSON.stringify({ ...post.doc, parts: buildParts(), targets: buildTargets() }),
-	})
+	validation
+		.submit({ post: JSON.stringify({ ...post.doc, parts: buildParts(), targets: buildTargets() }) })
+		// A check that cannot run leaves the last answer standing. Saving says what is wrong,
+		// and the publish checks again, so this has nothing to add by shouting about it.
+		.catch(() => {})
 }, 400)
 
 watch([groups, picked, customized, settings, () => post.doc?.name], check, { immediate: true })
 
 /**
- * The platform the counter answers to. On a channel's own tab that is the channel; on the
- * shared tab it is whichever of the channels reading the shared text would refuse first.
+ * The channels this editor is writing for: one channel on its own tab, and on the shared
+ * tab the channels that read the shared text. A platform the OS cannot post to yet has no
+ * rules to hold the writing to, so it is left out of both.
  */
-const strictest = computed(() => {
-	// A platform the OS cannot post to yet has no rules to hold the writing to.
+const applicable = computed(() => {
 	const results = checked.value.filter((result) => result.limit > 0)
-	if (group.value) return results.find((result) => result.channel === group.value)
+	if (group.value) return results.filter((result) => result.channel === group.value)
 	const sharing = results.filter((result) => !result.use_custom_content)
-	return (sharing.length ? sharing : results).reduce<TargetValidation | undefined>(
-		(tightest, result) => (!tightest || result.limit < tightest.limit ? result : tightest),
-		undefined,
-	)
+	return sharing.length ? sharing : results
 })
 
-/** Images stop at the tightest of the platforms picked, as the counter does for text. */
-const maxImages = computed(() => strictest.value?.max_images ?? 4)
+/** The one that would refuse the text first. Its limit is the one the counter counts to. */
+const strictest = computed(() =>
+	applicable.value.reduce<TargetValidation | undefined>(
+		(tightest, result) => (!tightest || result.limit < tightest.limit ? result : tightest),
+		undefined,
+	),
+)
 
-/** A part after the first takes media only where every platform picked allows it. */
-const mediaAfterPartOne = computed(() =>
-	group.value
-		? Boolean(strictest.value?.media_after_part_one)
-		: Boolean(checked.value.length) && checked.value.every((result) => result.media_after_part_one),
+/**
+ * The tightest media rule among them. A file too big for one platform is too big for the
+ * post, so the picker refuses it before the bytes go anywhere.
+ */
+const limits = computed(() => ({
+	images: least(applicable.value.map((result) => result.max_images)) ?? 4,
+	imageBytes: least(applicable.value.map((result) => result.max_image_bytes)) ?? 0,
+	videoBytes: least(applicable.value.map((result) => result.max_video_bytes)) ?? 0,
+}))
+
+function least(numbers: number[]): number | undefined {
+	return numbers.length ? Math.min(...numbers) : undefined
+}
+
+/** A part after the first takes media only where every platform it goes to allows it. */
+const mediaAfterPartOne = computed(
+	() => Boolean(applicable.value.length) && applicable.value.every((result) => result.media_after_part_one),
 )
 
 const previews = computed(() =>

@@ -34,7 +34,10 @@ PROVIDERS: dict[str, ProviderApp] = {
 		authorization_uri="https://x.com/i/oauth2/authorize",
 		token_uri="https://api.x.com/2/oauth2/token",
 		userinfo_uri="https://api.x.com/2/users/me",
-		scopes=["tweet.read", "tweet.write", "users.read", "offline.access"],
+		# `media.write` is what the v2 upload endpoints ask for. A connection made without
+		# it can tweet text and nothing else, so a channel connected before this has to be
+		# connected again before it can carry a picture.
+		scopes=["tweet.read", "tweet.write", "users.read", "media.write", "offline.access"],
 		# X needs PKCE, which `Connected App` cannot do. See bwh_os/social/x_oauth.py.
 		callback_path="/api/method/bwh_os.social.x_oauth.callback",
 	),

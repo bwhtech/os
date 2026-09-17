@@ -34,6 +34,8 @@
 				:model-value="part.media"
 				:post-name="postName"
 				:max="maxImages"
+				:max-image-bytes="maxImageBytes"
+				:max-video-bytes="maxVideoBytes"
 				:disabled="disabled"
 				class="mt-3"
 				@update:model-value="attach(index, $event)"
@@ -70,13 +72,24 @@ const props = withDefaults(
 		limit?: number
 		/** How many images the strictest platform picked takes in one part */
 		maxImages?: number
+		/** The biggest image and video the platforms picked take, in bytes */
+		maxImageBytes?: number
+		maxVideoBytes?: number
 		/** Whether every platform picked takes media past part 1 */
 		mediaAfterPartOne?: boolean
 		/** What part 2 and later are called on the platforms picked */
 		partName?: string
 		disabled?: boolean
 	}>(),
-	{ postName: '', counts: () => [], limit: 0, maxImages: 4, partName: 'Comment' },
+	{
+		postName: '',
+		counts: () => [],
+		limit: 0,
+		maxImages: 4,
+		maxImageBytes: 0,
+		maxVideoBytes: 0,
+		partName: 'Comment',
+	},
 )
 
 const parts = defineModel<DraftPart[]>({ required: true })

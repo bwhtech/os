@@ -54,7 +54,8 @@ class Provider(ABC):
 	"""One platform. A subclass holds the endpoints and the shape of its requests."""
 
 	key: ClassVar[str]
-	timeout: ClassVar[int] = 30
+	# One call, including a chunk of a video on a slow line. The spec says 60 seconds.
+	timeout: ClassVar[int] = 60
 
 	# What the platform takes in one part. Postiz learnt these the hard way, so the
 	# numbers and the rules below follow `gitroomhq/postiz-app`.

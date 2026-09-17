@@ -75,6 +75,63 @@ Every email in OS uses the same editor. The editor is [React Email editor](https
 
 ![Newsletter report](.github/images/newsletter-report.png)
 
+### Social posts
+
+Write a post once, see it as each platform would show it, and give it a time. Posts sit on
+the same calendar as the videos they promote.
+
+- **Channels.** A LinkedIn personal profile and an X account, connected from Settings.
+  Tokens live in the Frappe `Token Cache`, never on the channel. X renews its own token in
+  the background; LinkedIn cannot, so the OS marks the channel Expired the day its 60 days
+  run out and emails a reminder a week before.
+- **The composer.** One text for every channel, or a text written for one channel alone.
+  Part 1 is the post; the parts after it are the X thread or the LinkedIn first comment.
+  Images and video attach to a part, and X takes who may reply to the thread.
+- **What each platform says.** The server counts and checks while you type, so the length,
+  the media rules and a dead channel show up before a publish does. X counts weight, not
+  characters: a link is 23 whatever its length and an emoji is two.
+- **Publishing.** Publish now, or pick a time and let the minute send it. Each channel goes
+  on its own, so one failing leaves the rest alone: the post is Published, Partial or
+  Failed, and every channel keeps its link or its error. A failed channel can go again, a
+  post that went nowhere goes back to a draft, and a post that half landed is copied to the
+  channels that missed it.
+- **The calendar.** Posts and `BWH Video.publish_on` on one month view. Drag a post to move
+  it, click a day to start one.
+
+#### Connecting the platforms
+
+Both platforms need an app of their own. Settings shows the redirect URI to register and
+takes the client id and secret.
+
+**LinkedIn.** Make an app at [LinkedIn developers](https://www.linkedin.com/developers/apps),
+add the products *Sign In with LinkedIn using OpenID Connect* and *Share on LinkedIn*, and
+register the redirect URI from the panel. The OS asks for `openid`, `profile` and
+`w_member_social`.
+
+**X.** Make an app at the [X developer portal](https://developer.x.com), set it up as a
+confidential client with OAuth 2.0, and register the callback URI from the panel. The OS
+asks for `tweet.read`, `tweet.write`, `users.read`, `media.write` and `offline.access`. A
+channel connected before `media.write` was asked for can post text and nothing else, so
+connect it again to put pictures on a tweet.
+
+**The site.** A scheduled post goes out on the minute only if the scheduler ticks that
+often:
+
+```bash
+bench set-config -g scheduler_tick_interval 60
+```
+
+Without it the scheduler ticks every 4 minutes, and a post goes out within 4 minutes of its
+time. Video needs room to arrive, in the site and in whatever proxy sits in front of it:
+
+```bash
+bench set-config -g max_file_size 524288000   # 500 MB
+```
+
+Locally, LinkedIn and X both refuse `bwhos.localhost` as a redirect host. Set
+`"host_name": "http://localhost:8000"` in `site_config.json` and open the OS at
+`http://localhost:8000/os`, or put a tunnel in front of the site.
+
 ### Settings
 
 The Settings dialog sets the email account that sends list email, the default hourly limit, and the footer: the company name, GSTIN, postal address, and social links.
@@ -104,8 +161,6 @@ These items are out of scope for v1. They can come later:
 
 | # | Module | Plan |
 |---|---|---|
-| 02 | Content Pipeline | Track each video from idea to publish, on a Kanban board and a calendar. |
-| 03 | Social Posts | Plan posts for X, LinkedIn, the YouTube community tab, and Discord. Show them on the same calendar. |
 | 04 | YouTube Integration | Sync the channel videos. Find and replace text in descriptions, update calls to action on many videos, and find videos with no chapters or playlists. |
 | 05 | LMS Integration | Show live cohorts, seats sold, and revenue for each batch from school.bwh.tech. |
 | 06 | GitHub Integration | Show stars, open issues, open pull requests, and releases for the core products. |
@@ -147,6 +202,13 @@ yarn dev
 
 ```bash
 bench --site $SITE run-tests --app bwh_os
+```
+
+The frontend has a few tests of its own, for the code that has to agree with the server.
+They run on Node's own test runner, so there is nothing to install:
+
+```bash
+cd frontend && yarn test
 ```
 
 ## Contributing

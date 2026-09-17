@@ -136,7 +136,9 @@ class XProvider(Provider):
 		reply_to: str | None = None,
 		reply_settings: str | None = None,
 	) -> str:
-		body: dict = {"text": text}
+		# A tweet carries text, media, or both. An empty `text` is not the same as no text
+		# to X, so a picture on its own goes out without the field at all.
+		body: dict = {"text": text} if text else {}
 		if media_ids:
 			body["media"] = {"media_ids": media_ids}
 		if reply_to:
@@ -247,10 +249,15 @@ class XProvider(Provider):
 		"""X says 403 to a post it will not take, not to a token it does not like.
 
 		The same text twice is the common one, and that is the writing to change rather
-		than the connection to mend, so a 403 here is a refusal and not a reconnect.
+		than the connection to mend, so a 403 here is a refusal and not a reconnect. The
+		exception is a token that never asked for enough: a connection made before the OS
+		could upload media has no `media.write`, and only a reconnect adds it.
 		"""
 		if response.status_code == 403:
-			return BadRequest(_("X said 403: {0}").format(response.text[:500]))
+			message = _("X said 403: {0}").format(response.text[:500])
+			if "scope" in response.text.lower():
+				return ReconnectRequired(message)
+			return BadRequest(message)
 		return super().error_for(response)
 
 	@classmethod

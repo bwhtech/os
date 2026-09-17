@@ -333,7 +333,17 @@ def publish_due_posts():
 		pluck="name",
 	)
 	for name in due:
-		Schedule(frappe.get_doc("Social Post", name)).start()
+		try:
+			Schedule(frappe.get_doc("Social Post", name)).start()
+		except Exception:
+			# One post that cannot even be loaded must not keep the posts behind it waiting
+			# for the next tick, and the next tick, and the next.
+			frappe.db.rollback()
+			frappe.log_error(
+				title=_("Scheduled post could not be started"),
+				reference_doctype="Social Post",
+				reference_name=name,
+			)
 		frappe.db.commit()
 
 

@@ -11,6 +11,7 @@ from frappe.tests import IntegrationTestCase
 from frappe.utils import add_days, add_to_date, get_datetime, getdate, now_datetime, today
 
 from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import last_email_to, use_test_email_account
+from bwh_os.social import x_oauth
 from bwh_os.social.api import (
 	connect_channel,
 	disconnect_channel,
@@ -28,21 +29,20 @@ from bwh_os.social.api import (
 	unschedule_post,
 	validate_post,
 )
-from bwh_os.social import x_oauth
 from bwh_os.social.channels import check_expiry
 from bwh_os.social.oauth import upsert_channel
 from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
-from bwh_os.social.publisher import JOB_TIMEOUT, Publisher, publish_due_posts, resume_stuck_posts
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, Retryable
 from bwh_os.social.providers.base import Account
-from bwh_os.social.providers.x import MEDIA_CHUNK_BYTES, XProvider
-from bwh_os.social.x_text import weighted_length
 from bwh_os.social.providers.linkedin import (
 	IMAGE_WAIT_SECONDS,
 	VIDEO_POLL_SECONDS,
 	LinkedInProvider,
 )
+from bwh_os.social.providers.x import MEDIA_CHUNK_BYTES, XProvider
+from bwh_os.social.publisher import JOB_TIMEOUT, Publisher, publish_due_posts, resume_stuck_posts
 from bwh_os.social.tokens import SKEW_SECONDS, get_token
+from bwh_os.social.x_text import weighted_length
 
 
 class SocialTestCase(IntegrationTestCase):
@@ -109,6 +109,9 @@ class IntegrationTestSocialApps(SocialTestCase):
 		ensure_connected_apps()
 
 		self.assertEqual(get_app("LinkedIn").token_uri, PROVIDERS["LinkedIn"].token_uri)
+
+	def test_x_asks_for_the_scope_an_upload_needs(self):
+		self.assertIn("media.write", [row.scope for row in get_app("X").scopes])
 
 	def test_the_redirect_uri_of_x_is_our_own_callback(self):
 		apps = {app["provider"]: app for app in get_provider_apps()}
@@ -962,6 +965,8 @@ class IntegrationTestSocialPosts(SocialTestCase):
 		result = validate_post(post.name)[0]
 
 		self.assertEqual(result["max_images"], 20)
+		self.assertEqual(result["max_video_bytes"], 200 * 1024 * 1024)
+		self.assertEqual(result["max_image_bytes"], 36 * 1024 * 1024)
 		self.assertFalse(result["media_after_part_one"])
 
 	def test_each_platform_is_held_to_its_own_rules(self):
@@ -1087,6 +1092,13 @@ class IntegrationTestXPosting(SocialTestCase):
 		with patch.object(XProvider, "request", return_value=response):
 			self.assertRaises(BadRequest, XProvider.post, self.account, [{"text": "One"}], {}, [], print)
 
+	def test_a_token_that_never_asked_to_upload_needs_connecting_again(self):
+		# A channel connected before the OS could upload media has no `media.write`, and
+		# only a reconnect adds it, so this one is not the writing to change.
+		refused = MagicMock(ok=False, status_code=403, text='{"detail":"missing scope media.write"}')
+
+		self.assertIsInstance(XProvider.error_for(refused), ReconnectRequired)
+
 	def test_the_same_text_twice_is_the_writing_to_change_not_the_connection(self):
 		refused = MagicMock(ok=False, status_code=403, text="duplicate content")
 
@@ -1208,6 +1220,20 @@ class IntegrationTestXMedia(SocialTestCase):
 			[self.make_file("clip.mp4", b"\x00" * 8, kind="video")],
 			[{"state": "failed", "error": {"name": "InvalidMedia"}}],
 		)
+
+	def test_a_picture_on_its_own_goes_out_without_a_text_field(self):
+		with patch.object(XProvider, "request", side_effect=self.answers()) as request:
+			XProvider.post(
+				self.account,
+				[{"text": "", "media": [self.make_file("shot.png", b"\x89PNG")]}],
+				{},
+				[],
+				lambda _: None,
+			)
+
+		body = request.call_args.kwargs["json"]
+		self.assertNotIn("text", body)
+		self.assertEqual(body["media"], {"media_ids": ["media-1"]})
 
 	def test_a_file_that_is_gone_stops_the_tweet(self):
 		self.assertRaises(

@@ -68,6 +68,8 @@ class PostValidator:
 			counts=[provider.count(part["text"]) for part in parts],
 			errors=errors,
 			max_images=provider.max_images,
+			max_image_bytes=provider.max_image_bytes,
+			max_video_bytes=provider.max_video_bytes,
 			media_after_part_one=provider.media_after_part_one,
 		)
 
@@ -80,6 +82,8 @@ class PostValidator:
 		counts: list[int],
 		errors: list[str],
 		max_images: int = 0,
+		max_image_bytes: int = 0,
+		max_video_bytes: int = 0,
 		media_after_part_one: bool = False,
 	) -> dict:
 		"""One target's verdict, in the shape the composer reads."""
@@ -89,6 +93,8 @@ class PostValidator:
 			"use_custom_content": bool(target.use_custom_content),
 			"limit": limit,
 			"max_images": max_images,
+			"max_image_bytes": max_image_bytes,
+			"max_video_bytes": max_video_bytes,
 			"media_after_part_one": media_after_part_one,
 			"counts": counts,
 			"errors": errors,

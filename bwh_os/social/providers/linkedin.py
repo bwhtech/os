@@ -24,10 +24,11 @@ from bwh_os.social.providers.base import (
 	videos_of,
 )
 
-# The version of the REST API. LinkedIn wants it on every call to `rest/`.
+# The version of the REST API. LinkedIn wants it on every call to `rest/`, and it retires
+# a version a year after releasing it, so this one has a shelf life. Every call uses the
+# same version: an endpoint that has not changed in years still stops answering on a
+# version that is out of date.
 API_VERSION = "202601"
-# The comment endpoint has not moved in years and still answers on this version.
-COMMENT_API_VERSION = "202306"
 # How long an image needs before a post may name it. Postiz waits the same 20 seconds.
 IMAGE_WAIT_SECONDS = 20
 # A video is transcoded before it can be posted. Five minutes is the spec's ceiling.
@@ -124,7 +125,7 @@ class LinkedInProvider(Provider):
 			cls.IMAGES_URL,
 			account.token_cache,
 			post_name=account.post_name,
-			headers=cls.headers(API_VERSION),
+			headers=cls.headers(),
 			json={"initializeUploadRequest": {"owner": cls.author(account)}},
 		).json()["value"]
 		cls.request(
@@ -150,7 +151,7 @@ class LinkedInProvider(Provider):
 			cls.VIDEOS_URL,
 			account.token_cache,
 			post_name=account.post_name,
-			headers=cls.headers(API_VERSION),
+			headers=cls.headers(),
 			json={
 				"initializeUploadRequest": {
 					"owner": cls.author(account),
@@ -169,7 +170,7 @@ class LinkedInProvider(Provider):
 			cls.FINALIZE_VIDEO_URL,
 			account.token_cache,
 			post_name=account.post_name,
-			headers=cls.headers(API_VERSION),
+			headers=cls.headers(),
 			json={
 				"finalizeUploadRequest": {
 					"video": upload["video"],
@@ -207,7 +208,7 @@ class LinkedInProvider(Provider):
 					"GET",
 					cls.VIDEO_URL.format(urn=quote(urn, safe="")),
 					account.token_cache,
-					headers=cls.headers(API_VERSION),
+					headers=cls.headers(),
 				)
 				.json()
 				.get("status")
@@ -229,7 +230,7 @@ class LinkedInProvider(Provider):
 			cls.POSTS_URL,
 			account.token_cache,
 			post_name=account.post_name,
-			headers=cls.headers(API_VERSION),
+			headers=cls.headers(),
 			json={
 				"author": cls.author(account),
 				"commentary": escape(text),
@@ -271,14 +272,14 @@ class LinkedInProvider(Provider):
 			cls.COMMENTS_URL.format(urn=quote(urn, safe="")),
 			account.token_cache,
 			post_name=account.post_name,
-			headers=cls.headers(COMMENT_API_VERSION),
+			headers=cls.headers(),
 			json={"actor": actor, "object": urn, "message": {"text": escape(text)}},
 		)
 		return response.json().get("object") or ""
 
 	@classmethod
-	def headers(cls, version: str) -> dict:
-		return {"LinkedIn-Version": version, "X-Restli-Protocol-Version": "2.0.0"}
+	def headers(cls) -> dict:
+		return {"LinkedIn-Version": API_VERSION, "X-Restli-Protocol-Version": "2.0.0"}
 
 
 def escape(text: str) -> str:
