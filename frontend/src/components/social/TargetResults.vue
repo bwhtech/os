@@ -32,15 +32,43 @@
 				<span v-if="target.error_kind" class="font-medium">{{ target.error_kind }}:</span>
 				{{ target.error }}
 			</p>
+
+			<!-- A dead token is fixed in Settings, so the failure carries the way out of it. -->
+			<div v-if="target.status === 'Failed'" class="mt-2 flex flex-wrap gap-2">
+				<Button
+					v-if="target.error_kind === 'Reconnect'"
+					size="sm"
+					icon-left="lucide-plug-zap"
+					:label="`Reconnect ${target.provider}`"
+					@click="show('social-channels')"
+				/>
+				<Button
+					size="sm"
+					icon-left="lucide-rotate-ccw"
+					label="Retry"
+					:loading="retrying === target.name"
+					@click="emit('retry', target.name!)"
+				/>
+			</div>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { Avatar, Badge } from 'frappe-ui'
+import { Avatar, Badge, Button } from 'frappe-ui'
+import { useSettings } from '@/composables/useSettings'
 import { TARGET_THEMES } from '@/lib/social'
 import type { SocialChannel, SocialPostTarget } from '@/types'
 
 /** What each channel made of the post: the link it got, or why it got nothing. */
-defineProps<{ targets: SocialPostTarget[]; channels: Record<string, SocialChannel> }>()
+defineProps<{
+	targets: SocialPostTarget[]
+	channels: Record<string, SocialChannel>
+	/** The row waiting on a retry, by its child row name */
+	retrying?: string
+}>()
+
+const emit = defineEmits<{ retry: [target: string] }>()
+
+const { show } = useSettings()
 </script>

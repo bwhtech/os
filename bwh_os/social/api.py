@@ -128,6 +128,24 @@ def publish_post(post: str | int) -> str:
 
 
 @frappe.whitelist(methods=["POST"])
+def retry_target(post: str | int, target: str) -> str:
+	"""Send one channel again. The others keep whatever they already got."""
+	frappe.only_for("System Manager")
+	doc = frappe.get_doc("Social Post", post)
+	Publisher(doc).retry_target(target)
+	return doc.status
+
+
+@frappe.whitelist(methods=["POST"])
+def unlock_post(post: str | int) -> str:
+	"""Take a post that went nowhere back to a draft, so it can be written again."""
+	frappe.only_for("System Manager")
+	doc = frappe.get_doc("Social Post", post)
+	Publisher(doc).unlock()
+	return doc.status
+
+
+@frappe.whitelist(methods=["POST"])
 def schedule_post(post: str | int, scheduled_at: str) -> str:
 	"""Set the time this post goes out. The scheduler takes it from there."""
 	frappe.only_for("System Manager")

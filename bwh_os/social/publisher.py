@@ -119,6 +119,57 @@ class Publisher:
 			error_kind=None,
 		)
 
+	def retry_target(self, target_name: str):
+		"""Another go at one channel, after whatever stopped it has been dealt with.
+
+		`released_parts` stays: a thread that got its post out and lost the comment carries
+		on from the comment. The arm flag goes, because pressing Retry is someone saying
+		they looked at the platform and it is safe to call again.
+		"""
+		target = self.target(target_name)
+		if target.status != "Failed":
+			frappe.throw(_("Only a channel that failed can go again"))
+		self.check_target(target)
+
+		self.set_target(target, status="Pending", publish_attempted_at=None, error=None, error_kind=None)
+		self.post.db_set({"status": "Publishing"}, notify=True)
+		self.enqueue()
+
+	def unlock(self):
+		"""A post nothing went out of goes back to being a draft.
+
+		Only a post where every channel failed: where one made it, the post is on a platform
+		and rewriting it here would say something that is not true. That one is duplicated.
+		"""
+		if self.post.status != "Failed":
+			frappe.throw(_("Only a post that went nowhere can go back to a draft"))
+
+		for target in self.post.targets:
+			self.set_target(
+				target,
+				status="Pending",
+				publish_attempted_at=None,
+				released_parts=None,
+				release_id=None,
+				release_url=None,
+				error=None,
+				error_kind=None,
+			)
+		self.post.db_set({"status": "Draft", "published_at": None}, notify=True)
+
+	def target(self, name: str):
+		target = next((row for row in self.post.targets if row.name == name), None)
+		if not target:
+			frappe.throw(_("That channel is not on this post"))
+		return target
+
+	def check_target(self, target):
+		"""What the composer says about this one channel. A dead token stops the retry here,
+		so the answer is "reconnect it", not another failed call."""
+		result = self.post.validator.result_for(target)
+		if result["errors"]:
+			frappe.throw(_("{0}: {1}").format(result["provider"], result["errors"][0]))
+
 	def is_unconfirmed(self, target) -> bool:
 		"""A target that armed and released nothing may already be on the platform."""
 		return bool(target.publish_attempted_at) and not self.released(target)
@@ -136,6 +187,12 @@ class Publisher:
 		"""Name the failure, so the UI knows whether to offer Retry or Reconnect."""
 		if isinstance(error, ReconnectRequired):
 			kind = "Reconnect"
+			# The rollback that brought us here undid whatever the token layer wrote, so the
+			# channel is marked now, after it. Otherwise Settings would still look healthy
+			# and Retry would let someone try again with the same dead token.
+			frappe.get_doc("Social Channel", target.channel).mark_expired(
+				_("The token has run out. Connect {0} again.").format(target.provider)
+			)
 		elif isinstance(error, BadRequest):
 			kind = "Bad Request"
 		else:

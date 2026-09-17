@@ -16,7 +16,7 @@
 		<router-view />
 	</DesktopShell>
 
-	<AppSettingsDialog v-model:open="settingsOpen" />
+	<AppSettingsDialog v-model:open="settingsOpen" v-model:tab="settingsTab" />
 </template>
 
 <script setup lang="ts">
@@ -28,13 +28,15 @@ import AppSidebar from '@/components/shell/AppSidebar.vue'
 import AppSettingsDialog from '@/components/settings/AppSettingsDialog.vue'
 import SeriesSidebar from '@/components/videos/SeriesSidebar.vue'
 import { useIsMobile } from '@/composables/useIsMobile'
+import { useSettings } from '@/composables/useSettings'
 
 // Applies the stored `data-theme` before anything paints.
 useColorScheme()
 usePageMeta(() => ({ title: 'BWH OS' }))
 
 const isMobile = useIsMobile()
-const settingsOpen = ref(false)
+// Anything can ask for Settings, so which panel is open is not the shell's to keep.
+const { open: settingsOpen, tab: settingsTab } = useSettings()
 
 const route = useRoute()
 const seriesId = computed(() => route.params.seriesId as string | undefined)

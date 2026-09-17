@@ -22,7 +22,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import {
 	SettingsContent,
 	SettingsDialog,
@@ -37,6 +36,8 @@ import SocialChannelsSettings from '@/components/settings/SocialChannelsSettings
 
 /** All OS settings. Each module adds a group here and a component with its panels. */
 const open = defineModel<boolean>('open', { required: true })
+/** Which panel is showing. A page can open Settings on the one that fixes its problem. */
+const tab = defineModel<string>('tab', { required: true })
 
 const GROUPS = [
 	{
@@ -56,6 +57,4 @@ const GROUPS = [
 		items: [{ label: 'Channels', value: 'social-channels', icon: 'lucide-share-2' }],
 	},
 ]
-
-const tab = ref(GROUPS[0].items[0].value)
 </script>

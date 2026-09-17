@@ -64,7 +64,12 @@
 				<!-- What each channel made of it. Nothing to show until a publish has run. -->
 				<div v-if="locked" class="border-t border-outline-gray-1 pt-6">
 					<p class="mb-2 text-p-sm text-ink-gray-5">Results</p>
-					<TargetResults :targets="post.doc.targets" :channels="byName" />
+					<TargetResults
+						:targets="post.doc.targets"
+						:channels="byName"
+						:retrying="retrying"
+						@retry="retry"
+					/>
 				</div>
 
 				<!-- On narrow screens the preview sits under the composer instead of beside it. -->
@@ -144,7 +149,54 @@ const breadcrumbs = computed(() => [
 	{ label: post.doc?.title || 'Untitled post' },
 ])
 
-const menu = [{ label: 'Delete', icon: 'lucide-trash-2', theme: 'red' as const, onClick: remove }]
+/** A post that went nowhere can be written again; one that is on a platform cannot. */
+const menu = computed(() => [
+	...(post.doc?.status === 'Failed'
+		? [{ label: 'Back to draft', icon: 'lucide-undo-2', onClick: askUnlock }]
+		: []),
+	{ label: 'Delete', icon: 'lucide-trash-2', theme: 'red' as const, onClick: remove },
+])
+
+const retrying = ref('')
+
+const retryCall = useCall<string, { post: string; target: string }>({
+	url: '/api/v2/method/bwh_os.social.api.retry_target',
+	method: 'POST',
+	immediate: false,
+})
+
+const unlockCall = useCall<string, { post: string }>({
+	url: '/api/v2/method/bwh_os.social.api.unlock_post',
+	method: 'POST',
+	immediate: false,
+})
+
+/** One channel goes again. Whatever it already put out stays where it is. */
+async function retry(target: string) {
+	retrying.value = target
+	try {
+		await retryCall.submit({ post: props.postId, target })
+		toast.success('Trying again')
+	} catch (error) {
+		toast.error(errorMessage(error as Error))
+	} finally {
+		retrying.value = ''
+		post.reload()
+	}
+}
+
+function askUnlock() {
+	dialog.confirm({
+		title: 'Back to draft?',
+		message: 'Nothing went out, so the post can be written again. The results here are cleared.',
+		confirmLabel: 'Back to draft',
+		onConfirm: async () => {
+			await unlockCall.submit({ post: props.postId })
+			toast.success('Back to a draft')
+			post.reload()
+		},
+	})
+}
 
 async function save(values: Partial<SocialPost>) {
 	try {

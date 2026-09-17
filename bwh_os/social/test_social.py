@@ -16,8 +16,10 @@ from bwh_os.social.api import (
 	get_provider_apps,
 	publish_post,
 	reschedule_post,
+	retry_target,
 	schedule_post,
 	set_credentials,
+	unlock_post,
 	unschedule_post,
 	validate_post,
 )
@@ -772,6 +774,8 @@ class IntegrationTestSocialPublishing(IntegrationTestSocialPosts):
 		self.publish(post, side_effect=ReconnectRequired("LinkedIn wants a new consent"))
 
 		self.assertEqual(post.targets[0].error_kind, "Reconnect")
+		# The channel says so too, or Settings would look healthy and Retry would go again.
+		self.assertEqual(frappe.db.get_value("Social Channel", channel, "status"), "Expired")
 
 	def test_an_attempt_that_never_answered_is_not_made_again(self):
 		channel = self.make_channel()
@@ -818,6 +822,100 @@ class IntegrationTestSocialPublishing(IntegrationTestSocialPosts):
 		self.assertEqual(post.status, "Published")
 		self.assertEqual(sent["shared"], ["Hello from the OS"])
 		self.assertEqual(sent["own"], ["Written for this one"])
+
+	def test_a_failed_channel_goes_again_on_its_own(self):
+		good = self.make_channel(account_id="good")
+		bad = self.make_channel(account_id="bad")
+		post = self.make_post([good, bad])
+
+		def first_run(account, parts, settings, released, on_release):
+			if account.account_id == "bad":
+				raise Retryable("LinkedIn was busy")
+			release_parts(account, parts, settings, released, on_release)
+
+		self.publish(post, side_effect=first_run)
+		self.assertEqual(post.status, "Partial")
+
+		failed = next(target for target in post.targets if target.status == "Failed")
+		with (
+			patch("frappe.enqueue"),
+			patch.object(LinkedInProvider, "post", side_effect=release_parts) as posted,
+		):
+			retry_target(post.name, failed.name)
+			Publisher(frappe.get_doc("Social Post", post.name)).run()
+
+		post.reload()
+		self.assertEqual(post.status, "Published")
+		# Only the channel that failed is called again.
+		self.assertEqual(posted.call_count, 1)
+
+	def test_a_retry_carries_on_from_the_part_that_landed(self):
+		channel = self.make_channel()
+		post = self.make_post([channel], parts=[{"text": "The post"}, {"text": "The comment"}])
+
+		def half(account, parts, settings, released, on_release):
+			on_release(Release(part_no=1, id="urn:li:share:1", url="https://linkedin.com/1"))
+			raise Retryable("LinkedIn went quiet")
+
+		self.publish(post, side_effect=half)
+		self.assertEqual(post.targets[0].status, "Failed")
+
+		asked = []
+
+		def rest(account, parts, settings, released, on_release):
+			asked.append([row["part_no"] for row in released])
+			release_parts(account, parts, settings, released, on_release)
+
+		with patch("frappe.enqueue"), patch.object(LinkedInProvider, "post", side_effect=rest):
+			retry_target(post.name, post.targets[0].name)
+			Publisher(frappe.get_doc("Social Post", post.name)).run()
+
+		post.reload()
+		self.assertEqual(asked, [[1]])
+		self.assertEqual(post.status, "Published")
+
+	def test_a_retry_waits_for_the_channel_to_be_connected_again(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+		self.publish(post, side_effect=ReconnectRequired("LinkedIn wants a new consent"))
+		frappe.db.set_value("Social Channel", channel, "status", "Expired")
+
+		self.assertRaises(frappe.ValidationError, retry_target, post.name, post.targets[0].name)
+
+	def test_a_channel_that_went_out_is_not_sent_again(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+		self.publish(post, side_effect=release_parts)
+
+		self.assertRaises(frappe.ValidationError, retry_target, post.name, post.targets[0].name)
+
+	def test_a_post_that_went_nowhere_can_be_written_again(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+		self.publish(post, side_effect=BadRequest("LinkedIn said no"))
+
+		self.assertEqual(unlock_post(post.name), "Draft")
+
+		post.reload()
+		self.assertEqual(post.targets[0].status, "Pending")
+		self.assertIsNone(post.targets[0].error_kind)
+		self.assertIsNone(post.targets[0].publish_attempted_at)
+		post.parts[0].text = "A better post"
+		post.save()
+
+	def test_a_post_that_is_on_a_platform_stays_locked(self):
+		good = self.make_channel(account_id="good")
+		bad = self.make_channel(account_id="bad")
+		post = self.make_post([good, bad])
+
+		def one_fails(account, parts, settings, released, on_release):
+			if account.account_id == "bad":
+				raise BadRequest("LinkedIn said no")
+			release_parts(account, parts, settings, released, on_release)
+
+		self.publish(post, side_effect=one_fails)
+
+		self.assertRaises(frappe.ValidationError, unlock_post, post.name)
 
 	def test_a_post_cannot_go_out_twice(self):
 		channel = self.make_channel()
