@@ -150,7 +150,9 @@ const statusTheme = computed(() => {
 const expiry = computed(() => {
 	const channel = props.channel
 	if (!channel || channel.status === 'Disconnected') return 'The OS holds no token for it'
-	if (!channel.expires_on) return 'The token does not expire'
+	// A channel with no expiry is one whose platform refreshes in the background, so
+	// there is no day to warn about. See `Provider.connection_expires`.
+	if (!channel.expires_on) return 'The OS keeps the token fresh'
 	const left = channel.days_left ?? 0
 	if (left <= 0) return `The token expired ${dayjs(channel.expires_on).fromNow()}`
 	return `The token expires in ${left} ${left === 1 ? 'day' : 'days'}`

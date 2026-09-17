@@ -8,6 +8,7 @@ from frappe.query_builder import Order
 from frappe.query_builder.functions import Coalesce
 from frappe.utils import date_diff, getdate, now_datetime
 
+from bwh_os.social import x_oauth
 from bwh_os.social.oauth import LINKEDIN_SUCCESS_URI
 from bwh_os.social.oauth_apps import PROVIDERS, get_app, redirect_uri
 from bwh_os.social.publisher import Publisher, Schedule
@@ -76,9 +77,10 @@ def connect_channel(provider: str) -> str:
 	app = get_app(provider)
 	if not (app.client_id and app.get_password("client_secret", False)):
 		frappe.throw(_("Add the client id and secret of {0} first").format(provider))
-	if provider != "LinkedIn":
-		frappe.throw(_("The OS cannot connect {0} yet").format(provider))
 
+	# X needs PKCE, which the framework flow cannot do, so it has a flow of its own.
+	if provider == x_oauth.PROVIDER:
+		return x_oauth.start()
 	return app.initiate_web_application_flow(user=frappe.session.user, success_uri=LINKEDIN_SUCCESS_URI)
 
 

@@ -10,6 +10,7 @@ from frappe.model.document import Document
 from frappe.utils import add_to_date
 
 from bwh_os.social.providers import ReconnectRequired
+from bwh_os.social.providers.x import XProvider
 
 # `Token Cache.is_expired()` has no margin, so a token with seconds left counts as
 # live. An upload takes longer than that. Treat the last two minutes as expired.
@@ -23,7 +24,7 @@ def get_token(channel: Document) -> Document:
 	LinkedIn gives no refresh token, so its tokens end this way every 60 days.
 	"""
 	app = frappe.get_doc("Connected App", channel.connected_app)
-	token_cache = app.get_active_token(channel.user)
+	token_cache = active_token(app, channel)
 	if not token_cache:
 		channel.mark_expired(_("The token has run out. Connect {0} again.").format(channel.provider))
 		raise ReconnectRequired(_("{0} needs a new connection").format(channel.provider))
@@ -33,6 +34,17 @@ def get_token(channel: Document) -> Document:
 		raise ReconnectRequired(_("{0} needs a new connection").format(channel.provider))
 
 	return token_cache
+
+
+def active_token(app: Document, channel: Document) -> Document | None:
+	"""The token of a channel, renewed if the platform allows it and it needs renewing.
+
+	The framework renews with the flow it knows, which sends the client id in the body and
+	does no PKCE. X refuses that, so X renews its own.
+	"""
+	if channel.provider == XProvider.key:
+		return XProvider.active_token(app, channel.user)
+	return app.get_active_token(channel.user)
 
 
 def expires_on(token_cache: Document) -> str | None:

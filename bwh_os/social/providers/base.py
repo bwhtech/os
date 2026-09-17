@@ -65,6 +65,10 @@ class Provider(ABC):
 	max_video_bytes: ClassVar[int] = 512 * 1024 * 1024
 	# A LinkedIn comment and an X reply differ here: LinkedIn takes text only.
 	media_after_part_one: ClassVar[bool] = True
+	# Whether the life of the token is the life of the connection. It is for LinkedIn,
+	# which gives no way to renew one; a platform that refreshes in the background has
+	# nothing to count down to, so its channel keeps no expiry and gets no reminder.
+	connection_expires: ClassVar[bool] = True
 
 	@classmethod
 	@abstractmethod

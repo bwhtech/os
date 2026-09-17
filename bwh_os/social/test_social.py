@@ -1,5 +1,8 @@
+import base64
+import hashlib
 import json
 from unittest.mock import MagicMock, patch
+from urllib.parse import parse_qs, urlparse
 
 import frappe
 from frappe.integrations.doctype.connected_app.connected_app import ConnectedApp
@@ -24,12 +27,14 @@ from bwh_os.social.api import (
 	unschedule_post,
 	validate_post,
 )
+from bwh_os.social import x_oauth
 from bwh_os.social.channels import check_expiry
 from bwh_os.social.oauth import upsert_channel
 from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
 from bwh_os.social.publisher import JOB_TIMEOUT, Publisher, publish_due_posts, resume_stuck_posts
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, Retryable
 from bwh_os.social.providers.base import Account
+from bwh_os.social.providers.x import XProvider
 from bwh_os.social.providers.linkedin import (
 	IMAGE_WAIT_SECONDS,
 	VIDEO_POLL_SECONDS,
@@ -222,10 +227,12 @@ class IntegrationTestSocialConnect(SocialTestCase):
 	def test_connecting_needs_the_credentials_first(self):
 		self.assertRaises(frappe.ValidationError, connect_channel, "LinkedIn")
 
-	def test_x_cannot_connect_yet(self):
+	def test_x_connects_through_its_own_flow(self):
 		set_credentials("X", "client", "secret")
 
-		self.assertRaises(frappe.ValidationError, connect_channel, "X")
+		url = connect_channel("X")
+
+		self.assertIn("code_challenge_method=S256", url)
 
 	def test_disconnecting_drops_the_token_and_keeps_the_channel(self):
 		cache = self.make_token_cache()
@@ -239,6 +246,208 @@ class IntegrationTestSocialConnect(SocialTestCase):
 		self.assertEqual(channel.status, "Disconnected")
 		self.assertIsNone(channel.expires_on)
 		self.assertFalse(frappe.db.exists("Token Cache", cache))
+
+
+class IntegrationTestXConnect(SocialTestCase):
+	"""The PKCE connect of X. See `bwh_os.social.x_oauth`."""
+
+	IDENTITY = {
+		"id": "42",
+		"name": "Hussain Nagaria",
+		"username": "hussain",
+		"profile_image_url": "https://pbs.twimg.com/pic.jpg",
+	}
+
+	TOKEN = {
+		"token_type": "bearer",
+		"access_token": "fresh-token",
+		"refresh_token": "fresh-refresh",
+		"expires_in": 7200,
+	}
+
+	def setUp(self):
+		super().setUp()
+		set_credentials("X", "client", "secret")
+		app = get_app("X")
+		self.token_cache_name = f"{app.name}-Administrator"
+		self.addCleanup(
+			frappe.delete_doc, "Token Cache", self.token_cache_name, force=True, ignore_missing=True
+		)
+		frappe.delete_doc("Token Cache", self.token_cache_name, force=True, ignore_missing=True)
+
+	def begin(self) -> tuple[str, dict]:
+		"""Start a connect and read back what it put aside for the callback."""
+		state = parse_qs(urlparse(x_oauth.start()).query)["state"][0]
+		self.addCleanup(frappe.cache.delete_value, x_oauth.cache_key(state))
+		return state, frappe.cache.get_value(x_oauth.cache_key(state))
+
+	def identity_response(self) -> MagicMock:
+		response = MagicMock()
+		response.json.return_value = {"data": self.IDENTITY}
+		return response
+
+	def connect(self, state: str, token: dict | None = None) -> str:
+		"""The callback, with X answering the token call and the identity call."""
+		with (
+			patch.object(XProvider, "fetch_token", return_value=token or self.TOKEN),
+			patch.object(XProvider, "request", return_value=self.identity_response()),
+		):
+			x_oauth.callback(code="a-code", state=state)
+		name = f"X-{self.IDENTITY['id']}"
+		self.channels.append(name)
+		return name
+
+	def test_the_authorize_url_carries_the_challenge_and_keeps_the_verifier(self):
+		url = x_oauth.start()
+		params = parse_qs(urlparse(url).query)
+		state = params["state"][0]
+		self.addCleanup(frappe.cache.delete_value, x_oauth.cache_key(state))
+		flow = frappe.cache.get_value(x_oauth.cache_key(state))
+
+		self.assertEqual(params["response_type"], ["code"])
+		self.assertEqual(params["code_challenge_method"], ["S256"])
+		self.assertIn("tweet.write", params["scope"][0])
+		self.assertEqual(params["code_challenge"], [x_oauth.challenge_for(flow["verifier"])])
+		# The verifier never leaves the site: X only ever sees its hash.
+		self.assertNotIn(flow["verifier"], url)
+
+	def test_the_challenge_is_the_hash_of_the_verifier(self):
+		_state, flow = self.begin()
+		verifier = flow["verifier"]
+		expected = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
+
+		self.assertEqual(x_oauth.challenge_for(verifier), expected)
+
+	def test_a_connect_writes_the_token_and_the_channel(self):
+		state, flow = self.begin()
+
+		with (
+			patch.object(XProvider, "fetch_token", return_value=self.TOKEN) as fetch,
+			patch.object(XProvider, "request", return_value=self.identity_response()),
+		):
+			x_oauth.callback(code="a-code", state=state)
+		name = f"X-{self.IDENTITY['id']}"
+		self.channels.append(name)
+
+		# The code goes back with the verifier, which is what makes it worth a token.
+		self.assertEqual(fetch.call_args.kwargs["code_verifier"], flow["verifier"])
+		self.assertEqual(fetch.call_args.kwargs["grant_type"], "authorization_code")
+
+		channel = frappe.get_doc("Social Channel", name)
+		self.assertEqual(channel.status, "Connected")
+		self.assertEqual(channel.handle, "hussain")
+		self.assertEqual(channel.profile_url, "https://x.com/hussain")
+		# X refreshes in the background, so there is no day to count down to.
+		self.assertIsNone(channel.expires_on)
+		self.assertEqual(
+			frappe.get_doc("Token Cache", self.token_cache_name).get_password("access_token"),
+			"fresh-token",
+		)
+
+	def test_a_state_is_spent_once(self):
+		state, _flow = self.begin()
+		self.connect(state)
+
+		with patch.object(XProvider, "fetch_token", return_value=self.TOKEN):
+			self.assertRaises(frappe.ValidationError, x_oauth.callback, code="again", state=state)
+
+	def test_a_callback_with_a_state_nobody_made_is_refused(self):
+		self.assertRaises(frappe.ValidationError, x_oauth.callback, code="a-code", state="made-up")
+
+	def test_a_connect_started_by_someone_else_is_refused(self):
+		state, flow = self.begin()
+		frappe.cache.set_value(x_oauth.cache_key(state), {**flow, "user": "someone@else.test"})
+
+		self.assertRaises(frappe.ValidationError, x_oauth.callback, code="a-code", state=state)
+
+	def test_saying_no_on_the_consent_screen_writes_nothing(self):
+		state, _flow = self.begin()
+
+		x_oauth.callback(state=state, error="access_denied")
+
+		self.assertIn("connect_failed", frappe.local.response["location"])
+		self.assertFalse(frappe.db.exists("Social Channel", f"X-{self.IDENTITY['id']}"))
+
+
+class IntegrationTestXTokens(SocialTestCase):
+	"""X renews its own tokens, because the framework cannot. See `bwh_os.social.providers.x`."""
+
+	def make_token_cache(self, expires_in: int, refresh_token: str | None = "old-refresh") -> Document:
+		app = get_app("X")
+		name = f"{app.name}-Administrator"
+		frappe.delete_doc("Token Cache", name, force=True, ignore_missing=True)
+		self.addCleanup(frappe.delete_doc, "Token Cache", name, force=True, ignore_missing=True)
+		cache = frappe.new_doc("Token Cache")
+		cache.update(
+			{
+				"user": "Administrator",
+				"connected_app": app.name,
+				"access_token": "old-token",
+				"refresh_token": refresh_token,
+				"expires_in": expires_in,
+				"token_type": "bearer",
+			}
+		)
+		cache.insert(ignore_permissions=True)
+		return cache
+
+	def test_a_token_near_its_end_is_renewed_and_the_refresh_token_rotates(self):
+		self.make_token_cache(expires_in=60)
+		app = get_app("X")
+		token = {
+			"token_type": "bearer",
+			"access_token": "new-token",
+			"refresh_token": "new-refresh",
+			"expires_in": 7200,
+		}
+
+		with patch.object(XProvider, "fetch_token", return_value=token) as fetch:
+			renewed = XProvider.active_token(app, "Administrator")
+
+		self.assertEqual(fetch.call_args.kwargs["refresh_token"], "old-refresh")
+		self.assertEqual(renewed.get_password("access_token"), "new-token")
+		self.assertEqual(renewed.get_password("refresh_token"), "new-refresh")
+
+	def test_a_token_with_hours_left_is_left_alone(self):
+		self.make_token_cache(expires_in=7200)
+		app = get_app("X")
+
+		with patch.object(XProvider, "fetch_token") as fetch:
+			token_cache = XProvider.active_token(app, "Administrator")
+
+		fetch.assert_not_called()
+		self.assertEqual(token_cache.get_password("access_token"), "old-token")
+
+	def test_a_token_with_nothing_to_renew_it_with_is_gone(self):
+		self.make_token_cache(expires_in=60, refresh_token=None)
+		app = get_app("X")
+
+		self.assertIsNone(XProvider.active_token(app, "Administrator"))
+
+	def test_a_channel_whose_token_cannot_be_renewed_asks_for_a_reconnect(self):
+		self.make_token_cache(expires_in=60, refresh_token=None)
+		name = self.make_channel("X", account_id="42")
+		channel = frappe.get_doc("Social Channel", name)
+
+		self.assertRaises(ReconnectRequired, get_token, channel)
+
+		channel.reload()
+		self.assertEqual(channel.status, "Expired")
+
+	def test_a_refused_refresh_asks_for_a_reconnect(self):
+		response = MagicMock(ok=False, status_code=400, text="invalid_grant")
+
+		self.assertIsInstance(XProvider.token_error(response), ReconnectRequired)
+
+	def test_a_channel_that_renews_itself_is_never_reminded(self):
+		"""The daily task counts down to `expires_on`. X has none, so it has nothing to say."""
+		name = self.make_channel("X", account_id="99", status="Connected")
+
+		check_expiry()
+
+		channel = frappe.get_doc("Social Channel", name)
+		self.assertEqual(channel.status, "Connected")
+		self.assertIsNone(channel.reminder_sent_on)
 
 
 class IntegrationTestSocialTokens(SocialTestCase):

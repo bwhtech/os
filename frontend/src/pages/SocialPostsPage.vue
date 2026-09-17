@@ -128,11 +128,13 @@ onListUpdate(
 	debounce(() => posts.reload(), 300),
 )
 
-// A connect ends on the platform and comes back here. Say it worked, then drop the query.
+// A connect ends on the platform and comes back here, either way. Say how it went, then
+// drop the query so a reload does not say it again.
 onMounted(() => {
-	const connectedProvider = route.query.connected
-	if (!connectedProvider) return
-	toast.success(`${connectedProvider} connected`)
+	const { connected, connect_failed: failed } = route.query
+	if (!connected && !failed) return
+	if (connected) toast.success(`${connected} connected`)
+	else toast.error(`${failed} was not connected`)
 	syncQuery()
 })
 </script>
