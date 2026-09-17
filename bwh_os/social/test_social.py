@@ -14,6 +14,7 @@ from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import last_email_to, u
 from bwh_os.social.api import (
 	connect_channel,
 	disconnect_channel,
+	duplicate_post,
 	get_calendar_posts,
 	get_channels,
 	get_posts,
@@ -1304,6 +1305,109 @@ class IntegrationTestXPosts(IntegrationTestSocialPosts):
 		self.assertEqual(post.targets[0].release_url, "https://x.com/i/status/1")
 		self.assertEqual([row["part_no"] for row in json.loads(post.targets[0].released_parts)], [1, 2])
 		self.assertEqual([body["text"] for body in sent], ["One", "Two"])
+
+
+class IntegrationTestMultiChannel(IntegrationTestSocialPosts):
+	"""One post, both platforms, and what is left when only one of them takes it."""
+
+	def setUp(self):
+		super().setUp()
+		self.token_patch = patch("bwh_os.social.publisher.get_token", return_value=MagicMock())
+		self.token_patch.start()
+		self.addCleanup(self.token_patch.stop)
+
+	def publish(self, post, x_answer):
+		"""Run the job inline with LinkedIn taking the post and X answering `x_answer`."""
+		with (
+			patch("frappe.enqueue"),
+			patch.object(LinkedInProvider, "post", side_effect=release_parts),
+			patch.object(XProvider, "request", side_effect=x_answer),
+		):
+			publish_post(post.name)
+			Publisher(frappe.get_doc("Social Post", post.name)).run()
+		post.reload()
+		return post
+
+	def tweet(self, method, url, token_cache, post_name=None, **kwargs):
+		response = MagicMock()
+		response.json.return_value = {"data": {"id": "1"}}
+		return response
+
+	def test_one_post_goes_out_as_itself_on_each_platform(self):
+		post = self.make_post([self.make_channel("LinkedIn"), self.make_channel("X")])
+
+		self.publish(post, self.tweet)
+
+		self.assertEqual(post.status, "Published")
+		links = sorted(target.release_url for target in post.targets)
+		self.assertEqual(
+			links, ["https://www.linkedin.com/feed/update/urn:li:share:1", "https://x.com/i/status/1"]
+		)
+
+	def test_the_same_tweet_twice_leaves_the_post_partial(self):
+		post = self.make_post([self.make_channel("LinkedIn"), self.make_channel("X")])
+
+		self.publish(post, BadRequest("X said 403: duplicate content"))
+
+		self.assertEqual(post.status, "Partial")
+		x_target = next(target for target in post.targets if target.provider == "X")
+		self.assertEqual(x_target.status, "Failed")
+		self.assertEqual(x_target.error_kind, "Bad Request")
+		self.assertTrue(post.published_at)
+
+	def test_a_copy_of_a_partial_post_goes_only_where_it_did_not_land(self):
+		post = self.make_post([self.make_channel("LinkedIn"), self.make_channel("X")])
+		self.publish(post, BadRequest("X said 403: duplicate content"))
+
+		copy = frappe.get_doc("Social Post", duplicate_post(post.name))
+		self.posts.append(copy.name)
+
+		self.assertEqual(copy.status, "Draft")
+		self.assertEqual([target.provider for target in copy.targets], ["X"])
+		self.assertEqual([part.text for part in copy.parts], ["Hello from the OS"])
+
+	def test_a_copy_starts_the_channel_it_carries_from_nothing(self):
+		post = self.make_post([self.make_channel("LinkedIn"), self.make_channel("X")])
+		self.publish(post, BadRequest("X said 403: duplicate content"))
+
+		copy = frappe.get_doc("Social Post", duplicate_post(post.name))
+		self.posts.append(copy.name)
+
+		target = copy.targets[0]
+		self.assertEqual(target.status, "Pending")
+		self.assertFalse(target.error)
+		# An empty Select is an empty string, not nothing.
+		self.assertFalse(target.error_kind)
+		self.assertIsNone(target.released_parts)
+		self.assertIsNone(target.release_url)
+		self.assertIsNone(target.publish_attempted_at)
+
+	def test_a_copy_of_a_post_every_channel_got_is_a_repost(self):
+		post = self.make_post([self.make_channel("LinkedIn"), self.make_channel("X")])
+		self.publish(post, self.tweet)
+
+		copy = frappe.get_doc("Social Post", duplicate_post(post.name))
+		self.posts.append(copy.name)
+
+		self.assertEqual(sorted(target.provider for target in copy.targets), ["LinkedIn", "X"])
+		self.assertIsNone(copy.published_at)
+
+	def test_a_copy_carries_the_content_written_for_one_channel(self):
+		linkedin = self.make_channel("LinkedIn")
+		x = self.make_channel("X")
+		post = self.make_post([linkedin, x])
+		post.targets[1].use_custom_content = 1
+		post.targets[1].settings = json.dumps({"reply_settings": "following"})
+		post.append("parts", {"channel": x, "text": "Written for X"})
+		post.save()
+
+		copy = frappe.get_doc("Social Post", duplicate_post(post.name))
+		self.posts.append(copy.name)
+
+		x_target = next(target for target in copy.targets if target.provider == "X")
+		self.assertTrue(x_target.use_custom_content)
+		self.assertEqual(json.loads(x_target.settings), {"reply_settings": "following"})
+		self.assertEqual([part.text for part in copy.parts if part.channel], ["Written for X"])
 
 
 class IntegrationTestSocialCalendar(IntegrationTestSocialPosts):

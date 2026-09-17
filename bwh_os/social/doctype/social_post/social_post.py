@@ -14,6 +14,18 @@ TITLE_LENGTH = 60
 # A Scheduled post is not here: it can still change until its time comes.
 LOCKED_STATUSES = ("Publishing", "Published", "Partial", "Failed")
 
+# A target of a post that has not gone out anywhere yet.
+FRESH_TARGET = {
+	"status": "Pending",
+	"publish_attempted_at": None,
+	"released_parts": None,
+	"release_id": None,
+	"release_url": None,
+	"published_at": None,
+	"error": None,
+	"error_kind": None,
+}
+
 
 class SocialPost(Document):
 	# begin: auto-generated types
@@ -79,6 +91,23 @@ class SocialPost(Document):
 	def check(self):
 		"""The strict pass. Throws the first thing that would stop a publish."""
 		self.validator.check()
+
+	def duplicate(self) -> Document:
+		"""A fresh draft saying the same thing, for the channels that have not had it.
+
+		A channel that already published is left off, because sending it the same post
+		twice is the one mistake a duplicate is here to avoid. Where every channel got it,
+		the copy is a repost and keeps them all.
+		"""
+		copy = frappe.copy_doc(self)
+		copy.status = "Draft"
+		copy.scheduled_at = None
+		copy.published_at = None
+		copy.targets = [row for row in copy.targets if row.status != "Published"] or copy.targets
+		for row in copy.targets:
+			row.update(FRESH_TARGET)
+		copy.insert()
+		return copy
 
 
 def content_of(post: Document) -> tuple:

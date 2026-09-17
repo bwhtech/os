@@ -9,7 +9,7 @@
 				:post="post.doc"
 				:can-publish="canPublish"
 				:saved-label="savedLabel"
-				:channels="validation.data?.length ?? 0"
+				:channels="checked.length"
 				@changed="post.reload()"
 			/>
 			<Dropdown :options="menu">
@@ -134,6 +134,7 @@ import {
 	draftPartsOf,
 	isLocked,
 	partsOf,
+	postRoute,
 	settingsOf,
 } from '@/lib/social'
 import type { DraftPart } from '@/lib/social'
@@ -187,6 +188,7 @@ const menu = computed(() => [
 	...(post.doc?.status === 'Failed'
 		? [{ label: 'Back to draft', icon: 'lucide-undo-2', onClick: askUnlock }]
 		: []),
+	{ label: 'Duplicate', icon: 'lucide-copy', onClick: askDuplicate },
 	{ label: 'Delete', icon: 'lucide-trash-2', theme: 'red' as const, onClick: remove },
 ])
 
@@ -200,6 +202,12 @@ const retryCall = useCall<string, { post: string; target: string }>({
 
 const unlockCall = useCall<string, { post: string }>({
 	url: '/api/v2/method/bwh_os.social.api.unlock_post',
+	method: 'POST',
+	immediate: false,
+})
+
+const duplicateCall = useCall<string, { post: string }>({
+	url: '/api/v2/method/bwh_os.social.api.duplicate_post',
 	method: 'POST',
 	immediate: false,
 })
@@ -231,6 +239,45 @@ function askUnlock() {
 	})
 }
 
+/**
+ * A copy to write again. A channel that already has this post is left off the copy, so
+ * the dialog says which channels the new draft goes to before it is made.
+ */
+function askDuplicate() {
+	if (!sent.value.length) return duplicate()
+	dialog.confirm({
+		title: 'Duplicate this post?',
+		message: `${list(sent.value)} already ${sent.value.length > 1 ? 'have' : 'has'} it, so the copy goes to ${
+			unsent.value.length ? list(unsent.value) : 'the same channels'
+		}.`,
+		confirmLabel: 'Duplicate',
+		onConfirm: duplicate,
+	})
+}
+
+async function duplicate() {
+	const name = await duplicateCall.submit({ post: props.postId })
+	if (!name) return
+	toast.success('Copied to a new draft')
+	router.push(postRoute(name))
+}
+
+/**
+ * The platforms this post reached, and the ones it did not. The platform is the name to
+ * use here: one account per platform in v1, and the same person usually carries the same
+ * display name on both, so "LinkedIn" says what "Hussain Nagaria" cannot.
+ */
+const sent = computed(() => platformsOf((target) => target.status === 'Published'))
+const unsent = computed(() => platformsOf((target) => target.status !== 'Published'))
+
+function platformsOf(keep: (target: SocialPostTarget) => boolean): string[] {
+	return (post.doc?.targets ?? []).filter(keep).map((target) => target.provider)
+}
+
+function list(names: string[]): string {
+	return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]
+}
+
 async function save(values: Partial<SocialPost>) {
 	try {
 		await post.setValue.submit(values)
@@ -248,10 +295,18 @@ const savedLabel = computed(() => {
 	return autosave.state.value === 'saved' ? 'Saved' : ''
 })
 
-// Load the post once. Our own saves come back and must not reset what is being typed.
+/**
+ * Load the post once. Our own saves come back and must not reset what is being typed,
+ * and a reload hands the name back after a moment of nothing, so the watcher sees the
+ * same post arrive again and again. The name it has already read is what stops that.
+ */
+const loaded = ref('')
+
 watch(
 	() => post.doc?.name,
-	() => {
+	(name) => {
+		if (!name || String(name) === loaded.value) return
+		loaded.value = String(name)
 		const targets = post.doc?.targets ?? []
 		customized.value = targets.filter((target) => target.use_custom_content).map((row) => row.channel)
 		groups.value = Object.fromEntries([
@@ -337,6 +392,20 @@ const validation = useCall<TargetValidation[], { post: string }>({
 	immediate: false,
 })
 
+/**
+ * The last thing the server said about this content. A call in flight empties
+ * `validation.data`, and blanking the preview and the counter on every keystroke is worse
+ * than showing an answer that is a moment old. The publish checks again anyway.
+ */
+const checked = ref<TargetValidation[]>([])
+
+watch(
+	() => validation.data,
+	(results) => {
+		if (results) checked.value = results
+	},
+)
+
 // The server owns the rules, so the counter and the errors come from it while you type.
 const check = debounce(() => {
 	if (!post.doc) return
@@ -353,7 +422,7 @@ watch([groups, picked, customized, settings, () => post.doc?.name], check, { imm
  */
 const strictest = computed(() => {
 	// A platform the OS cannot post to yet has no rules to hold the writing to.
-	const results = (validation.data ?? []).filter((result) => result.limit > 0)
+	const results = checked.value.filter((result) => result.limit > 0)
 	if (group.value) return results.find((result) => result.channel === group.value)
 	const sharing = results.filter((result) => !result.use_custom_content)
 	return (sharing.length ? sharing : results).reduce<TargetValidation | undefined>(
@@ -369,11 +438,11 @@ const maxImages = computed(() => strictest.value?.max_images ?? 4)
 const mediaAfterPartOne = computed(() =>
 	group.value
 		? Boolean(strictest.value?.media_after_part_one)
-		: Boolean(validation.data?.length) && validation.data!.every((result) => result.media_after_part_one),
+		: Boolean(checked.value.length) && checked.value.every((result) => result.media_after_part_one),
 )
 
 const previews = computed(() =>
-	(validation.data ?? []).map((result) => ({
+	checked.value.map((result) => ({
 		result,
 		channel: byName.value[result.channel],
 		parts: groups.value[result.use_custom_content ? result.channel : ''] ?? [],
@@ -387,14 +456,14 @@ const withSettings = computed(() => previews.value.filter((target) => target.res
 /** LinkedIn calls part 2 a comment, X calls it a reply. */
 const partName = computed(() => {
 	const results = group.value
-		? (validation.data ?? []).filter((result) => result.channel === group.value)
-		: (validation.data ?? [])
+		? checked.value.filter((result) => result.channel === group.value)
+		: checked.value
 	return results.length && results.every((result) => result.provider === 'X') ? 'Reply' : 'Comment'
 })
 
 /** The server checks again before anything goes out. This only keeps the button honest. */
 const canPublish = computed(
-	() => Boolean(validation.data?.length) && validation.data!.every((result) => !result.errors.length),
+	() => Boolean(checked.value.length) && checked.value.every((result) => !result.errors.length),
 )
 
 function remove() {

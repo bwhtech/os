@@ -148,6 +148,13 @@ def unlock_post(post: str | int) -> str:
 
 
 @frappe.whitelist(methods=["POST"])
+def duplicate_post(post: str | int) -> str:
+	"""A new draft of this post. Returns its name, which is where the composer goes next."""
+	frappe.only_for("System Manager")
+	return str(frappe.get_doc("Social Post", post).duplicate().name)
+
+
+@frappe.whitelist(methods=["POST"])
 def schedule_post(post: str | int, scheduled_at: str) -> str:
 	"""Set the time this post goes out. The scheduler takes it from there."""
 	frappe.only_for("System Manager")
