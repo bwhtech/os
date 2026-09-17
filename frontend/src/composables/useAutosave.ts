@@ -1,5 +1,6 @@
 import { onBeforeUnmount, ref } from 'vue'
 import { toast } from 'frappe-ui'
+import { useSaveShortcut } from '@/composables/useSaveShortcut'
 import { errorMessage } from '@/lib/errors'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
@@ -45,6 +46,10 @@ export function useAutosave<T extends object>(save: (values: Partial<T>) => Prom
 
 	// Leaving the page must not drop the last few keystrokes.
 	onBeforeUnmount(flush)
+
+	// A page that saves itself still gets Cmd+S: it sends what is waiting right now, so
+	// the habit means the same thing here as on a page with a Save button.
+	useSaveShortcut(flush)
 
 	return { state, queue, flush }
 }

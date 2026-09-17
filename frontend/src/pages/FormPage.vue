@@ -109,6 +109,7 @@ import ActivityCards from "@/components/stats/ActivityCards.vue";
 import WelcomeEmailSection from "@/components/forms/WelcomeEmailSection.vue";
 import TagPicker from "@/components/tags/TagPicker.vue";
 import { confirmStarter, parseEmailDocument, welcomeStarter } from "@/lib/emailStarters";
+import { useSaveShortcut } from "@/composables/useSaveShortcut";
 import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 import { errorMessage } from "@/lib/errors";
 import type { EmailDocument, NewsletterTheme, SignupForm } from "@/types";
@@ -226,4 +227,10 @@ async function save() {
 		toast.error(saveError.value);
 	}
 }
+
+// Cmd+S is muscle memory for anyone writing an email, and the button is at the top of a
+// long page.
+useSaveShortcut(() => {
+	if (dirty.value && !form.setValue.loading) save();
+});
 </script>

@@ -126,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, useTemplateRef, watch } from 'vue'
+import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
 import {
 	Alert,
 	Badge,
@@ -153,6 +153,7 @@ import SendTestDialog from '@/components/newsletters/SendTestDialog.vue'
 import { useAudiencePreview } from '@/composables/useAudiencePreview'
 import { parseEmailDocument } from '@/lib/emailStarters'
 import { NEWSLETTER_VARIABLES, fillSamples } from '@/lib/emailVariables'
+import { useSaveShortcut } from '@/composables/useSaveShortcut'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { errorMessage } from '@/lib/errors'
 import { STATUS_THEMES } from '@/lib/newsletters'
@@ -296,16 +297,10 @@ async function save() {
 	}
 }
 
-/** Cmd+S or Ctrl+S saves a draft. The key event also comes out of the editor's shadow root. */
-function onKeydown(event: KeyboardEvent) {
-	if (event.key.toLowerCase() !== 's' || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
-	// Keep the browser's Save Page dialog closed, even when there is nothing to save.
-	event.preventDefault()
+// A sent newsletter has nothing left to save.
+useSaveShortcut(() => {
 	if (isDraft.value && dirty.value && !saving.value) save()
-}
-
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+})
 
 async function unschedule() {
 	const status = await unscheduleCall.submit({ issue: props.issueId })

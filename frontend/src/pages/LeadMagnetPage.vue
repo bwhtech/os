@@ -55,6 +55,7 @@ import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import LeadMagnetDownloads from '@/components/lead-magnets/LeadMagnetDownloads.vue'
 import LeadMagnetFileInput from '@/components/lead-magnets/LeadMagnetFileInput.vue'
 import ActivityCards from '@/components/stats/ActivityCards.vue'
+import { useSaveShortcut } from '@/composables/useSaveShortcut'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { errorMessage } from '@/lib/errors'
 import type { LeadMagnet } from '@/types'
@@ -116,4 +117,8 @@ async function save() {
 		toast.error(errorMessage(error as Error))
 	}
 }
+
+useSaveShortcut(() => {
+	if (dirty.value && !leadMagnet.setValue.loading) save()
+})
 </script>
