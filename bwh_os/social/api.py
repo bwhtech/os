@@ -6,7 +6,7 @@ import frappe
 from frappe import _
 from frappe.query_builder import Order
 from frappe.query_builder.functions import Coalesce
-from frappe.utils import date_diff, now_datetime
+from frappe.utils import date_diff, getdate, now_datetime
 
 from bwh_os.social.oauth import LINKEDIN_SUCCESS_URI
 from bwh_os.social.oauth_apps import PROVIDERS, get_app, redirect_uri
@@ -185,11 +185,7 @@ POST_FIELDS = ["name", "title", "status", "scheduled_at", "published_at", "video
 
 @frappe.whitelist(methods=["GET"])
 def get_posts(view: str = "upcoming", limit: int = 100) -> list[dict]:
-	"""The posts of one tab, each with the channels it goes to.
-
-	The channels come from a child table, which no list call reads, so they arrive in a
-	second query and go back onto their post here.
-	"""
+	"""The posts of one tab, each with the channels it goes to."""
 	frappe.only_for("System Manager")
 	statuses = VIEWS.get(view, [])
 	post = frappe.qb.DocType("Social Post")
@@ -203,7 +199,36 @@ def get_posts(view: str = "upcoming", limit: int = 100) -> list[dict]:
 	)
 	if statuses:
 		query = query.where(post.status.isin(statuses))
-	posts = query.run(as_dict=True)
+	return with_targets(query.run(as_dict=True))
+
+
+@frappe.whitelist(methods=["GET"])
+def get_calendar_posts(start: str, end: str) -> list[dict]:
+	"""The posts that sit between two days, for the calendar.
+
+	A post is on the calendar on the day it went out, or the day it is meant to go out.
+	A draft nobody has given a time yet belongs to no day, so it is left out.
+	"""
+	frappe.only_for("System Manager")
+	post = frappe.qb.DocType("Social Post")
+	posts = (
+		frappe.qb.from_(post)
+		.select(*[post[field] for field in POST_FIELDS])
+		.where(calendar_time(post).between(f"{getdate(start)} 00:00:00", f"{getdate(end)} 23:59:59"))
+		.run(as_dict=True)
+	)
+	return with_targets(posts)
+
+
+def calendar_time(post):
+	"""The moment a post belongs to. What happened beats what was planned, so a post that
+	went out early sits on the day it went out rather than the day it was promised."""
+	return Coalesce(post.published_at, post.scheduled_at)
+
+
+def with_targets(posts: list[dict]) -> list[dict]:
+	"""Each post with the channels it goes to. A list call reads no child table, so the
+	targets arrive in a second query and go back onto their post here."""
 	targets = targets_of([post.name for post in posts])
 	for post in posts:
 		post["targets"] = targets.get(str(post.name), [])

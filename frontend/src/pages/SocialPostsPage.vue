@@ -7,7 +7,7 @@
 				icon-left="lucide-plus"
 				label="New Post"
 				:loading="insert.loading"
-				@click="newPost"
+				@click="create()"
 			/>
 		</template>
 		<template #mobile-actions>
@@ -17,15 +17,20 @@
 				icon="lucide-plus"
 				aria-label="New Post"
 				:loading="insert.loading"
-				@click="newPost"
+				@click="create()"
 			/>
 		</template>
 	</AppPageHeader>
 
-	<div class="px-3 pb-10 pt-5 sm:px-5">
-		<TabButtons v-model="view" :options="VIEWS" />
+	<div class="px-3 pt-5 sm:px-5" :class="{ 'pb-10': layout === 'list' }">
+		<div class="flex flex-wrap items-center gap-2">
+			<TabButtons v-if="layout === 'list'" v-model="view" :options="VIEWS" />
+			<TabButtons v-model="layout" class="ml-auto" :options="LAYOUTS" />
+		</div>
 
-		<ListSkeleton v-if="posts.loading && !posts.data" class="mt-5" />
+		<SocialCalendar v-if="layout === 'calendar'" class="mt-4" />
+
+		<ListSkeleton v-else-if="posts.loading && !posts.data" class="mt-5" />
 		<ErrorMessage v-else-if="posts.error" class="mt-5" :message="errorMessage(posts.error)" />
 
 		<SocialPostTable v-else-if="rows.length" class="mt-4" :posts="rows" />
@@ -50,32 +55,44 @@
 				label="New Post"
 				class="mt-2"
 				:loading="insert.loading"
-				@click="newPost"
+				@click="create()"
 			/>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, ErrorMessage, TabButtons, debounce, toast, useCall } from 'frappe-ui'
 import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import ListSkeleton from '@/components/list/ListSkeleton.vue'
+import SocialCalendar from '@/components/social/SocialCalendar.vue'
 import SocialPostTable from '@/components/social/SocialPostTable.vue'
+import { useNewSocialPost } from '@/composables/useNewSocialPost'
 import { useSocialChannels } from '@/composables/useSocialChannels'
 import { errorMessage } from '@/lib/errors'
 import { onListUpdate } from '@/lib/socket'
-import { SOCIAL_DOCTYPES, postRoute } from '@/lib/social'
-import type { SocialPost, SocialPostRow } from '@/types'
+import { SOCIAL_DOCTYPES } from '@/lib/social'
+import type { SocialPostRow } from '@/types'
 
-/** Social posts: the list of what is coming and what went out. See specs/04-social-posts.md. */
+/**
+ * Social posts: what is coming and what went out, as a list or on the calendar next to
+ * the videos they promote. See specs/04-social-posts.md.
+ */
 type View = 'upcoming' | 'published' | 'all'
+
+type Layout = 'list' | 'calendar'
 
 const VIEWS = [
 	{ label: 'Upcoming', value: 'upcoming' },
 	{ label: 'Published', value: 'published' },
 	{ label: 'All', value: 'all' },
+]
+
+const LAYOUTS = [
+	{ label: 'List', value: 'list', icon: 'lucide-list' },
+	{ label: 'Calendar', value: 'calendar', icon: 'lucide-calendar-days' },
 ]
 
 const EMPTY: Record<View, string> = {
@@ -87,7 +104,17 @@ const EMPTY: Record<View, string> = {
 const route = useRoute()
 const router = useRouter()
 const view = ref<View>('upcoming')
+// The calendar is a place to come back to, so it lives in the URL.
+const layout = ref<Layout>(route.query.view === 'calendar' ? 'calendar' : 'list')
 const { connected } = useSocialChannels()
+const { create, insert } = useNewSocialPost()
+
+watch(layout, syncQuery)
+
+/** The layout is the whole of the query here, so writing it also drops what came before. */
+function syncQuery() {
+	router.replace({ query: layout.value === 'calendar' ? { view: 'calendar' } : {} })
+}
 
 const posts = useCall<SocialPostRow[], { view: View }>({
 	url: '/api/v2/method/bwh_os.social.api.get_posts',
@@ -101,33 +128,11 @@ onListUpdate(
 	debounce(() => posts.reload(), 300),
 )
 
-const insert = useCall<SocialPost, Partial<SocialPost>>({
-	url: '/api/v2/document/Social Post',
-	method: 'POST',
-	immediate: false,
-})
-
-/** A new post starts as a Draft for every connected channel, so attachments have a document. */
-async function newPost() {
-	try {
-		const post = await insert.submit({
-			status: 'Draft',
-			targets: connected.value.map((channel) => ({
-				channel: channel.name,
-			})) as SocialPost['targets'],
-			parts: [{ text: '' }] as SocialPost['parts'],
-		})
-		if (post) router.push(postRoute(post))
-	} catch (error) {
-		toast.error(errorMessage(error as Error))
-	}
-}
-
 // A connect ends on the platform and comes back here. Say it worked, then drop the query.
 onMounted(() => {
 	const connectedProvider = route.query.connected
 	if (!connectedProvider) return
 	toast.success(`${connectedProvider} connected`)
-	router.replace({ query: {} })
+	syncQuery()
 })
 </script>

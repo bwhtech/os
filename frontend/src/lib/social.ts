@@ -18,6 +18,33 @@ export const TARGET_THEMES: Record<SocialTargetStatus, 'gray' | 'amber' | 'green
 	Failed: 'red',
 }
 
+/**
+ * The colour a post takes on the calendar. The palette of the calendar has no grey and no
+ * red, so a draft borrows blue and wears the dashed outline instead, and a failure takes
+ * the closest thing to a warning the palette has.
+ */
+export const POST_CALENDAR_COLORS: Record<SocialPostStatus, string> = {
+	Draft: 'blue',
+	Scheduled: 'blue',
+	Publishing: 'amber',
+	Published: 'green',
+	Partial: 'amber',
+	Failed: 'pink',
+}
+
+/** Nothing has gone out yet, so the post is a plan: the calendar draws it dashed. */
+export function isPlanned(status: SocialPostStatus): boolean {
+	return status === 'Draft' || status === 'Scheduled'
+}
+
+/**
+ * The moment a post belongs to on a calendar, or nothing when it belongs to no day.
+ * What happened beats what was planned, as `bwh_os.social.api.calendar_time` does.
+ */
+export function postTime(post: Pick<SocialPost, 'scheduled_at' | 'published_at'>): string | null {
+	return post.published_at || post.scheduled_at || null
+}
+
 /** A post that is out, or on its way out, cannot be written any more. */
 export function isLocked(status: SocialPostStatus | undefined): boolean {
 	return Boolean(status) && status !== 'Draft' && status !== 'Scheduled'

@@ -32,6 +32,15 @@
 					<ChannelPicker v-model="picked" :channels="channels.data ?? []" :disabled="locked" />
 				</div>
 
+				<div>
+					<p class="mb-2 text-p-sm text-ink-gray-5">Promotes</p>
+					<VideoPicker
+						:model-value="post.doc.video"
+						:disabled="locked"
+						@update:model-value="save({ video: $event })"
+					/>
+				</div>
+
 				<div v-if="previews.length > 1" class="border-t border-outline-gray-1 pt-4">
 					<ContentTabs
 						v-model="tab"
@@ -100,6 +109,7 @@ import PartEditor from '@/components/social/PartEditor.vue'
 import PostPreviews from '@/components/social/PostPreviews.vue'
 import PublishBar from '@/components/social/PublishBar.vue'
 import TargetResults from '@/components/social/TargetResults.vue'
+import VideoPicker from '@/components/social/VideoPicker.vue'
 import { useAutosave } from '@/composables/useAutosave'
 import { useSocialChannels } from '@/composables/useSocialChannels'
 import { errorMessage } from '@/lib/errors'

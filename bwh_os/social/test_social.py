@@ -11,6 +11,7 @@ from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import last_email_to, u
 from bwh_os.social.api import (
 	connect_channel,
 	disconnect_channel,
+	get_calendar_posts,
 	get_channels,
 	get_posts,
 	get_provider_apps,
@@ -795,6 +796,59 @@ class IntegrationTestSocialPosts(SocialTestCase):
 		row = next(row for row in get_posts("all") if row["name"] == draft.name)
 		self.assertEqual([target["channel"] for target in row["targets"]], [channel])
 		self.assertEqual(row["targets"][0]["display_name"], "Hussain Nagaria")
+
+
+class IntegrationTestSocialCalendar(IntegrationTestSocialPosts):
+	"""The days the calendar draws. See `bwh_os.social.api.get_calendar_posts`."""
+
+	# A month of its own, so the posts of the other tests are nowhere near it.
+	MONTH = ("2031-03-01", "2031-03-31")
+
+	def on_the_calendar(self) -> dict[str, dict]:
+		return {str(row["name"]): row for row in get_calendar_posts(*self.MONTH)}
+
+	def test_a_post_waiting_sits_on_the_day_it_is_meant_to_go_out(self):
+		channel = self.make_channel()
+		post = self.make_post([channel])
+		post.db_set({"status": "Scheduled", "scheduled_at": "2031-03-10 09:30:00"})
+
+		row = self.on_the_calendar()[str(post.name)]
+		self.assertEqual(row["scheduled_at"], get_datetime("2031-03-10 09:30:00"))
+		self.assertEqual([target["channel"] for target in row["targets"]], [channel])
+
+	def test_a_post_that_went_out_sits_on_the_day_it_went_out(self):
+		post = self.make_post([self.make_channel()])
+		post.db_set(
+			{
+				"status": "Published",
+				"scheduled_at": "2031-03-10 09:30:00",
+				"published_at": "2031-03-12 18:00:00",
+			}
+		)
+
+		self.assertIn(str(post.name), self.on_the_calendar())
+		self.assertNotIn(str(post.name), self.names_between("2031-03-01", "2031-03-11"))
+		self.assertIn(str(post.name), self.names_between("2031-03-12", "2031-03-12"))
+
+	def test_a_draft_nobody_gave_a_time_belongs_to_no_day(self):
+		post = self.make_post([self.make_channel()])
+
+		self.assertNotIn(str(post.name), self.on_the_calendar())
+
+	def test_the_last_day_of_the_range_is_a_whole_day(self):
+		post = self.make_post([self.make_channel()])
+		post.db_set({"status": "Scheduled", "scheduled_at": "2031-03-31 23:30:00"})
+
+		self.assertIn(str(post.name), self.on_the_calendar())
+
+	def test_the_month_next_door_is_left_alone(self):
+		post = self.make_post([self.make_channel()])
+		post.db_set({"status": "Scheduled", "scheduled_at": "2031-04-01 09:00:00"})
+
+		self.assertNotIn(str(post.name), self.on_the_calendar())
+
+	def names_between(self, start: str, end: str) -> list[str]:
+		return [str(row["name"]) for row in get_calendar_posts(start, end)]
 
 
 class IntegrationTestSocialPublishing(IntegrationTestSocialPosts):
