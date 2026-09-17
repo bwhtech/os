@@ -10,6 +10,8 @@ A post goes out as a thread: part 1 is a tweet, and each part after it replies t
 before, which is how X itself makes one.
 """
 
+import mimetypes
+import time
 from collections.abc import Callable
 
 import frappe
@@ -26,6 +28,7 @@ from bwh_os.social.providers.base import (
 	Release,
 	Retryable,
 	SocialError,
+	file_bytes,
 )
 from bwh_os.social.x_text import weighted_length
 
@@ -39,18 +42,31 @@ REFRESH_MARGIN_SECONDS = 300
 REPLY_SETTINGS = ("everyone", "following", "mentionedUsers", "subscribers")
 EVERYONE = "everyone"
 
+# X takes the file in pieces of this size. Its own guide uses 1 MB.
+MEDIA_CHUNK_BYTES = 1024 * 1024
+# A video is transcoded before it can be tweeted. Five minutes is the spec's ceiling.
+MEDIA_WAIT_SECONDS = 5 * 60
+MEDIA_POLL_SECONDS = 5
+
 
 class XProvider(Provider):
 	key = "X"
 
 	max_length = 280
 	max_images = 4
+	# X takes 5 MB of image. A GIF may be 15 MB, but the OS has one kind of image, so the
+	# tighter number is the one it holds everything to.
+	max_image_bytes = 5 * 1024 * 1024
 
 	USERS_ME_URL = "https://api.x.com/2/users/me?user.fields=profile_image_url,username,name"
 	PROFILE_URL = "https://x.com/{handle}"
 	TWEETS_URL = "https://api.x.com/2/tweets"
 	# The handle is not on the account the publisher carries, and X redirects `i` to it.
 	TWEET_URL = "https://x.com/i/status/{id}"
+	MEDIA_URL = "https://api.x.com/2/media/upload"
+	MEDIA_INITIALIZE_URL = "https://api.x.com/2/media/upload/initialize"
+	MEDIA_APPEND_URL = "https://api.x.com/2/media/upload/{id}/append"
+	MEDIA_FINALIZE_URL = "https://api.x.com/2/media/upload/{id}/finalize"
 
 	# X hands out a refresh token that rotates instead of running out, so the connection
 	# has no day to count down to and the channel keeps no expiry.
@@ -77,10 +93,6 @@ class XProvider(Provider):
 	@classmethod
 	def validate(cls, parts: list[dict], settings: dict | None = None) -> list[str]:
 		problems = super().validate(parts, settings)
-		# Images and video come in slice 4.3. Until then a post that carries one would go
-		# out as text, which is not what anyone wrote, so it does not go out at all.
-		if any(part.get("media") for part in parts):
-			problems.append(_("The OS cannot put media on X yet"))
 		who = (settings or {}).get("reply_settings") or EVERYONE
 		if who not in REPLY_SETTINGS:
 			problems.append(_("X cannot keep replies to {0}").format(who))
@@ -107,7 +119,11 @@ class XProvider(Provider):
 			# Who may reply is a property of the conversation, so it rides on its first tweet.
 			reply_settings = settings.get("reply_settings") if part_no == 1 else None
 			previous = cls.create_tweet(
-				account, part.get("text") or "", reply_to=previous, reply_settings=reply_settings
+				account,
+				part.get("text") or "",
+				media_ids=cls.upload_media(account, part.get("media") or []),
+				reply_to=previous,
+				reply_settings=reply_settings,
 			)
 			on_release(Release(part_no=part_no, id=previous, url=cls.TWEET_URL.format(id=previous)))
 
@@ -116,10 +132,13 @@ class XProvider(Provider):
 		cls,
 		account: Account,
 		text: str,
+		media_ids: list[str] | None = None,
 		reply_to: str | None = None,
 		reply_settings: str | None = None,
 	) -> str:
 		body: dict = {"text": text}
+		if media_ids:
+			body["media"] = {"media_ids": media_ids}
 		if reply_to:
 			body["reply"] = {"in_reply_to_tweet_id": reply_to}
 		if reply_settings and reply_settings != EVERYONE:
@@ -132,6 +151,96 @@ class XProvider(Provider):
 		if not tweet_id:
 			raise BadRequest(_("X took the tweet but named no id"))
 		return tweet_id
+
+	@classmethod
+	def upload_media(cls, account: Account, media: list[dict]) -> list[str]:
+		"""Every file of one part, in the order it was written, as the ids the tweet names."""
+		return [cls.upload_one(account, item) for item in media]
+
+	@classmethod
+	def upload_one(cls, account: Account, item: dict) -> str:
+		"""One file, in the three steps X asks for: say what is coming, send it, say it is done.
+
+		The file goes up in chunks whatever its size. X takes an image in one piece, but the
+		same three calls work for both, and one road is easier to keep right than two.
+		"""
+		content = file_bytes(item["file_url"])
+		media_id = cls.initialize_media(account, item, len(content))
+		for index, offset in enumerate(range(0, len(content), MEDIA_CHUNK_BYTES)):
+			cls.append_media(account, media_id, index, content[offset : offset + MEDIA_CHUNK_BYTES])
+		cls.finalize_media(account, media_id)
+		return media_id
+
+	@classmethod
+	def initialize_media(cls, account: Account, item: dict, size: int) -> str:
+		"""Ask X for the id the chunks and the tweet will name."""
+		response = cls.request(
+			"POST",
+			cls.MEDIA_INITIALIZE_URL,
+			account.token_cache,
+			post_name=account.post_name,
+			json={
+				"media_type": media_type(item),
+				"total_bytes": size,
+				"media_category": media_category(item),
+			},
+		)
+		media_id = response.json().get("data", {}).get("id")
+		if not media_id:
+			raise BadRequest(_("X took the upload but named no media id"))
+		return media_id
+
+	@classmethod
+	def append_media(cls, account: Account, media_id: str, index: int, chunk: bytes) -> None:
+		"""One chunk. It goes as a form, not as JSON, because this call carries the bytes."""
+		cls.request(
+			"POST",
+			cls.MEDIA_APPEND_URL.format(id=media_id),
+			account.token_cache,
+			post_name=account.post_name,
+			data={"segment_index": index},
+			files={"media": chunk},
+		)
+
+	@classmethod
+	def finalize_media(cls, account: Account, media_id: str) -> None:
+		"""Tell X the file is all there, then wait if it has work to do on it.
+
+		An image is ready the moment it lands. A video is transcoded, and a tweet that names
+		one too early is refused, so `processing_info` decides whether this waits.
+		"""
+		response = cls.request(
+			"POST",
+			cls.MEDIA_FINALIZE_URL.format(id=media_id),
+			account.token_cache,
+			post_name=account.post_name,
+		)
+		cls.wait_for_media(account, media_id, response.json().get("data", {}).get("processing_info"))
+
+	@classmethod
+	def wait_for_media(cls, account: Account, media_id: str, processing: dict | None) -> None:
+		"""Until X says the file can be tweeted, or until waiting is pointless."""
+		waited = 0
+		while processing and processing.get("state") not in ("succeeded", None):
+			if processing.get("state") == "failed":
+				raise BadRequest(_("X could not process the file: {0}").format(processing.get("error")))
+			# X says when to come back; its own wait is the one to keep.
+			pause = int(processing.get("check_after_secs") or MEDIA_POLL_SECONDS)
+			if waited + pause > MEDIA_WAIT_SECONDS:
+				raise Retryable(_("X is still processing the file"))
+			time.sleep(pause)
+			waited += pause
+			processing = (
+				cls.request(
+					"GET",
+					cls.MEDIA_URL,
+					account.token_cache,
+					params={"command": "STATUS", "media_id": media_id},
+				)
+				.json()
+				.get("data", {})
+				.get("processing_info")
+			)
 
 	@classmethod
 	def error_for(cls, response: requests.Response) -> SocialError:
@@ -208,3 +317,16 @@ class XProvider(Provider):
 		if response.status_code == 429 or response.status_code >= 500:
 			return Retryable(message)
 		return BadRequest(message)
+
+
+def media_type(item: dict) -> str:
+	"""The MIME type of a file. X wants it before the bytes arrive."""
+	guess, _encoding = mimetypes.guess_type(item.get("file_url") or "")
+	return guess or ("video/mp4" if item.get("kind") == "video" else "image/jpeg")
+
+
+def media_category(item: dict) -> str:
+	"""What the file is for. X keeps a different pipeline per category."""
+	if item.get("kind") == "video":
+		return "tweet_video"
+	return "tweet_gif" if media_type(item) == "image/gif" else "tweet_image"

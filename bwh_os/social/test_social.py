@@ -34,7 +34,7 @@ from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
 from bwh_os.social.publisher import JOB_TIMEOUT, Publisher, publish_due_posts, resume_stuck_posts
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, Retryable
 from bwh_os.social.providers.base import Account
-from bwh_os.social.providers.x import XProvider
+from bwh_os.social.providers.x import MEDIA_CHUNK_BYTES, XProvider
 from bwh_os.social.x_text import weighted_length
 from bwh_os.social.providers.linkedin import (
 	IMAGE_WAIT_SECONDS,
@@ -1095,6 +1095,131 @@ class IntegrationTestXPosting(SocialTestCase):
 		)
 
 
+class IntegrationTestXMedia(SocialTestCase):
+	"""A file goes up in three calls, then the tweet names its id. See `bwh_os.social.providers.x`."""
+
+	def setUp(self):
+		super().setUp()
+		self.account = Account(token_cache=MagicMock(), account_id="42", post_name="1")
+		self.files: list[str] = []
+		# The wait is real seconds X spends transcoding, and no test has that long.
+		self.wait = patch("bwh_os.social.providers.x.time.sleep")
+		self.wait.start()
+		self.addCleanup(self.wait.stop)
+
+	def tearDown(self):
+		for name in self.files:
+			frappe.delete_doc("File", name, force=True, ignore_missing=True)
+		super().tearDown()
+
+	def make_file(self, name: str, content: bytes, kind: str = "image") -> dict:
+		"""A private `File` like the one the composer uploads onto a post."""
+		doc = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"{frappe.generate_hash(length=6)}-{name}",
+				"is_private": 1,
+				"content": content,
+				"decode": False,
+			}
+		).insert()
+		self.files.append(doc.name)
+		return {"file_url": doc.file_url, "kind": kind}
+
+	def answers(self, processing: list[dict | None] | None = None):
+		"""X, answering each call of the upload by the URL it came in on."""
+		states = list(processing or [])
+
+		def request(method, url, token_cache, post_name=None, **kwargs):
+			response = MagicMock()
+			if url == XProvider.MEDIA_INITIALIZE_URL:
+				response.json.return_value = {"data": {"id": "media-1"}}
+			elif url.endswith("/finalize") or url == XProvider.MEDIA_URL:
+				response.json.return_value = {"data": {"processing_info": states.pop(0) if states else None}}
+			elif url == XProvider.TWEETS_URL:
+				response.json.return_value = {"data": {"id": "1"}}
+			else:
+				response.json.return_value = {}
+			return response
+
+		return request
+
+	def send(self, media: list[dict], processing: list[dict | None] | None = None):
+		"""Post one part carrying this media and give back every call it made."""
+		with patch.object(XProvider, "request", side_effect=self.answers(processing)) as request:
+			XProvider.post(self.account, [{"text": "Look", "media": media}], {}, [], lambda _: None)
+		return request
+
+	def test_the_file_goes_up_before_the_tweet_names_it(self):
+		request = self.send([self.make_file("shot.png", b"\x89PNG\r\n\x1a\n")])
+
+		urls = [call.args[1] for call in request.call_args_list]
+		self.assertEqual(
+			urls,
+			[
+				XProvider.MEDIA_INITIALIZE_URL,
+				XProvider.MEDIA_APPEND_URL.format(id="media-1"),
+				XProvider.MEDIA_FINALIZE_URL.format(id="media-1"),
+				XProvider.TWEETS_URL,
+			],
+		)
+		self.assertEqual(request.call_args.kwargs["json"]["media"], {"media_ids": ["media-1"]})
+
+	def test_x_is_told_what_is_coming_before_the_bytes(self):
+		request = self.send([self.make_file("shot.png", b"\x89PNG")])
+
+		body = request.call_args_list[0].kwargs["json"]
+		self.assertEqual(body, {"media_type": "image/png", "total_bytes": 4, "media_category": "tweet_image"})
+
+	def test_a_video_goes_up_as_a_video(self):
+		request = self.send([self.make_file("clip.mp4", b"\x00" * 8, kind="video")])
+
+		body = request.call_args_list[0].kwargs["json"]
+		self.assertEqual(body["media_type"], "video/mp4")
+		self.assertEqual(body["media_category"], "tweet_video")
+
+	def test_a_file_goes_up_a_chunk_at_a_time(self):
+		size = MEDIA_CHUNK_BYTES + 10
+		request = self.send([self.make_file("clip.mp4", b"\x00" * size, kind="video")])
+
+		appends = [call for call in request.call_args_list if "/append" in call.args[1]]
+		self.assertEqual([call.kwargs["data"]["segment_index"] for call in appends], [0, 1])
+		self.assertEqual(len(appends[0].kwargs["files"]["media"]), MEDIA_CHUNK_BYTES)
+		self.assertEqual(len(appends[1].kwargs["files"]["media"]), 10)
+
+	def test_the_tweet_waits_while_x_is_still_making_the_video_ready(self):
+		request = self.send(
+			[self.make_file("clip.mp4", b"\x00" * 8, kind="video")],
+			processing=[
+				{"state": "in_progress", "check_after_secs": 1},
+				{"state": "succeeded"},
+			],
+		)
+
+		statuses = [call for call in request.call_args_list if call.args[1] == XProvider.MEDIA_URL]
+		self.assertEqual(len(statuses), 1)
+		self.assertEqual(statuses[0].kwargs["params"]["media_id"], "media-1")
+
+	def test_a_video_x_could_not_make_ready_is_not_tweeted(self):
+		self.assertRaises(
+			BadRequest,
+			self.send,
+			[self.make_file("clip.mp4", b"\x00" * 8, kind="video")],
+			[{"state": "failed", "error": {"name": "InvalidMedia"}}],
+		)
+
+	def test_a_file_that_is_gone_stops_the_tweet(self):
+		self.assertRaises(
+			BadRequest,
+			XProvider.post,
+			self.account,
+			[{"text": "Look", "media": [{"file_url": "/private/files/nothing.png", "kind": "image"}]}],
+			{},
+			[],
+			lambda _: None,
+		)
+
+
 class IntegrationTestXPosts(IntegrationTestSocialPosts):
 	"""What the composer says about a post going to X. See `bwh_os.social.providers.x`."""
 
@@ -1114,12 +1239,38 @@ class IntegrationTestXPosts(IntegrationTestSocialPosts):
 
 		self.assertEqual(validate_post(post.name)[0]["counts"], [274])
 
-	def test_x_takes_no_media_yet(self):
+	def test_x_takes_four_images_to_a_tweet(self):
 		channel = self.make_channel("X")
-		media = json.dumps([{"file_url": "/private/files/a.png", "kind": "image"}])
+		media = json.dumps(
+			[{"file_url": f"/private/files/{index}.png", "kind": "image"} for index in range(5)]
+		)
 		post = self.make_post([channel], parts=[{"text": "Look", "media": media}])
 
-		self.assertIn("media on X yet", " ".join(validate_post(post.name)[0]["errors"]))
+		result = validate_post(post.name)[0]
+
+		self.assertEqual(result["max_images"], 4)
+		self.assertTrue(result["media_after_part_one"])
+		self.assertIn("X takes 4", result["errors"][0])
+
+	def test_an_image_over_what_x_takes_is_reported(self):
+		channel = self.make_channel("X")
+		shot = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"{frappe.generate_hash(length=6)}-big.png",
+				"is_private": 1,
+				"content": b"\x89PNG",
+				"decode": False,
+			}
+		).insert()
+		self.addCleanup(frappe.delete_doc, "File", shot.name, force=True, ignore_missing=True)
+		shot.db_set("file_size", 6 * 1024 * 1024)
+		post = self.make_post(
+			[channel],
+			parts=[{"text": "Look", "media": json.dumps([{"file_url": shot.file_url, "kind": "image"}])}],
+		)
+
+		self.assertIn("image of 5 MB at most", validate_post(post.name)[0]["errors"][0])
 
 	def test_a_reply_rule_x_does_not_know_is_refused(self):
 		channel = self.make_channel("X")

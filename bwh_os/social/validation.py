@@ -133,10 +133,13 @@ class PostValidator:
 			url = item.get("file_url")
 			if url not in sizes:
 				problems.append(_("{0} is not on the post any more").format(url))
-			elif item.get("kind") == "video" and sizes[url] > provider.max_video_bytes:
+				continue
+			video = item.get("kind") == "video"
+			limit = provider.max_video_bytes if video else provider.max_image_bytes
+			if sizes[url] > limit:
 				problems.append(
-					_("{0} takes a video of {1} MB at most").format(
-						provider.key, provider.max_video_bytes // (1024 * 1024)
+					_("{0} takes a {1} of {2} MB at most").format(
+						provider.key, _("video") if video else _("image"), limit // (1024 * 1024)
 					)
 				)
 		return problems

@@ -63,6 +63,8 @@ class Provider(ABC):
 	max_videos: ClassVar[int] = 1
 	# What the platform takes in one video. The site's own `max_file_size` sits above this.
 	max_video_bytes: ClassVar[int] = 512 * 1024 * 1024
+	# What the platform takes in one image. LinkedIn's number, which is the looser of the two.
+	max_image_bytes: ClassVar[int] = 36 * 1024 * 1024
 	# A LinkedIn comment and an X reply differ here: LinkedIn takes text only.
 	media_after_part_one: ClassVar[bool] = True
 	# Whether the life of the token is the life of the connection. It is for LinkedIn,
