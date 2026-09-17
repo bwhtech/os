@@ -29,6 +29,7 @@ export interface SignupForm {
 	collect_name: 0 | 1
 	double_opt_in: 0 | 1
 	confirm_subject: string | null
+	confirm_reply_to: string | null
 	confirm_theme: NewsletterTheme
 	/** The API returns JSON fields as a string */
 	confirm_content_json: string | EmailDocument | null
@@ -37,6 +38,7 @@ export interface SignupForm {
 	tags: TagRow[]
 	lead_magnet: string | null
 	welcome_subject: string | null
+	welcome_reply_to: string | null
 	welcome_theme: NewsletterTheme
 	welcome_content_json: string | EmailDocument | null
 	welcome_content_html: string | null
@@ -92,6 +94,7 @@ export interface NewsletterIssue {
 	name: string
 	subject: string
 	preview_text: string | null
+	reply_to: string | null
 	status: NewsletterStatus
 	theme: NewsletterTheme
 	/** The API returns JSON fields as a string */
@@ -168,6 +171,7 @@ export interface NewsletterEngagement extends EngagementComparison {
 export interface MailingSettings {
 	name: 'Mailing Settings'
 	email_account: string | null
+	reply_to: string | null
 	default_hourly_limit: number
 	company_name: string | null
 	gstin: string | null

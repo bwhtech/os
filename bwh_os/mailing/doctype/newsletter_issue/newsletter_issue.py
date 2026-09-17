@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import get_url
+from frappe.utils import get_url, validate_email_address
 
 from bwh_os.mailing import email_variables
 from bwh_os.mailing.emails import add_footer
@@ -17,6 +17,7 @@ from bwh_os.mailing.newsletter_tracking import EmailTracking
 LOCKED_FIELDS = (
 	"subject",
 	"preview_text",
+	"reply_to",
 	"theme",
 	"content_json",
 	"content_html",
@@ -47,6 +48,7 @@ class NewsletterIssue(Document):
 		opened_count: DF.Int
 		preview_text: DF.Data | None
 		recipient_count: DF.Int
+		reply_to: DF.Data | None
 		route: DF.Data | None
 		scheduled_at: DF.Datetime | None
 		sent_at: DF.Datetime | None
@@ -68,6 +70,8 @@ class NewsletterIssue(Document):
 
 	def validate(self):
 		self.ensure_unchanged_after_send()
+		if self.reply_to:
+			validate_email_address(self.reply_to, throw=True)
 		email_variables.check(self.subject, email_variables.NEWSLETTER, _("The subject"))
 		email_variables.check(self.content_html, email_variables.NEWSLETTER, _("The newsletter"))
 		NewsletterRoute(self).validate()
@@ -104,6 +108,7 @@ class NewsletterIssue(Document):
 		queued = frappe.sendmail(
 			recipients=[recipient],
 			sender=settings.get_sender(),
+			reply_to=settings.get_reply_to(self.reply_to),
 			subject=_("[Test] {0}").format(
 				email_variables.fill(
 					self.subject, email_variables.fallback_values(email_variables.NEWSLETTER), html=False

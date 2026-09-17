@@ -15,10 +15,18 @@ CELL_END = re.compile(r"</td\s*>", re.IGNORECASE)
 class ListEmail:
 	"""An email from the OS editor to one subscriber, with the company footer from Mailing Settings."""
 
-	def __init__(self, subscriber, subject: str, html: str, values: dict[str, str | None] | None = None):
+	def __init__(
+		self,
+		subscriber,
+		subject: str,
+		html: str,
+		values: dict[str, str | None] | None = None,
+		reply_to: str | None = None,
+	):
 		self.subscriber = subscriber
 		self.subject = subject
 		self.html = html
+		self.reply_to = reply_to
 		# Values for the variables besides the subscriber's own, for example confirm_url
 		self.values = {**email_variables.subscriber_values(subscriber), **(values or {})}
 
@@ -30,6 +38,7 @@ class ListEmail:
 		frappe.sendmail(
 			recipients=[self.subscriber.email],
 			sender=settings.get_sender(),
+			reply_to=settings.get_reply_to(self.reply_to),
 			subject=email_variables.fill(self.subject, self.values, html=False),
 			message=add_footer(email_variables.fill(self.html, self.values), unsubscribe_url),
 			# The editor makes a full HTML document. Frappe's wrapper would nest it.

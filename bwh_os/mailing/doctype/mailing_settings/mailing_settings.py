@@ -3,6 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
+from frappe.utils import validate_email_address
 
 SOCIAL_LINK_FIELDS = ("youtube_url", "x_url", "linkedin_url", "github_url", "discord_url")
 
@@ -26,11 +27,14 @@ class MailingSettings(Document):
 		linkedin_url: DF.Data | None
 		notify_blog_comments: DF.Check
 		postal_address: DF.SmallText | None
+		reply_to: DF.Data | None
 		x_url: DF.Data | None
 		youtube_url: DF.Data | None
 	# end: auto-generated types
 
 	def validate(self):
+		if self.reply_to:
+			validate_email_address(self.reply_to, throw=True)
 		if self.notify_blog_comments and not self.blog_notification_email:
 			self.blog_notification_email = frappe.db.get_value("User", frappe.session.user, "email")
 
@@ -47,3 +51,10 @@ class MailingSettings(Document):
 		if not self.email_account:
 			return None
 		return frappe.db.get_value("Email Account", self.email_account, "email_id")
+
+	def get_reply_to(self, override: str | None = None) -> str | None:
+		"""Where replies go. An email that names its own address wins.
+
+		None leaves the header out, and a reply goes to the From address.
+		"""
+		return override or self.reply_to or None

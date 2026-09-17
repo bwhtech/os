@@ -7,6 +7,7 @@
  "field_order": [
   "subject",
   "preview_text",
+  "reply_to",
   "status",
   "theme",
   "audience_section",
@@ -48,6 +49,13 @@
    "fieldname": "preview_text",
    "fieldtype": "Data",
    "label": "Preview Text"
+  },
+  {
+   "description": "Where replies to this newsletter go. Empty uses Mailing Settings.",
+   "fieldname": "reply_to",
+   "fieldtype": "Data",
+   "label": "Reply-To",
+   "options": "Email"
   },
   {
    "default": "Draft",

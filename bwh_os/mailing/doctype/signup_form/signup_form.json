@@ -16,12 +16,14 @@
   "success_message",
   "confirm_section",
   "confirm_subject",
+  "confirm_reply_to",
   "confirm_theme",
   "confirm_content_json",
   "confirm_content_html",
   "welcome_section",
   "lead_magnet",
   "welcome_subject",
+  "welcome_reply_to",
   "welcome_theme",
   "welcome_content_json",
   "welcome_content_html"
@@ -103,6 +105,13 @@
    "mandatory_depends_on": "eval:doc.double_opt_in"
   },
   {
+   "description": "Where replies go. Empty uses Mailing Settings.",
+   "fieldname": "confirm_reply_to",
+   "fieldtype": "Data",
+   "label": "Confirm Reply-To",
+   "options": "Email"
+  },
+  {
    "default": "Frappe UI",
    "fieldname": "confirm_theme",
    "fieldtype": "Select",
@@ -141,6 +150,13 @@
    "fieldtype": "Data",
    "label": "Welcome Subject",
    "mandatory_depends_on": "eval:doc.lead_magnet"
+  },
+  {
+   "description": "Where replies go. Empty uses Mailing Settings.",
+   "fieldname": "welcome_reply_to",
+   "fieldtype": "Data",
+   "label": "Welcome Reply-To",
+   "options": "Email"
   },
   {
    "default": "Frappe UI",

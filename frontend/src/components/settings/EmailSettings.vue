@@ -16,6 +16,13 @@
 					description="Add accounts in Desk."
 				/>
 				<TextInput
+					v-model="draft.replyTo"
+					type="email"
+					label="Reply-to"
+					placeholder="The sending account"
+					description="Where a reader's reply goes. A newsletter or a form email can name its own."
+				/>
+				<TextInput
 					v-model.number="draft.defaultHourlyLimit"
 					type="number"
 					:min="1"
@@ -109,6 +116,7 @@ type SocialLinkField = (typeof SOCIAL_LINKS)[number]['key']
 
 const draft = reactive({
 	emailAccount: '',
+	replyTo: '',
 	defaultHourlyLimit: 500,
 	companyName: '',
 	gstin: '',
@@ -125,6 +133,7 @@ const saved = computed(() => {
 	if (!doc) return null
 	return {
 		emailAccount: doc.email_account ?? '',
+		replyTo: doc.reply_to ?? '',
 		defaultHourlyLimit: doc.default_hourly_limit,
 		companyName: doc.company_name ?? '',
 		gstin: doc.gstin ?? '',
@@ -146,6 +155,7 @@ async function save() {
 	try {
 		await settings.setValue.submit({
 			email_account: draft.emailAccount || null,
+			reply_to: draft.replyTo || null,
 			default_hourly_limit: draft.defaultHourlyLimit,
 			company_name: draft.companyName,
 			gstin: draft.gstin,

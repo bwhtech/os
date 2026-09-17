@@ -70,6 +70,7 @@
 				v-if="draft.doubleOptIn"
 				ref="confirmEmail"
 				v-model:subject="draft.confirmSubject"
+				v-model:reply-to="draft.confirmReplyTo"
 				v-model:content="draft.confirmContent"
 				v-model:theme="draft.confirmTheme"
 			/>
@@ -80,6 +81,7 @@
 				ref="welcomeEmail"
 				v-model:lead-magnet="draft.leadMagnet"
 				v-model:subject="draft.welcomeSubject"
+				v-model:reply-to="draft.welcomeReplyTo"
 				v-model:content="draft.welcomeContent"
 				v-model:theme="draft.welcomeTheme"
 			/>
@@ -127,12 +129,14 @@ const draft = reactive({
 	collectName: false,
 	doubleOptIn: false,
 	confirmSubject: "",
+	confirmReplyTo: "",
 	confirmContent: null as EmailDocument | null,
 	confirmTheme: "Frappe UI" as NewsletterTheme,
 	tags: [] as string[],
 	successMessage: "",
 	leadMagnet: "",
 	welcomeSubject: "",
+	welcomeReplyTo: "",
 	welcomeContent: null as EmailDocument | null,
 	welcomeTheme: "Frappe UI" as NewsletterTheme,
 });
@@ -160,6 +164,7 @@ const saved = computed(() => {
 		collectName: Boolean(doc.collect_name),
 		doubleOptIn: Boolean(doc.double_opt_in),
 		confirmSubject: doc.confirm_subject ?? "",
+		confirmReplyTo: doc.confirm_reply_to ?? "",
 		// A form with no email yet starts from a first draft.
 		confirmContent: parseEmailDocument(doc.confirm_content_json) ?? confirmStarter(),
 		confirmTheme: doc.confirm_theme,
@@ -167,6 +172,7 @@ const saved = computed(() => {
 		successMessage: doc.success_message,
 		leadMagnet: doc.lead_magnet ?? "",
 		welcomeSubject: doc.welcome_subject ?? "",
+		welcomeReplyTo: doc.welcome_reply_to ?? "",
 		welcomeContent:
 			parseEmailDocument(doc.welcome_content_json) ?? welcomeStarter(Boolean(doc.lead_magnet)),
 		welcomeTheme: doc.welcome_theme,
@@ -206,6 +212,7 @@ async function save() {
 			collect_name: draft.collectName ? 1 : 0,
 			double_opt_in: draft.doubleOptIn ? 1 : 0,
 			confirm_subject: draft.confirmSubject,
+			confirm_reply_to: draft.confirmReplyTo || null,
 			confirm_theme: draft.confirmTheme,
 			confirm_content_json: JSON.stringify(draft.confirmContent),
 			// A hidden confirm editor keeps the saved email.
@@ -216,6 +223,7 @@ async function save() {
 			tags: draft.tags.map((tag) => ({ tag })),
 			lead_magnet: draft.leadMagnet || null,
 			welcome_subject: draft.welcomeSubject,
+			welcome_reply_to: draft.welcomeReplyTo || null,
 			welcome_theme: draft.welcomeTheme,
 			welcome_content_json: JSON.stringify(draft.welcomeContent),
 			welcome_content_html: (await welcomeEmail.value?.getHtml()) ?? form.doc?.welcome_content_html,

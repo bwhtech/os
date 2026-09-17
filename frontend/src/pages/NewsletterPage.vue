@@ -89,6 +89,13 @@
 					label="Preview text"
 					description="Inbox apps show it after the subject."
 				/>
+				<TextInput
+					v-model="draft.replyTo"
+					type="email"
+					label="Reply-to"
+					placeholder="The address in Settings"
+					description="Where a reply to this newsletter goes. Empty uses the address in Settings."
+				/>
 			</section>
 
 			<NewsletterAudience
@@ -199,6 +206,7 @@ const sampleHtml = computed(() => fillSamples(issue.doc?.content_html ?? '', NEW
 
 const draft = reactive({
 	subject: '',
+	replyTo: '',
 	previewText: '',
 	theme: 'Frappe UI' as NewsletterTheme,
 	audience: 'All Active' as Audience,
@@ -244,6 +252,7 @@ const saved = computed(() => {
 	if (!doc) return null
 	return {
 		subject: doc.subject,
+		replyTo: doc.reply_to ?? '',
 		previewText: doc.preview_text ?? '',
 		theme: doc.theme,
 		audience: doc.audience,
@@ -281,6 +290,7 @@ async function save() {
 	try {
 		await issue.setValue.submit({
 			subject: draft.subject,
+			reply_to: draft.replyTo || null,
 			preview_text: draft.previewText,
 			theme: draft.theme,
 			audience: draft.audience,

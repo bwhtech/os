@@ -5,6 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "email_account",
+  "reply_to",
   "default_hourly_limit",
   "footer_section",
   "company_name",
@@ -28,6 +29,13 @@
    "fieldtype": "Link",
    "label": "Email Account",
    "options": "Email Account"
+  },
+  {
+   "description": "Where replies go, for every list email. Empty sends replies to the sending account.",
+   "fieldname": "reply_to",
+   "fieldtype": "Data",
+   "label": "Reply-To",
+   "options": "Email"
   },
   {
    "default": "500",

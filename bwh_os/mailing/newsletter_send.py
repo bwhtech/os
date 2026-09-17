@@ -181,9 +181,11 @@ class NewsletterSend:
 		subscriber = frappe.get_doc("Subscriber", row.subscriber)
 		unsubscribe_url = tracking.unsubscribe_url(subscriber.get_unsubscribe_url())
 		values = email_variables.subscriber_values(subscriber)
+		settings = frappe.get_cached_doc("Mailing Settings")
 		queue = frappe.sendmail(
 			recipients=[row.email],
-			sender=frappe.get_cached_doc("Mailing Settings").get_sender(),
+			sender=settings.get_sender(),
+			reply_to=settings.get_reply_to(self.issue.reply_to),
 			subject=email_variables.fill(self.issue.subject, values, html=False),
 			message=self.issue.get_email_html(unsubscribe_url, tracking, values),
 			# The editor makes a full HTML document. Frappe's wrapper would nest it.

@@ -10,6 +10,14 @@
 		</div>
 
 		<TextInput v-model="subject" label="Subject" required class="max-w-2xl" />
+		<TextInput
+			v-model="replyTo"
+			type="email"
+			label="Reply-to"
+			placeholder="The address in Settings"
+			description="Where a reply to this email goes."
+			class="max-w-2xl"
+		/>
 		<EmailComposer
 			ref="composer"
 			v-model:content="content"
@@ -27,6 +35,7 @@ import { CONFIRM_VARIABLES } from '@/lib/emailVariables'
 import type { EmailDocument, NewsletterTheme } from '@/types'
 
 const subject = defineModel<string>('subject', { required: true })
+const replyTo = defineModel<string>('replyTo', { required: true })
 const content = defineModel<EmailDocument | null>('content', { required: true })
 const theme = defineModel<NewsletterTheme>('theme', { required: true })
 

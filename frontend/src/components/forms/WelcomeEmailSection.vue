@@ -24,6 +24,14 @@
 			placeholder="Here is your manual, {{ first_name }}"
 			:required="Boolean(leadMagnet)"
 		/>
+		<TextInput
+			v-model="replyTo"
+			type="email"
+			label="Reply-to"
+			class="max-w-2xl"
+			placeholder="The address in Settings"
+			description="Where a reply to this email goes. A person who answers the welcome email is worth hearing."
+		/>
 
 		<!-- The save is refused without this link, and it is the one thing nobody can guess.
 		     Better to say so while the email is being written, with the fix one click away. -->
@@ -58,6 +66,7 @@ import type { EmailDocument, LeadMagnet, NewsletterTheme } from "@/types";
 
 const leadMagnet = defineModel<string>("leadMagnet", { required: true });
 const subject = defineModel<string>("subject", { required: true });
+const replyTo = defineModel<string>("replyTo", { required: true });
 const content = defineModel<EmailDocument | null>("content", { required: true });
 const theme = defineModel<NewsletterTheme>("theme", { required: true });
 

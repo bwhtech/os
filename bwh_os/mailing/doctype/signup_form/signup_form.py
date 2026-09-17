@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import get_url
+from frappe.utils import get_url, validate_email_address
 
 from bwh_os.mailing import email_variables
 from bwh_os.mailing.doctype.subscriber.subscriber import normalize_email
@@ -35,6 +35,7 @@ class SignupForm(Document):
 		collect_name: DF.Check
 		confirm_content_html: DF.Code | None
 		confirm_content_json: DF.JSON | None
+		confirm_reply_to: DF.Data | None
 		confirm_subject: DF.Data | None
 		confirm_theme: DF.Literal["Frappe UI", "Basic", "Minimal"]
 		double_opt_in: DF.Check
@@ -46,6 +47,7 @@ class SignupForm(Document):
 		title: DF.Data
 		welcome_content_html: DF.Code | None
 		welcome_content_json: DF.JSON | None
+		welcome_reply_to: DF.Data | None
 		welcome_subject: DF.Data | None
 		welcome_theme: DF.Literal["Frappe UI", "Basic", "Minimal"]
 	# end: auto-generated types
@@ -58,6 +60,9 @@ class SignupForm(Document):
 			frappe.throw(_("Form ID can only have lowercase letters, digits, and single hyphens"))
 		self.validate_confirm_email()
 		self.validate_welcome_email()
+		for field in ("confirm_reply_to", "welcome_reply_to"):
+			if self.get(field):
+				validate_email_address(self.get(field), throw=True)
 
 	def validate_confirm_email(self):
 		if not self.double_opt_in:
@@ -164,7 +169,13 @@ class SignupForm(Document):
 	def send_confirm_email(self, subscriber):
 		with log_email_failure(subscriber, self.name, "Confirm"):
 			values = {"confirm_url": self.get_confirm_url(subscriber.token)}
-			ListEmail(subscriber, self.confirm_subject, self.confirm_content_html, values).send()
+			ListEmail(
+				subscriber,
+				self.confirm_subject,
+				self.confirm_content_html,
+				values,
+				reply_to=self.confirm_reply_to,
+			).send()
 
 	def send_welcome_email(self, subscriber):
 		if not self.welcome_subject:
@@ -177,7 +188,13 @@ class SignupForm(Document):
 					"download_url": lead_magnet.get_download_url(subscriber.token),
 					"lead_magnet": lead_magnet.title,
 				}
-			ListEmail(subscriber, self.welcome_subject, self.welcome_content_html, values).send()
+			ListEmail(
+				subscriber,
+				self.welcome_subject,
+				self.welcome_content_html,
+				values,
+				reply_to=self.welcome_reply_to,
+			).send()
 
 
 @contextmanager

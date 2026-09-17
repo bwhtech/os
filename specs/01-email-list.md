@@ -58,6 +58,7 @@ All doctypes go in a new module, `Mailing`.
 | Field | Type | Notes |
 |---|---|---|
 | email_account | Link: Email Account | Sends all list email |
+| reply_to | Data (Email) | Where replies to list email go. Empty leaves the header out, so a reply goes to the sending account. An email of its own wins over this one. |
 | default_hourly_limit | Int | Default 500. New issues copy this value. |
 | company_name | Data | BWH Technologies LLP |
 | gstin | Data | |
@@ -95,6 +96,7 @@ All doctypes go in a new module, `Mailing`.
 | tags | Table MultiSelect | Tags to add on signup |
 | lead_magnet | Link: Lead Magnet | Optional |
 | success_message | Small Text | Shown on the site after submit |
+| confirm_reply_to, welcome_reply_to | Data (Email) | Where a reply to that email goes. Empty uses `Mailing Settings`. |
 | confirm_subject, confirm_theme, confirm_content_json, confirm_content_html | Data, Select, JSON, Code | Used when double opt-in is on. Written in `EmailComposer`. The content must link to `{{ confirm_url }}`. |
 | welcome_subject, welcome_theme, welcome_content_json, welcome_content_html | Data, Select, JSON, Code | Sent when the subscriber becomes Active. With a lead magnet, the content must link to `{{ download_url }}`. |
 
@@ -110,6 +112,7 @@ The form page in OS also shows the signup count, the confirm rate, and the embed
 |---|---|---|
 | subject | Data | |
 | preview_text | Data | |
+| reply_to | Data (Email) | Where a reply to this issue goes. Empty uses `Mailing Settings`. Locked once the send starts. |
 | content_json | JSON | Editor document |
 | content_html | Code (HTML) | Email-safe HTML. The editor makes it in the browser and OS saves it with `content_json`. Code, because Frappe sanitizes Long Text and removes `<html>`, `<head>`, and `<body>`. |
 | theme | Select | Frappe UI (default), Basic, Minimal. Frappe UI uses the frappe-ui light tokens as hex colors. |
