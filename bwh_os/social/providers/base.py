@@ -61,6 +61,8 @@ class Provider(ABC):
 	max_length: ClassVar[int]
 	max_images: ClassVar[int]
 	max_videos: ClassVar[int] = 1
+	# What the platform takes in one video. The site's own `max_file_size` sits above this.
+	max_video_bytes: ClassVar[int] = 512 * 1024 * 1024
 	# A LinkedIn comment and an X reply differ here: LinkedIn takes text only.
 	media_after_part_one: ClassVar[bool] = True
 
@@ -109,8 +111,8 @@ class Provider(ABC):
 			problems.append(_("A {0} comment takes text only").format(cls.key))
 			return problems
 
-		videos = [item for item in media if item.get("kind") == "video"]
-		images = [item for item in media if item.get("kind") != "video"]
+		videos = videos_of(media)
+		images = images_of(media)
 		if videos and len(media) > 1:
 			# Postiz: a video goes on its own, whatever the platform allows for images.
 			problems.append(_("Part {0} can hold a video or images, not both").format(part_no))
@@ -209,13 +211,13 @@ def file_bytes(file_url: str) -> bytes:
 	return content.encode() if isinstance(content, str) else content
 
 
-def images_of(part: dict) -> list[dict]:
+def images_of(media: list[dict]) -> list[dict]:
 	"""The images of a part. A video takes another road, and never shares a part."""
-	return [item for item in (part.get("media") or []) if item.get("kind") != "video"]
+	return [item for item in media if item.get("kind") != "video"]
 
 
-def videos_of(part: dict) -> list[dict]:
-	return [item for item in (part.get("media") or []) if item.get("kind") == "video"]
+def videos_of(media: list[dict]) -> list[dict]:
+	return [item for item in media if item.get("kind") == "video"]
 
 
 def finish_log(log: Document | None, status: str, output: str) -> None:

@@ -18,6 +18,7 @@ from bwh_os.social.providers.base import (
 	BadRequest,
 	Provider,
 	Release,
+	Retryable,
 	file_bytes,
 	images_of,
 	videos_of,
@@ -29,6 +30,9 @@ API_VERSION = "202601"
 COMMENT_API_VERSION = "202306"
 # How long an image needs before a post may name it. Postiz waits the same 20 seconds.
 IMAGE_WAIT_SECONDS = 20
+# A video is transcoded before it can be posted. Five minutes is the spec's ceiling.
+VIDEO_WAIT_SECONDS = 5 * 60
+VIDEO_POLL_SECONDS = 5
 
 # `commentary` is little markup, so these characters have to be escaped or the post
 # breaks where the reader typed nothing special. The list is postiz's.
@@ -41,10 +45,15 @@ class LinkedInProvider(Provider):
 	max_length = 3000
 	# `multiImage` holds 20. A comment on a personal post is text, so media stops at part 1.
 	max_images = 20
+	# A video under 200 MB, per the spec. The site takes 500 MB, so this is the tighter rule.
+	max_video_bytes = 200 * 1024 * 1024
 	media_after_part_one = False
 
 	USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
 	IMAGES_URL = "https://api.linkedin.com/rest/images?action=initializeUpload"
+	VIDEOS_URL = "https://api.linkedin.com/rest/videos?action=initializeUpload"
+	FINALIZE_VIDEO_URL = "https://api.linkedin.com/rest/videos?action=finalizeUpload"
+	VIDEO_URL = "https://api.linkedin.com/rest/videos/{urn}"
 	POSTS_URL = "https://api.linkedin.com/rest/posts"
 	COMMENTS_URL = "https://api.linkedin.com/rest/socialActions/{urn}/comments"
 	FEED_URL = "https://www.linkedin.com/feed/update/{urn}"
@@ -78,13 +87,10 @@ class LinkedInProvider(Provider):
 		for part_no, part in enumerate(parts, start=1):
 			if part_no in done:
 				continue
-			if videos_of(part):
-				# Video uploads come with slice 3.1. Nothing can attach one before then.
-				raise BadRequest(_("LinkedIn video is not ready yet"))
 
 			if part_no == 1:
 				urn = cls.create_post(
-					account, part.get("text") or "", cls.upload_media(account, images_of(part))
+					account, part.get("text") or "", cls.upload_media(account, part.get("media") or [])
 				)
 				on_release(Release(part_no=1, id=urn, url=cls.FEED_URL.format(urn=urn)))
 			else:
@@ -93,13 +99,17 @@ class LinkedInProvider(Provider):
 
 	@classmethod
 	def upload_media(cls, account: Account, media: list[dict]) -> list[str]:
-		"""Every image, in the order it was written, as the urns the post refers to.
+		"""Every file, in the order it was written, as the urns the post refers to.
 
-		A personal token cannot read the status of an upload, so there is no way to ask
-		whether an image is ready. LinkedIn drops an image the post names too early, so
-		the post waits instead of asking.
+		A video goes up on its own and says when it is ready. Images cannot: a personal
+		token cannot read the status of an image upload, so there is no way to ask whether
+		one is ready. LinkedIn drops an image the post names too early, so the post waits
+		instead of asking.
 		"""
-		images = [cls.upload_image(account, item) for item in media]
+		if videos := videos_of(media):
+			return [cls.upload_video(account, videos[0])]
+
+		images = [cls.upload_image(account, item) for item in images_of(media)]
 		if images:
 			time.sleep(IMAGE_WAIT_SECONDS)
 		return images
@@ -125,6 +135,91 @@ class LinkedInProvider(Provider):
 			data=content,
 		)
 		return upload["image"]
+
+	@classmethod
+	def upload_video(cls, account: Account, item: dict) -> str:
+		"""A video goes up in the ranges LinkedIn asks for, then it is told they all arrived.
+
+		Each range answers with an ETag, and the finalize call lists them in order: that is
+		how LinkedIn puts the file back together. Then the video is transcoded, and a post
+		that names it before it is `AVAILABLE` gets no video at all, so this waits for it.
+		"""
+		content = file_bytes(item["file_url"])
+		upload = cls.request(
+			"POST",
+			cls.VIDEOS_URL,
+			account.token_cache,
+			post_name=account.post_name,
+			headers=cls.headers(API_VERSION),
+			json={
+				"initializeUploadRequest": {
+					"owner": cls.author(account),
+					"fileSizeBytes": len(content),
+					"uploadCaptions": False,
+					"uploadThumbnail": False,
+				}
+			},
+		).json()["value"]
+
+		tags = [
+			cls.upload_range(account, instruction, content) for instruction in upload["uploadInstructions"]
+		]
+		cls.request(
+			"POST",
+			cls.FINALIZE_VIDEO_URL,
+			account.token_cache,
+			post_name=account.post_name,
+			headers=cls.headers(API_VERSION),
+			json={
+				"finalizeUploadRequest": {
+					"video": upload["video"],
+					"uploadToken": upload.get("uploadToken", ""),
+					"uploadedPartIds": tags,
+				}
+			},
+		)
+		cls.wait_for_video(account, upload["video"])
+		return upload["video"]
+
+	@classmethod
+	def upload_range(cls, account: Account, instruction: dict, content: bytes) -> str:
+		"""One range of the file. The ETag is what names this part in the finalize call."""
+		first, last = int(instruction["firstByte"]), int(instruction["lastByte"])
+		response = cls.request(
+			"PUT",
+			instruction["uploadUrl"],
+			account.token_cache,
+			post_name=account.post_name,
+			data=content[first : last + 1],
+		)
+		tag = response.headers.get("etag") or response.headers.get("ETag")
+		if not tag:
+			raise BadRequest(_("LinkedIn took a part of the video but named no id"))
+		return tag.strip('"')
+
+	@classmethod
+	def wait_for_video(cls, account: Account, urn: str) -> None:
+		"""Until LinkedIn says the video can be posted, or until waiting is pointless."""
+		waited = 0
+		while waited < VIDEO_WAIT_SECONDS:
+			status = (
+				cls.request(
+					"GET",
+					cls.VIDEO_URL.format(urn=quote(urn, safe="")),
+					account.token_cache,
+					headers=cls.headers(API_VERSION),
+				)
+				.json()
+				.get("status")
+			)
+			if status == "AVAILABLE":
+				return
+			if status == "PROCESSING_FAILED":
+				raise BadRequest(_("LinkedIn could not process the video"))
+			time.sleep(VIDEO_POLL_SECONDS)
+			waited += VIDEO_POLL_SECONDS
+
+		raise Retryable(_("LinkedIn is still processing the video"))
 
 	@classmethod
 	def create_post(cls, account: Account, text: str, images: list[str] | None = None) -> str:

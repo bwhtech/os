@@ -40,6 +40,15 @@
 					<span v-else class="li-muted">Your post shows up here.</span>
 				</p>
 
+				<!-- A video fills the card on its own, with the controls LinkedIn puts on it. -->
+				<video
+					v-if="video"
+					:src="video.file_url"
+					class="mt-3 max-h-[360px] w-full bg-black object-contain"
+					controls
+					preload="metadata"
+				/>
+
 				<!-- Images run the full width of the card, the way the feed shows them. -->
 				<div
 					v-if="images.length"
@@ -139,7 +148,9 @@ const expanded = ref(false)
 const name = computed(() => props.channel?.display_name ?? 'LinkedIn')
 const initial = computed(() => name.value.trim().charAt(0).toUpperCase() || 'L')
 const text = computed(() => props.parts[0]?.text ?? '')
-const images = computed(() => (props.parts[0]?.media ?? []).filter((item) => item.kind === 'image'))
+const media = computed(() => props.parts[0]?.media ?? [])
+const images = computed(() => media.value.filter((item) => item.kind === 'image'))
+const video = computed(() => media.value.find((item) => item.kind === 'video'))
 const comments = computed(() => props.parts.slice(1))
 
 // The fold stays open while you keep writing, and closes again for another channel.

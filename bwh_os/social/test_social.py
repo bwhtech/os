@@ -29,7 +29,11 @@ from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
 from bwh_os.social.publisher import JOB_TIMEOUT, Publisher, publish_due_posts, resume_stuck_posts
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, Retryable
 from bwh_os.social.providers.base import Account
-from bwh_os.social.providers.linkedin import IMAGE_WAIT_SECONDS, LinkedInProvider
+from bwh_os.social.providers.linkedin import (
+	IMAGE_WAIT_SECONDS,
+	VIDEO_POLL_SECONDS,
+	LinkedInProvider,
+)
 from bwh_os.social.tokens import SKEW_SECONDS, get_token
 
 
@@ -393,16 +397,101 @@ class IntegrationTestLinkedInMedia(SocialTestCase):
 			lambda _: None,
 		)
 
-	def test_a_video_waits_for_its_own_slice(self):
-		self.assertRaises(
-			BadRequest,
-			LinkedInProvider.post,
-			self.account,
-			[{"text": "Look", "media": [{"file_url": "/private/files/clip.mp4", "kind": "video"}]}],
-			{},
-			[],
-			lambda _: None,
+	def make_video(self, size: int = 12) -> dict:
+		"""A private `File` that stands in for a clip, small enough to live in a test."""
+		clip = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"{frappe.generate_hash(length=6)}-clip.mp4",
+				"is_private": 1,
+				"content": b"\x00" * size,
+				"decode": False,
+			}
+		).insert()
+		self.files.append(clip.name)
+		return {"file_url": clip.file_url, "kind": "video"}
+
+	def video_responses(self, ranges: list[tuple[int, int]], statuses: list[str]):
+		"""Initialize, one answer per range, finalize, then the status calls."""
+		start = MagicMock()
+		start.json.return_value = {
+			"value": {
+				"video": "urn:li:video:1",
+				"uploadToken": "token",
+				"uploadInstructions": [
+					{"uploadUrl": f"https://upload/{index}", "firstByte": first, "lastByte": last}
+					for index, (first, last) in enumerate(ranges)
+				],
+			}
+		}
+		parts = []
+		for index in range(len(ranges)):
+			answer = MagicMock()
+			answer.headers = {"etag": f'"tag-{index}"'}
+			parts.append(answer)
+
+		checks = []
+		for status in statuses:
+			answer = MagicMock()
+			answer.json.return_value = {"status": status}
+			checks.append(answer)
+
+		post = MagicMock()
+		post.headers = {"x-restli-id": "urn:li:share:1"}
+		return [start, *parts, MagicMock(), *checks, post]
+
+	def test_a_video_goes_up_in_the_ranges_linkedin_asks_for(self):
+		clip = self.make_video(size=10)
+
+		with patch.object(
+			LinkedInProvider,
+			"request",
+			side_effect=self.video_responses([(0, 4), (5, 9)], ["AVAILABLE"]),
+		) as request:
+			LinkedInProvider.post(self.account, [{"text": "Watch", "media": [clip]}], {}, [], lambda _: None)
+
+		ranges = [call.kwargs["data"] for call in request.call_args_list if "data" in call.kwargs]
+		self.assertEqual(ranges, [b"\x00" * 5, b"\x00" * 5])
+		finalize = request.call_args_list[3].kwargs["json"]["finalizeUploadRequest"]
+		self.assertEqual(finalize["uploadedPartIds"], ["tag-0", "tag-1"])
+		self.assertEqual(finalize["video"], "urn:li:video:1")
+		self.assertEqual(
+			request.call_args.kwargs["json"]["content"],
+			{"media": {"id": "urn:li:video:1", "altText": ""}},
 		)
+
+	def test_the_post_waits_while_the_video_is_still_being_made_ready(self):
+		clip = self.make_video()
+
+		with (
+			patch("bwh_os.social.providers.linkedin.time.sleep") as sleep,
+			patch.object(
+				LinkedInProvider,
+				"request",
+				side_effect=self.video_responses([(0, 11)], ["PROCESSING", "AVAILABLE"]),
+			),
+		):
+			LinkedInProvider.post(self.account, [{"text": "Watch", "media": [clip]}], {}, [], lambda _: None)
+
+		sleep.assert_called_once_with(VIDEO_POLL_SECONDS)
+
+	def test_a_video_the_platform_could_not_make_ready_is_not_posted(self):
+		clip = self.make_video()
+
+		with patch.object(
+			LinkedInProvider,
+			"request",
+			side_effect=self.video_responses([(0, 11)], ["PROCESSING_FAILED"]),
+		):
+			self.assertRaises(
+				BadRequest,
+				LinkedInProvider.post,
+				self.account,
+				[{"text": "Watch", "media": [clip]}],
+				{},
+				[],
+				lambda _: None,
+			)
 
 
 class IntegrationTestSocialExpiry(SocialTestCase):
@@ -633,6 +722,26 @@ class IntegrationTestSocialPosts(SocialTestCase):
 		)
 
 		self.assertIn("not on the post any more", validate_post(post.name)[0]["errors"][0])
+
+	def test_a_video_over_what_the_platform_takes_is_reported(self):
+		channel = self.make_channel()
+		clip = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"{frappe.generate_hash(length=6)}-big.mp4",
+				"is_private": 1,
+				"content": b"\x00" * 64,
+				"decode": False,
+			}
+		).insert()
+		self.addCleanup(frappe.delete_doc, "File", clip.name, force=True, ignore_missing=True)
+		clip.db_set("file_size", 300 * 1024 * 1024)
+		post = self.make_post(
+			[channel],
+			parts=[{"text": "Watch", "media": json.dumps([{"file_url": clip.file_url, "kind": "video"}])}],
+		)
+
+		self.assertIn("video of 200 MB at most", validate_post(post.name)[0]["errors"][0])
 
 	def test_the_composer_learns_what_the_platform_takes(self):
 		channel = self.make_channel()

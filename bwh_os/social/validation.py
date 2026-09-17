@@ -59,7 +59,7 @@ class PostValidator:
 		provider = get_provider(name)
 		errors = [] if parts else [_("Write the post first")]
 		errors += provider.validate(parts, self.settings_of(target))
-		errors += self.missing_media(parts)
+		errors += self.media_errors(parts, provider)
 		errors += self.channel_errors(target)
 		return self.result(
 			target,
@@ -114,13 +114,32 @@ class PostValidator:
 		)
 		return [{"text": row.text or "", "media": media_of(row)} for row in rows]
 
-	def missing_media(self, parts: list[dict]) -> list[str]:
-		"""A file that is no longer on the post cannot go out with it."""
-		urls = [item.get("file_url") for part in parts for item in part["media"]]
-		if not urls:
+	def media_errors(self, parts: list[dict], provider) -> list[str]:
+		"""What is wrong with the files themselves: one that left the post, one too big."""
+		items = [item for part in parts for item in part["media"]]
+		if not items:
 			return []
-		kept = set(frappe.get_all("File", filters={"file_url": ("in", urls)}, pluck="file_url"))
-		return [_("{0} is not on the post any more").format(url) for url in urls if url not in kept]
+
+		sizes = {
+			row.file_url: row.file_size
+			for row in frappe.get_all(
+				"File",
+				filters={"file_url": ("in", [item.get("file_url") for item in items])},
+				fields=["file_url", "file_size"],
+			)
+		}
+		problems = []
+		for item in items:
+			url = item.get("file_url")
+			if url not in sizes:
+				problems.append(_("{0} is not on the post any more").format(url))
+			elif item.get("kind") == "video" and sizes[url] > provider.max_video_bytes:
+				problems.append(
+					_("{0} takes a video of {1} MB at most").format(
+						provider.key, provider.max_video_bytes // (1024 * 1024)
+					)
+				)
+		return problems
 
 	def settings_of(self, target: Document) -> dict:
 		return parse_json(target.settings) or {}
