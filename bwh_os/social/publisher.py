@@ -108,13 +108,11 @@ class Publisher:
 			self.released(target),
 			lambda release: self.keep(target, release),
 		)
-		first = next((row for row in self.released(target) if row["part_no"] == 1), {})
+		# `keep` already wrote where part 1 landed, as it landed.
 		self.set_target(
 			target,
 			status="Published",
 			published_at=now_datetime(),
-			release_id=first.get("id"),
-			release_url=first.get("url"),
 			error=None,
 			error_kind=None,
 		)
@@ -175,9 +173,18 @@ class Publisher:
 		return bool(target.publish_attempted_at) and not self.released(target)
 
 	def keep(self, target, release: Release):
-		"""Write a part down the moment it lands, so nothing posts twice."""
+		"""Write a part down the moment it lands, so nothing posts twice.
+
+		Part 1 also fills in where it landed. A thread whose post went out and whose
+		comment did not is a failure, and the link is how someone finds the thing that is
+		already on the platform. Waiting until the whole target succeeds loses it exactly
+		when it is needed.
+		"""
 		released = [*self.released(target), release.as_dict()]
-		self.set_target(target, released_parts=frappe.as_json(released))
+		values = {"released_parts": frappe.as_json(released)}
+		if release.part_no == 1:
+			values |= {"release_id": release.id, "release_url": release.url}
+		self.set_target(target, **values)
 		self.commit()
 
 	def released(self, target) -> list[dict]:

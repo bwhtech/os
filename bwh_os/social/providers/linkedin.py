@@ -19,6 +19,7 @@ from bwh_os.social.providers.base import (
 	Provider,
 	Release,
 	Retryable,
+	SocialError,
 	file_bytes,
 	images_of,
 	videos_of,
@@ -276,6 +277,22 @@ class LinkedInProvider(Provider):
 			json={"actor": actor, "object": urn, "message": {"text": escape(text)}},
 		)
 		return response.json().get("object") or ""
+
+	@classmethod
+	def error_for(cls, response) -> SocialError:
+		"""LinkedIn says 401 to a token that is gone and 403 to a call it will not allow.
+
+		A token that has run out or been taken back is a 401 and names itself, with
+		`EXPIRED_ACCESS_TOKEN` or `REVOKED_ACCESS_TOKEN`. A 403 is about the call: the app
+		is not cleared for that endpoint. Connecting again through the same app changes
+		nothing, so a 403 must not expire the channel and send someone round a loop that
+		cannot end. The reader gets what LinkedIn said and decides what to do with it.
+		"""
+		if response.status_code == 403:
+			return BadRequest(
+				_("{0} said 403: {1}").format(cls.key, response.text[:500]),
+			)
+		return super().error_for(response)
 
 	@classmethod
 	def headers(cls) -> dict:

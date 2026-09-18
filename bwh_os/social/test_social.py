@@ -516,6 +516,21 @@ class IntegrationTestLinkedInProvider(SocialTestCase):
 
 		self.assertIsInstance(LinkedInProvider.error_for(response), ReconnectRequired)
 
+	def test_an_endpoint_the_app_may_not_call_is_not_a_dead_token(self):
+		"""LinkedIn says 403 when the app is not cleared for a call. Reconnecting through
+		the same app changes nothing, so it must not expire the channel."""
+		response = MagicMock(
+			ok=False,
+			status_code=403,
+			text='{"status":403,"code":"ACCESS_DENIED","message":"Not enough permissions'
+			' to access: partnerApiSocialActions.CREATE.20260101"}',
+		)
+
+		error = LinkedInProvider.error_for(response)
+
+		self.assertIsInstance(error, BadRequest)
+		self.assertNotIsInstance(error, ReconnectRequired)
+
 	def test_a_busy_platform_is_worth_another_go(self):
 		for status in (429, 503):
 			response = MagicMock(ok=False, status_code=status, text="busy")
@@ -1324,6 +1339,34 @@ class IntegrationTestXPosts(IntegrationTestSocialPosts):
 		post.reload()
 
 		self.assertIn("nobody", validate_post(post.name)[0]["errors"][0])
+
+	def test_a_thread_whose_reply_failed_still_says_where_the_first_part_went(self):
+		"""The first tweet is on X. The link is how someone finds it, so a failure keeps it."""
+		channel = self.make_channel("X", handle="hussain")
+		post = self.make_post([channel], parts=[{"text": "One"}, {"text": "Two"}])
+		calls = []
+
+		def request(method, url, token_cache, post_name=None, **kwargs):
+			calls.append(url)
+			if len(calls) > 1:
+				raise BadRequest("X said 400: no")
+			response = MagicMock()
+			response.json.return_value = {"data": {"id": "1"}}
+			return response
+
+		with (
+			patch("bwh_os.social.publisher.get_token", return_value=MagicMock()),
+			patch("frappe.enqueue"),
+			patch.object(XProvider, "request", side_effect=request),
+		):
+			publish_post(post.name)
+			Publisher(frappe.get_doc("Social Post", post.name)).run()
+
+		post.reload()
+		self.assertEqual(post.status, "Failed")
+		self.assertEqual(post.targets[0].status, "Failed")
+		self.assertEqual(post.targets[0].release_url, "https://x.com/i/status/1")
+		self.assertEqual(post.targets[0].release_id, "1")
 
 	def test_a_thread_on_x_keeps_the_link_of_its_first_tweet(self):
 		channel = self.make_channel("X", handle="hussain")
