@@ -74,7 +74,7 @@ class Publisher:
 			try:
 				self.publish_target(target)
 			except Exception as error:
-				frappe.db.rollback(save_point=SAVEPOINT)
+				self.undo()
 				self.fail(target, error)
 			self.commit()
 		self.finish()
@@ -237,6 +237,20 @@ class Publisher:
 		next failure would have nothing to roll back to."""
 		frappe.db.commit()
 		frappe.db.savepoint(SAVEPOINT)
+
+	def undo(self):
+		"""Drop what the target wrote on its way to failing, as far as the savepoint allows.
+
+		A call to a platform keeps an `Integration Request`, and the framework commits that
+		as it writes it, which drops every savepoint the job holds. So by the time a target
+		fails the savepoint is usually gone, and MariaDB says so with an error of its own.
+		That error must not travel: it would leave this target Publishing, the targets after
+		it untouched, and the post locked with nothing to press.
+		"""
+		try:
+			frappe.db.rollback(save_point=SAVEPOINT)
+		except frappe.db.OperationalError:
+			pass
 
 	def set_target(self, target, **values):
 		"""Write on the child row. `db_set` on a child updates the row in place."""

@@ -228,7 +228,12 @@ def videos_of(media: list[dict]) -> list[dict]:
 
 
 def finish_log(log: Document | None, status: str, output: str) -> None:
-	"""Close an `Integration Request` with what the platform said."""
+	"""Close an `Integration Request` with what the platform said.
+
+	It commits, as the framework already did when it opened the log. What the platform
+	said is the only account of why a post failed, and a job that dies after this rolls
+	the transaction back, which would leave the log open and the answer lost.
+	"""
 	if not log:
 		return
-	log.db_set({"status": status, "output": output}, commit=False)
+	log.db_set({"status": status, "output": output}, commit=True)

@@ -40,7 +40,13 @@ from bwh_os.social.providers.linkedin import (
 	LinkedInProvider,
 )
 from bwh_os.social.providers.x import MEDIA_CHUNK_BYTES, XProvider
-from bwh_os.social.publisher import JOB_TIMEOUT, Publisher, publish_due_posts, resume_stuck_posts
+from bwh_os.social.publisher import (
+	JOB_TIMEOUT,
+	SAVEPOINT,
+	Publisher,
+	publish_due_posts,
+	resume_stuck_posts,
+)
 from bwh_os.social.tokens import SKEW_SECONDS, get_token
 from bwh_os.social.x_text import weighted_length
 
@@ -1392,6 +1398,26 @@ class IntegrationTestMultiChannel(IntegrationTestSocialPosts):
 		self.assertEqual(x_target.status, "Failed")
 		self.assertEqual(x_target.error_kind, "Bad Request")
 		self.assertTrue(post.published_at)
+
+	def test_a_channel_that_lost_the_savepoint_still_fails_on_its_own(self):
+		"""A call keeps an `Integration Request`, and the framework commits as it writes it.
+
+		That commit drops the savepoint the job holds, so rolling back to it afterwards is
+		an error in its own right. It must not travel: the channel is the one that failed,
+		not the post, and the post has to end up saying so rather than locked on Publishing.
+		"""
+		post = self.make_post([self.make_channel("LinkedIn"), self.make_channel("X")])
+
+		def refuse(*args, **kwargs):
+			frappe.db.release_savepoint(SAVEPOINT)
+			raise BadRequest("X said 400: no")
+
+		self.publish(post, refuse)
+
+		self.assertEqual(post.status, "Partial")
+		x_target = next(target for target in post.targets if target.provider == "X")
+		self.assertEqual(x_target.status, "Failed")
+		self.assertEqual(x_target.error_kind, "Bad Request")
 
 	def test_a_copy_of_a_partial_post_goes_only_where_it_did_not_land(self):
 		post = self.make_post([self.make_channel("LinkedIn"), self.make_channel("X")])
