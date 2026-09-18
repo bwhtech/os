@@ -19,7 +19,8 @@
 			]"
 			@click="toggle(channel)"
 		>
-			<span class="relative">
+			<!-- `inline-flex`, or the box is a line box and the dot lands below the avatar. -->
+			<span class="relative inline-flex">
 				<Avatar :image="channel.avatar_url ?? undefined" :label="label(channel)" size="sm" />
 				<!-- The dot is the channel, not the post: a token that died shows here first. -->
 				<span

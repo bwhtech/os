@@ -25,7 +25,11 @@
 						</ListCell>
 						<ListCell>
 							<span class="flex items-center gap-1.5">
-								<span v-for="target in item.targets" :key="target.channel" class="relative">
+								<span
+									v-for="target in item.targets"
+									:key="target.channel"
+									class="relative inline-flex"
+								>
 									<Avatar
 										:image="target.avatar_url ?? undefined"
 										:label="target.display_name ?? target.provider"
