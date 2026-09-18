@@ -16,7 +16,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
-from bwh_os.social.oauth import upsert_channel
+from bwh_os.social.oauth import keep_the_channel, upsert_channel
 from bwh_os.social.oauth_apps import get_app, redirect_uri
 from bwh_os.social.providers.x import XProvider
 
@@ -78,6 +78,7 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
 	)
 	store_token(app, frappe.session.user, token)
 	upsert_channel(PROVIDER, frappe.session.user)
+	keep_the_channel()
 
 	frappe.local.response["type"] = "redirect"
 	frappe.local.response["location"] = DONE_URI.format(provider=PROVIDER)

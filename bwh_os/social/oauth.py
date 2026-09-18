@@ -23,8 +23,19 @@ def linkedin_connected() -> None:
 	frappe.only_for("System Manager")
 	provider = "LinkedIn"
 	upsert_channel(provider, frappe.session.user)
+	keep_the_channel()
 	frappe.local.response["type"] = "redirect"
 	frappe.local.response["location"] = f"/os/social?connected={provider}"
+
+
+def keep_the_channel() -> None:
+	"""Ask the framework to keep what the callback just wrote.
+
+	The platform sends the browser back with a GET, and a GET is rolled back at the end
+	of the request. The token survives that only because `Token Cache` commits itself, so
+	without this flag the connect ends with a token, no channel, and a success message.
+	"""
+	frappe.local.flags.commit = True
 
 
 def upsert_channel(provider: str, user: str) -> str:

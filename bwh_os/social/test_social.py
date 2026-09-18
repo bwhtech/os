@@ -30,7 +30,7 @@ from bwh_os.social.api import (
 	validate_post,
 )
 from bwh_os.social.channels import check_expiry
-from bwh_os.social.oauth import upsert_channel
+from bwh_os.social.oauth import linkedin_connected, upsert_channel
 from bwh_os.social.oauth_apps import PROVIDERS, ensure_connected_apps, get_app
 from bwh_os.social.providers import BadRequest, ReconnectRequired, Release, Retryable
 from bwh_os.social.providers.base import Account
@@ -209,6 +209,18 @@ class IntegrationTestSocialConnect(SocialTestCase):
 		self.assertEqual(channel.status, "Connected")
 		self.assertEqual(channel.display_name, "Hussain Nagaria")
 		self.assertTrue(channel.expires_on)
+
+	def test_the_callback_keeps_what_it_wrote(self):
+		"""The browser comes back with a GET, and a GET is rolled back unless this is set."""
+		self.make_token_cache()
+		frappe.local.flags.commit = False
+
+		with patch.object(LinkedInProvider, "identity", return_value=self.IDENTITY):
+			linkedin_connected()
+		self.channels.append("LinkedIn-urn-connect")
+		self.addCleanup(frappe.local.flags.pop, "commit", None)
+
+		self.assertTrue(frappe.local.flags.commit)
 
 	def test_connecting_again_clears_the_old_failure(self):
 		self.make_token_cache()
