@@ -166,8 +166,8 @@ Put the methods in `bwh_os/mailing/api.py`.
 - All calls come from Netlify, so a limit on the request IP would block every reader at once. The method uses Frappe `@rate_limit` keyed on `consent_ip`, the reader IP that the function passes: 5 in 10 minutes and 20 in a day.
 - `after_migrate` creates the `OS Signup API` role. It has no desk access.
 - If the form has double opt-in, the method makes the subscriber Pending and sends the confirm email.
-- If the form has single opt-in, the method makes the subscriber Active and sends the welcome email.
-- If the email already exists, the method adds the form tags and keeps the first `source_form`. It does not send a second welcome email.
+- If the form has single opt-in, the method makes the subscriber Active, sends the welcome email (a plain greeting), then the lead magnet's own delivery email if the form has one.
+- If the email already exists, the method adds the form tags and keeps the first `source_form`. It sends the lead magnet again, but not a second welcome email — the greeting already said so once.
 - A signup makes an Unsubscribed person Active again, because the signup is new consent. A Bounced person stays Bounced.
 - A closed form raises `FormClosedError`. The site shows "This signup is closed right now."
 - The method returns `{"message": <success message>}` for a new and a known email alike.
@@ -403,6 +403,14 @@ Each slice goes through all layers. Merge each slice alone.
 - The form's own welcome email becomes a plain greeting. With a magnet, the greeting goes first, then the file, gated by a switch. A repeat signup gets the file again, not a second greeting.
 - Add a patch that moves each form's existing welcome content onto its magnet, and clears the form's copy so the new checks do not fail on old data.
 - Demo: write the delivery email on a lead magnet. Point a form at it. Sign up: the greeting arrives, then the file, each with a link that only that subscriber's token opens.
+
+### 15. Send a lead magnet by hand
+
+- Add `get_lead_magnet_recipients` and `send_lead_magnet` to `bwh_os/mailing/api.py`. Pick named subscribers or everyone with a tag, Active only, with an option to skip anyone who already downloaded it.
+- A manual send has no hourly batching — cap it at 50 (`MANUAL_SEND_LIMIT`), and point at a newsletter past that.
+- Add the Send Lead Magnet dialog: Subscribers or Tag, live recipient and already-downloaded counts, the skip switch. The lead magnet page's Send to… button is disabled until the delivery email is written and saved.
+- `LeadMagnet.recipients()` and its `downloaders_of()` subquery are shared: the newsletter audience filter in the next slice reuses the same "already has it" query.
+- Demo: write a delivery email, pick two subscribers on the lead magnet page, send. Each gets an email with their own download link, right away.
 
 ## Open questions
 

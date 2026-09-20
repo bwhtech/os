@@ -1,6 +1,9 @@
 <template>
 	<AppPageHeader :breadcrumbs="breadcrumbs">
 		<template #actions>
+			<Tooltip :text="sendTooltip" :disabled="!sendTooltip">
+				<Button label="Send to…" :disabled="!canSendManually" @click="sendOpen = true" />
+			</Tooltip>
 			<Button
 				variant="solid"
 				theme="gray"
@@ -11,6 +14,12 @@
 			/>
 		</template>
 	</AppPageHeader>
+
+	<SendLeadMagnetDialog
+		v-model:open="sendOpen"
+		:lead-magnet-id="leadMagnetId"
+		:lead-magnet-title="leadMagnet.doc?.title ?? ''"
+	/>
 
 	<!-- Wide enough for the email editor and its inspector. Plain fields keep a narrow column. -->
 	<div class="mx-auto max-w-5xl space-y-8 px-3 py-6 pb-20 sm:px-5">
@@ -85,6 +94,7 @@ import {
 	ErrorMessage,
 	TextInput,
 	Textarea,
+	Tooltip,
 	toast,
 	useCall,
 	useDoc,
@@ -94,6 +104,7 @@ import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import LeadMagnetDownloads from '@/components/lead-magnets/LeadMagnetDownloads.vue'
 import LeadMagnetEmailSection from '@/components/lead-magnets/LeadMagnetEmailSection.vue'
 import LeadMagnetFileInput from '@/components/lead-magnets/LeadMagnetFileInput.vue'
+import SendLeadMagnetDialog from '@/components/lead-magnets/SendLeadMagnetDialog.vue'
 import ActivityCards from '@/components/stats/ActivityCards.vue'
 import { useSaveShortcut } from '@/composables/useSaveShortcut'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -116,6 +127,7 @@ const downloadCount = computed(() => counts.data?.[props.leadMagnetId] ?? 0)
 
 const emailSection = useTemplateRef<InstanceType<typeof LeadMagnetEmailSection>>('emailSection')
 const loaded = ref(false)
+const sendOpen = ref(false)
 
 const draft = reactive({
 	title: '',
@@ -156,6 +168,16 @@ const saved = computed(() => {
 const dirty = computed(
 	() => Boolean(saved.value) && JSON.stringify(saved.value) !== JSON.stringify(draft),
 )
+
+// A manual send reads the saved document, not the draft, so it must not run ahead of a save.
+const sendTooltip = computed(() => {
+	if (!leadMagnet.doc?.subject || !leadMagnet.doc?.content_html) {
+		return 'Write and save the delivery email first.'
+	}
+	if (dirty.value) return 'Save your changes first.'
+	return ''
+})
+const canSendManually = computed(() => !sendTooltip.value)
 
 useUnsavedChanges(dirty, 'This lead magnet has changes that are not saved. Leave anyway?')
 

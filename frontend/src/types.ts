@@ -143,6 +143,14 @@ export interface AudiencePreview {
 	batches: number[]
 }
 
+export interface LeadMagnetRecipients {
+	recipients: number
+	/** Of the matching subscribers, how many already have the file */
+	already_downloaded: number
+	/** A manual send above this count is refused; use a newsletter instead */
+	limit: number
+}
+
 export type DeliveryStatus = 'Queued' | 'Sent' | 'Failed' | 'Skipped'
 
 export interface NewsletterDelivery {

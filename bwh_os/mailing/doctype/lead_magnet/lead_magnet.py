@@ -12,6 +12,9 @@ from bwh_os.mailing import email_variables
 from bwh_os.mailing.emails import ListEmail
 from bwh_os.mailing.lead_magnet_page import ROUTE_PREFIX, LeadMagnetRoute
 
+# A manual send has no hourly batching, unlike a newsletter. Past this, use one instead.
+MANUAL_SEND_LIMIT = 50
+
 
 class LeadMagnet(Document):
 	# begin: auto-generated types
@@ -84,3 +87,66 @@ class LeadMagnet(Document):
 		ListEmail(
 			subscriber, self.subject, self.content_html, self.values_for(subscriber), reply_to=self.reply_to
 		).send()
+
+	def matching_query(self, subscribers: list[str] | None, tags: list[str] | None):
+		"""Query builder for Active subscribers this send would reach: named, or by tag."""
+		table = frappe.qb.DocType("Subscriber")
+		query = frappe.qb.from_(table).select(table.name, table.email).where(table.status == "Active")
+		if subscribers:
+			query = query.where(table.name.isin(subscribers))
+		elif tags:
+			item = frappe.qb.DocType("Subscriber Tag Item")
+			tagged = (
+				frappe.qb.from_(item)
+				.select(item.parent)
+				.where((item.parenttype == "Subscriber") & item.tag.isin(tags))
+			)
+			query = query.where(table.name.isin(tagged))
+		else:
+			query = query.where(table.name == "")
+		return query, table
+
+	def recipients(
+		self,
+		subscribers: list[str] | None = None,
+		tags: list[str] | None = None,
+		skip_downloaded: bool = True,
+	) -> list[dict]:
+		"""Who a manual send would reach now."""
+		query, table = self.matching_query(subscribers, tags)
+		if skip_downloaded:
+			query = query.where(table.name.notin(downloaders_of(self.name)))
+		return query.run(as_dict=True)
+
+	def already_downloaded_count(self, subscribers: list[str] | None, tags: list[str] | None) -> int:
+		"""Of the matching subscribers, how many already have this file."""
+		query, table = self.matching_query(subscribers, tags)
+		return len(query.where(table.name.isin(downloaders_of(self.name))).run())
+
+	def send_many(self, subscribers: list[str], source: str, reference: str | None = None) -> dict:
+		"""Send to each by name. A failure on one does not stop the rest."""
+		if not self.has_email():
+			frappe.throw(_("{0} has no delivery email").format(self.title))
+		sent, failed = 0, []
+		for name in subscribers:
+			try:
+				self.send_to(frappe.get_doc("Subscriber", name), source=source, reference=reference)
+				sent += 1
+			except Exception:
+				failed.append(name)
+				frappe.log_error(
+					f"Manual send of {self.name} to {name} failed",
+					reference_doctype="Lead Magnet",
+					reference_name=self.name,
+				)
+		return {"sent": sent, "failed": failed}
+
+
+def downloaders_of(lead_magnet: str):
+	"""Subscribers who already have this file, as a query builder subquery.
+
+	Shared by the manual send above and the newsletter audience filter, so "already has it"
+	means one thing everywhere it is asked.
+	"""
+	download = frappe.qb.DocType("Lead Magnet Download")
+	return frappe.qb.from_(download).select(download.subscriber).where(download.lead_magnet == lead_magnet)

@@ -44,6 +44,10 @@ A signup form can give a magnet away: the form's welcome email (a plain greeting
 the magnet's own email with the file. Only a magnet with its own delivery email can be linked to a
 form.
 
+- **Send to…** Send the file by hand to picked subscribers or everyone with a tag, right away, with
+  no hourly batching. Capped at 50 people — past that, use a newsletter. Skip anyone who already
+  downloaded it, on by default.
+
 ![Lead magnet](.github/images/lead-magnet.png)
 
 ### Newsletters

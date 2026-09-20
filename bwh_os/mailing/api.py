@@ -8,6 +8,7 @@ from frappe.utils import validate_email_address
 from werkzeug.utils import redirect
 
 from bwh_os.mailing import stats, youtube_video
+from bwh_os.mailing.doctype.lead_magnet.lead_magnet import MANUAL_SEND_LIMIT
 from bwh_os.mailing.emails import render_footer
 from bwh_os.mailing.lead_magnet_page import ROUTE_PREFIX
 from bwh_os.mailing.newsletter_engagement import NewsletterEngagement
@@ -322,6 +323,47 @@ def get_lead_magnet_activity(lead_magnet: str) -> dict:
 	return stats.activity(
 		"Lead Magnet Download", "downloaded_on", {"lead_magnet": lead_magnet}, unique_by=("subscriber",)
 	)
+
+
+@frappe.whitelist(methods=["GET"])
+def get_lead_magnet_recipients(
+	lead_magnet: str,
+	subscribers: list[str] | str | None = None,
+	tags: list[str] | str | None = None,
+	skip_downloaded: int = 1,
+) -> dict:
+	"""Who a manual send would reach now. A GET request carries the lists as JSON array strings."""
+	frappe.only_for("System Manager")
+	subscribers = frappe.parse_json(subscribers) if isinstance(subscribers, str) else subscribers
+	tags = frappe.parse_json(tags) if isinstance(tags, str) else tags
+	magnet = frappe.get_doc("Lead Magnet", lead_magnet)
+	return {
+		"recipients": len(magnet.recipients(subscribers, tags, skip_downloaded=bool(int(skip_downloaded)))),
+		"already_downloaded": magnet.already_downloaded_count(subscribers, tags),
+		"limit": MANUAL_SEND_LIMIT,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def send_lead_magnet(
+	lead_magnet: str,
+	subscribers: list[str] | None = None,
+	tags: list[str] | None = None,
+	skip_downloaded: int = 1,
+) -> dict:
+	"""Send the magnet's delivery email to picked subscribers or everyone with a tag, right away."""
+	frappe.only_for("System Manager")
+	magnet = frappe.get_doc("Lead Magnet", lead_magnet)
+	rows = magnet.recipients(subscribers, tags, skip_downloaded=bool(int(skip_downloaded)))
+	if len(rows) > MANUAL_SEND_LIMIT:
+		frappe.throw(
+			_(
+				"That is {0} people. A manual send goes out at once, with no hourly batching — pick at most {1}, or use a newsletter."
+			).format(len(rows), MANUAL_SEND_LIMIT)
+		)
+	if not rows:
+		frappe.throw(_("Nobody matches. Pick a subscriber or a tag."))
+	return magnet.send_many([row.name for row in rows], source="Manual")
 
 
 @frappe.whitelist(methods=["GET"])
