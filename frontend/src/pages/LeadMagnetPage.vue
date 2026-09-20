@@ -25,6 +25,34 @@
 
 			<section class="space-y-4">
 				<TextInput v-model="draft.title" label="Title" required />
+				<div class="space-y-1.5">
+					<div class="text-xs text-ink-gray-5">Download page</div>
+					<div class="flex items-center gap-2">
+						<a
+							:href="downloadUrl"
+							target="_blank"
+							class="truncate font-mono text-sm text-ink-gray-7 hover:text-ink-gray-9"
+						>
+							{{ downloadPath }}
+						</a>
+						<Button
+							variant="ghost"
+							icon="lucide-copy"
+							aria-label="Copy download page URL"
+							@click="copyUrl"
+						/>
+					</div>
+					<p class="text-p-sm text-ink-gray-5">
+						The link in an email adds the reader's token. Without one the page says the link
+						is not valid.
+					</p>
+				</div>
+				<Textarea
+					v-model="draft.blurb"
+					label="Blurb"
+					description="One line on the download page. Subscribers see this."
+					:rows="2"
+				/>
 				<Textarea
 					v-model="draft.description"
 					label="Description"
@@ -73,17 +101,26 @@ const counts = useCall<Record<string, number>>({
 
 const downloadCount = computed(() => counts.data?.[props.leadMagnetId] ?? 0)
 
-const draft = reactive({ title: '', description: '', file: '' })
+const draft = reactive({ title: '', blurb: '', description: '', file: '' })
 
 const breadcrumbs = computed(() => [
 	{ label: 'Lead Magnets', route: '/lead-magnets' },
 	{ label: leadMagnet.doc?.title ?? props.leadMagnetId },
 ])
 
+// The route is set by the server from the title, so it lags a rename until the save lands.
+const downloadPath = computed(() => `/download/${leadMagnet.doc?.route ?? ''}`)
+const downloadUrl = computed(() => new URL(downloadPath.value, window.location.origin).href)
+
 const saved = computed(() => {
 	const doc = leadMagnet.doc
 	if (!doc) return null
-	return { title: doc.title, description: doc.description ?? '', file: doc.file }
+	return {
+		title: doc.title,
+		blurb: doc.blurb ?? '',
+		description: doc.description ?? '',
+		file: doc.file,
+	}
 })
 
 const dirty = computed(
@@ -108,6 +145,11 @@ watch(
 	},
 	{ immediate: true },
 )
+
+async function copyUrl() {
+	await navigator.clipboard.writeText(downloadUrl.value)
+	toast.success('Link copied')
+}
 
 async function save() {
 	try {

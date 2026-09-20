@@ -102,9 +102,11 @@ All doctypes go in a new module, `Mailing`.
 
 The form page in OS also shows the signup count, the confirm rate, and the embed snippet.
 
-**Lead Magnet**: title, description, file (private Attach).
+**Lead Magnet**: title, route, blurb, description, file (private Attach). The route is a slug made from the title and is where the download page lives. The blurb is the line under the title on that page; the description is a note to self.
 
 **Lead Magnet Download**: lead_magnet, subscriber, downloaded_on. The lead magnet page lists the last 100 downloads with the subscriber. Every download is logged, but the counts and the cards count each subscriber once per file, dated from their first download: a reader who uses the link five times is one download.
+
+The link in an email goes to the download page, not to the file. The page shows the title and a button, and only the POST behind that button logs the download and hands the file over. Mail scanners follow links but do not submit forms, so the count is a count of people. The old `download_lead_magnet` endpoint stays as a redirect: those URLs are still in inboxes.
 
 **Newsletter Issue**
 
@@ -176,7 +178,8 @@ These endpoints allow guests. Each one checks the subscriber token.
 | Confirm | Makes a Pending subscriber Active, sends the welcome email, and shows a page |
 | Unsubscribe (GET) | Shows a page with an unsubscribe button |
 | Unsubscribe (POST) | One-click unsubscribe (RFC 8058). The `List-Unsubscribe` header points here. |
-| Download | Logs a `Lead Magnet Download` and streams the private file |
+| `/download/<route>` (GET) | Shows the lead magnet with a download button |
+| `/download/<route>` (POST) | Logs a `Lead Magnet Download` and streams the private file |
 | Open pixel | Logs an Open event and returns a 1x1 GIF |
 | Click redirect | Logs a Click event and redirects. The target URL is signed, so the endpoint is not an open redirect. |
 | `/newsletter` | Lists public sent issues |

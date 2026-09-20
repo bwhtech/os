@@ -1,0 +1,72 @@
+{#
+	A standalone page, like the newsletter archive. It does not extend templates/web.html:
+	the reader arrives from an email for one thing only, and a page that carries the whole
+	site chrome around a single button is noise.
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="robots" content="noindex" />
+	<title>{% if invalid %}Link not valid{% else %}{{ magnet.title | e }}{% endif %}</title>
+	<style>
+		:root { color-scheme: light dark; }
+		body {
+			margin: 0;
+			padding: 24px;
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+			background: #ffffff;
+			color: #171717;
+			display: flex;
+			min-height: calc(100vh - 48px);
+			align-items: center;
+			justify-content: center;
+		}
+		.card { max-width: 420px; width: 100%; text-align: center; }
+		h1 { font-size: 24px; font-weight: 600; margin: 0 0 8px; line-height: 1.3; }
+		p { margin: 0; color: #525252; line-height: 1.5; }
+		.blurb { margin-bottom: 28px; }
+		.button {
+			display: inline-block;
+			border: 0;
+			border-radius: 8px;
+			background: #171717;
+			color: #ffffff;
+			font: inherit;
+			font-weight: 500;
+			padding: 10px 24px;
+			cursor: pointer;
+		}
+		.button:hover { background: #404040; }
+		.meta { margin-top: 14px; font-size: 13px; color: #737373; }
+		.brand { margin-top: 40px; font-size: 13px; color: #a3a3a3; }
+		@media (prefers-color-scheme: dark) {
+			body { background: #171717; color: #fafafa; }
+			p { color: #a3a3a3; }
+			.button { background: #fafafa; color: #171717; }
+			.button:hover { background: #e5e5e5; }
+		}
+	</style>
+</head>
+<body>
+	<div class="card">
+		{% if invalid %}
+		<h1>Link not valid</h1>
+		<p>This download link is not valid. Use the link in your latest email.</p>
+		{% else %}
+		<h1>{{ magnet.title | e }}</h1>
+		<p class="blurb">{{ magnet.blurb | e if magnet.blurb else "Your copy is ready." }}</p>
+
+		<form method="post">
+			{% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token }}" />{% endif %}
+			<button type="submit" class="button">Download</button>
+		</form>
+
+		<p class="meta">{{ file_name | e }}{% if file_size %} &middot; {{ file_size }}{% endif %}</p>
+		{% endif %}
+
+		{% if company_name %}<p class="brand">{{ company_name | e }}</p>{% endif %}
+	</div>
+</body>
+</html>

@@ -47,6 +47,10 @@ export interface SignupForm {
 export interface LeadMagnet {
 	name: string
 	title: string
+	/** Slug of the download page at /download/<route>. Made from the title. */
+	route: string | null
+	/** One line on the download page. Subscribers see this. */
+	blurb: string | null
 	description: string | null
 	/** Private file URL */
 	file: string

@@ -6,8 +6,9 @@ from urllib.parse import parse_qs, urlparse
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from bwh_os.mailing.api import confirm_subscription, download_lead_magnet, subscribe
+from bwh_os.mailing.api import confirm_subscription, subscribe
 from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import (
+	download_page,
 	last_email_to,
 	make_lead_magnet,
 	use_test_email_account,
@@ -50,9 +51,9 @@ class IntegrationTestDoubleOptIn(IntegrationTestCase):
 		subscribe("test-double-opt-in", "early@example.com")
 		token = frappe.db.get_value("Subscriber", "early@example.com", "token")
 
-		download_lead_magnet(self.lead_magnet.name, token)
+		response = download_page(self.lead_magnet.route, token, method="POST")
 
-		self.assertEqual(frappe.local.response.http_status_code, 404)
+		self.assertEqual(response.status_code, 404)
 
 	def test_confirm_makes_active_and_sends_welcome_email(self):
 		subscribe("test-double-opt-in", "confirmer@example.com")

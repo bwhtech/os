@@ -5,6 +5,8 @@ from email import message_from_string, policy
 
 import frappe
 from frappe.tests import IntegrationTestCase
+from frappe.utils import set_request
+from frappe.website.serve import get_response
 
 from bwh_os.mailing.api import (
 	add_subscriber,
@@ -57,14 +59,35 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 			2,
 		)
 
-	def test_download_logs_and_sends_the_file(self):
+	def test_route_comes_from_the_title(self):
+		self.assertEqual(new_lead_magnet("A Field Guide to Bench").route, "a-field-guide-to-bench")
+
+	def test_a_second_magnet_with_the_same_title_gets_a_suffix(self):
+		title = "Two of These"
+		first = new_lead_magnet(title)
+
+		self.assertEqual(new_lead_magnet(title).route, f"{first.route}-2")
+
+	def test_the_landing_page_shows_the_title_and_logs_nothing(self):
+		"""A mail scanner follows the link. It must not count as a download."""
+		name = add_subscriber("browser@example.com")
+		token = frappe.db.get_value("Subscriber", name, "token")
+		downloads = frappe.db.count("Lead Magnet Download")
+
+		response = download_page(self.lead_magnet.route, token)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn(self.lead_magnet.title, frappe.safe_decode(response.get_data()))
+		self.assertEqual(frappe.db.count("Lead Magnet Download"), downloads)
+
+	def test_the_button_logs_and_sends_the_file(self):
 		name = add_subscriber("downloader@example.com")
 		token = frappe.db.get_value("Subscriber", name, "token")
 
-		download_lead_magnet(self.lead_magnet.name, token)
+		response = download_page(self.lead_magnet.route, token, method="POST")
 
-		self.assertEqual(frappe.local.response.type, "download")
-		self.assertEqual(frappe.safe_encode(frappe.local.response.filecontent), FILE_BYTES)
+		self.assertEqual(response.get_data(), FILE_BYTES)
+		self.assertIn("attachment", response.headers["Content-Disposition"])
 		self.assertTrue(
 			frappe.db.exists(
 				"Lead Magnet Download", {"lead_magnet": self.lead_magnet.name, "subscriber": name}
@@ -79,7 +102,7 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 		before_activity = get_lead_magnet_activity(self.lead_magnet.name)
 
 		for _ in range(3):
-			download_lead_magnet(self.lead_magnet.name, token)
+			download_page(self.lead_magnet.route, token, method="POST")
 
 		self.assertEqual(
 			frappe.db.count(
@@ -95,19 +118,49 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 	def test_wrong_token_logs_nothing(self):
 		downloads = frappe.db.count("Lead Magnet Download")
 
-		download_lead_magnet(self.lead_magnet.name, "not-a-token")
+		response = download_page(self.lead_magnet.route, "not-a-token", method="POST")
 
-		self.assertEqual(frappe.local.response.type, "page")
-		self.assertEqual(frappe.local.response.http_status_code, 404)
+		self.assertEqual(response.status_code, 404)
 		self.assertEqual(frappe.db.count("Lead Magnet Download"), downloads)
+
+	def test_the_old_download_url_still_works(self):
+		"""Those links are in inboxes forever."""
+		name = add_subscriber("old-link@example.com")
+		token = frappe.db.get_value("Subscriber", name, "token")
+
+		response = download_lead_magnet(self.lead_magnet.name, token)
+
+		self.assertEqual(response.status_code, 302)
+		self.assertIn(f"/download/{self.lead_magnet.route}", response.headers["Location"])
+
+
+def download_page(route: str, token: str, method: str = "GET"):
+	"""Ask for /download/<route> the way a browser does, through the real page renderer.
+
+	The request goes back as it was afterwards. A leftover one from `set_request` has no
+	`request_ip`, and the next test to call a rate-limited endpoint dies on it.
+	"""
+	request = getattr(frappe.local, "request", None)
+	form_dict = frappe.local.form_dict
+	try:
+		set_request(method=method, path=f"/download/{route}", query_string=f"token={token}")
+		frappe.local.form_dict = frappe._dict(token=token)
+		return get_response()
+	finally:
+		frappe.local.request = request
+		frappe.local.form_dict = form_dict
 
 
 def make_lead_magnet():
 	title = "Test Missing Frappe Manual"
 	if name := frappe.db.exists("Lead Magnet", {"title": title}):
 		return frappe.get_doc("Lead Magnet", name)
+	return new_lead_magnet(title)
+
+
+def new_lead_magnet(title: str):
 	file = frappe.get_doc(
-		{"doctype": "File", "file_name": "test-manual.txt", "is_private": 1, "content": FILE_BYTES}
+		{"doctype": "File", "file_name": f"{frappe.generate_hash(length=8)}.txt", "is_private": 1, "content": FILE_BYTES}
 	).insert()
 	return frappe.get_doc({"doctype": "Lead Magnet", "title": title, "file": file.file_url}).insert()
 

@@ -8,6 +8,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import get_url, now_datetime
 
+from bwh_os.mailing.lead_magnet_page import ROUTE_PREFIX, LeadMagnetRoute
+
 
 class LeadMagnet(Document):
 	# begin: auto-generated types
@@ -18,8 +20,10 @@ class LeadMagnet(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		blurb: DF.SmallText | None
 		description: DF.SmallText | None
 		file: DF.Attach
+		route: DF.Data | None
 		title: DF.Data
 	# end: auto-generated types
 
@@ -27,13 +31,16 @@ class LeadMagnet(Document):
 		# A public file would be open to anyone with the URL, with no download logged.
 		if not self.file.startswith("/private/files/"):
 			frappe.throw(_("Upload the lead magnet as a private file"))
+		LeadMagnetRoute(self).validate()
 
 	def get_download_url(self, subscriber_token: str) -> str:
-		query = urlencode({"lead_magnet": self.name, "token": subscriber_token})
-		return get_url(f"/api/method/bwh_os.mailing.api.download_lead_magnet?{query}")
+		"""The link that goes in an email. The token says who is asking."""
+		return get_url(f"/{ROUTE_PREFIX}{self.route}?{urlencode({'token': subscriber_token})}")
 
-	def send_file(self, subscriber: str):
-		"""Log a download and put the file in the response."""
+	def get_file(self):
+		return frappe.get_doc("File", {"file_url": self.file})
+
+	def log_download(self, subscriber: str):
 		frappe.get_doc(
 			{
 				"doctype": "Lead Magnet Download",
@@ -42,10 +49,3 @@ class LeadMagnet(Document):
 				"downloaded_on": now_datetime(),
 			}
 		).insert(ignore_permissions=True)
-		# Downloads are GET requests, which Frappe does not commit by default.
-		frappe.local.flags.commit = True
-
-		file = frappe.get_doc("File", {"file_url": self.file})
-		frappe.local.response.update(
-			{"type": "download", "filename": file.file_name, "filecontent": file.get_content()}
-		)

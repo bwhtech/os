@@ -4,6 +4,7 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
+bwh_os.patches.set_lead_magnet_routes
 
 [post_fixture_sync]
 # Patches added in this section will be executed after fixtures and customizations

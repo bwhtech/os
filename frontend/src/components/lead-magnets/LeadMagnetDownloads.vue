@@ -5,7 +5,7 @@
 			<!-- The count is people, the list is every download: the same reader can come back. -->
 			<p class="text-p-base text-ink-gray-6">
 				<span class="tabular-nums">{{ count }}</span>
-				{{ count === 1 ? 'subscriber has' : 'subscribers have' }} used a welcome email link.
+				{{ count === 1 ? 'subscriber has' : 'subscribers have' }} taken the file.
 			</p>
 		</div>
 

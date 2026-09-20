@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 import frappe
 from frappe import _
 from frappe.query_builder.functions import Count
@@ -7,6 +9,7 @@ from werkzeug.utils import redirect
 
 from bwh_os.mailing import stats, youtube_video
 from bwh_os.mailing.emails import render_footer
+from bwh_os.mailing.lead_magnet_page import ROUTE_PREFIX
 from bwh_os.mailing.newsletter_engagement import NewsletterEngagement
 from bwh_os.mailing.newsletter_send import Audience, NewsletterSend
 from bwh_os.mailing.newsletter_tracking import is_signed, pixel_response
@@ -200,10 +203,13 @@ def track_click(delivery: str, url: str, signature: str):
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
-def download_lead_magnet(lead_magnet: str, token: str) -> None:
-	"""The link in the welcome email. The subscriber token stands in for a login."""
-	subscriber = frappe.db.get_value("Subscriber", {"token": token, "status": ("!=", "Pending")})
-	if not subscriber or not frappe.db.exists("Lead Magnet", lead_magnet):
+def download_lead_magnet(lead_magnet: str, token: str):
+	"""The old download link. Keep it: these URLs are still sitting in people's inboxes.
+
+	Downloads now live at /download/<route>. See bwh_os.mailing.lead_magnet_page.
+	"""
+	route = frappe.db.get_value("Lead Magnet", lead_magnet, "route")
+	if not route:
 		frappe.respond_as_web_page(
 			_("Link not valid"),
 			_("This download link is not valid. Use the link in your latest email."),
@@ -211,7 +217,7 @@ def download_lead_magnet(lead_magnet: str, token: str) -> None:
 			indicator_color="red",
 		)
 		return
-	frappe.get_doc("Lead Magnet", lead_magnet).send_file(subscriber)
+	return redirect(f"/{ROUTE_PREFIX}{route}?{urlencode({'token': token})}")
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])

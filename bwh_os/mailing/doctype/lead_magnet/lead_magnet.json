@@ -6,6 +6,8 @@
  "engine": "InnoDB",
  "field_order": [
   "title",
+  "route",
+  "blurb",
   "description",
   "file"
  ],
@@ -18,6 +20,21 @@
    "reqd": 1
   },
   {
+   "description": "The download page is at /download/<route>. Made from the title.",
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "label": "Route",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "description": "One line on the download page. Subscribers see this.",
+   "fieldname": "blurb",
+   "fieldtype": "Small Text",
+   "label": "Blurb"
+  },
+  {
+   "description": "For you. Subscribers do not see it.",
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description"

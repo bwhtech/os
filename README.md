@@ -35,7 +35,10 @@ The dashboard shows the growth of the list, subscribers by status, and the stats
 
 ### Lead magnets
 
-A lead magnet is a private file, for example a PDF. The welcome email has a download link with a token. Each download is logged.
+A lead magnet is a private file, for example a PDF. It gets its own page at `/download/<route>`,
+and the link in an email carries the reader's token. The page shows the title and a button; only
+the button hands the file over, so a mail scanner following the link is not counted as a reader.
+Each download is logged.
 
 ![Lead magnet](.github/images/lead-magnet.png)
 

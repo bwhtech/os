@@ -39,8 +39,11 @@ website_route_rules = [
 # `mount_on` on that same record, and its entries are appended to the host's rail. Mounting keeps
 # the companion off the apps screen, so it takes precedence over any add_to_apps_screen above.
 
-# Serves /newsletter/<route>. See bwh_os.mailing.newsletter_archive.
-page_renderer = ["bwh_os.mailing.newsletter_archive.NewsletterIssuePage"]
+# Serves /newsletter/<route> and /download/<route>.
+page_renderer = [
+	"bwh_os.mailing.newsletter_archive.NewsletterIssuePage",
+	"bwh_os.mailing.lead_magnet_page.LeadMagnetDownloadPage",
+]
 
 # Frappe puts "X-" before custom header names, so List-Unsubscribe needs a rename.
 make_email_body_message = ["bwh_os.mailing.emails.rename_list_headers"]
