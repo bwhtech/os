@@ -15,11 +15,14 @@ export function confirmStarter(): EmailDocument {
 	])
 }
 
-export function welcomeStarter(withLeadMagnet: boolean): EmailDocument {
-	const intro = paragraph([text('Hi '), variable('first_name', 'First name'), text(', thanks for joining.')])
-	if (!withLeadMagnet) return email([intro])
+export function welcomeStarter(): EmailDocument {
+	return email([paragraph([text('Hi '), variable('first_name', 'First name'), text(', thanks for joining.')])])
+}
+
+/** First draft for a lead magnet's own delivery email. */
+export function leadMagnetStarter(): EmailDocument {
 	return email([
-		intro,
+		paragraph([text('Hi '), variable('first_name', 'First name'), text(',')]),
 		BLANK,
 		paragraph([text('Here is your copy of '), variable('lead_magnet', 'Lead magnet'), text('.')]),
 		BLANK,
@@ -27,7 +30,7 @@ export function welcomeStarter(withLeadMagnet: boolean): EmailDocument {
 	])
 }
 
-/** The button a welcome email needs when the form gives a lead magnet away. */
+/** The button a lead magnet's email needs to hand the file over. */
 export function downloadButton(): JSONContent {
 	return button('Download', '{{ download_url }}')
 }

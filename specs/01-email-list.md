@@ -94,15 +94,18 @@ All doctypes go in a new module, `Mailing`.
 | collect_name | Check | Adds `collectName` to the embed snippet. The site does not read this field. |
 | double_opt_in | Check | |
 | tags | Table MultiSelect | Tags to add on signup |
-| lead_magnet | Link: Lead Magnet | Optional |
+| lead_magnet | Link: Lead Magnet | Optional. Gives the file away on signup, through the magnet's own delivery email. |
+| send_welcome_with_lead_magnet | Check | With a lead magnet, also send the welcome email first. Default on. |
 | success_message | Small Text | Shown on the site after submit |
 | confirm_reply_to, welcome_reply_to | Data (Email) | Where a reply to that email goes. Empty uses `Mailing Settings`. |
 | confirm_subject, confirm_theme, confirm_content_json, confirm_content_html | Data, Select, JSON, Code | Used when double opt-in is on. Written in `EmailComposer`. The content must link to `{{ confirm_url }}`. |
-| welcome_subject, welcome_theme, welcome_content_json, welcome_content_html | Data, Select, JSON, Code | Sent when the subscriber becomes Active. With a lead magnet, the content must link to `{{ download_url }}`. |
+| welcome_subject, welcome_theme, welcome_content_json, welcome_content_html | Data, Select, JSON, Code | A plain greeting, sent when the subscriber becomes Active. Leave the subject empty to send nothing. |
 
 The form page in OS also shows the signup count, the confirm rate, and the embed snippet.
 
-**Lead Magnet**: title, route, blurb, description, file (private Attach). The route is a slug made from the title and is where the download page lives. The blurb is the line under the title on that page; the description is a note to self.
+**Lead Magnet**: title, route, blurb, description, file (private Attach), and its own delivery email — subject, reply_to, theme, content_json, content_html. The route is a slug made from the title and is where the download page lives. The blurb is the line under the title on that page; the description is a note to self. The delivery email is what hands the file over: it is required to link `{{ download_url }}` once a subject is set, and a form cannot give away a magnet that has no email.
+
+A signup with a lead magnet gets two emails at most: the form's welcome email (if it has a subject and the switch is on), then the magnet's own delivery email. A repeat signup — someone already on the list who fills in the form again — gets the file again but not the greeting a second time.
 
 **Lead Magnet Download**: lead_magnet, subscriber, downloaded_on. The lead magnet page lists the last 100 downloads with the subscriber. Every download is logged, but the counts and the cards count each subscriber once per file, dated from their first download: a reader who uses the link five times is one download.
 
@@ -253,14 +256,14 @@ Hussain wants an editor like the [React Email editor](https://react.email/docs/e
 
 Show the preview in an `iframe` with `srcdoc`, at desktop and mobile widths. Email HTML is a full document, so an iframe shows it the way an email client does.
 
-Every email in OS (newsletters, confirm, and welcome) uses `EmailComposer.vue`: the editor, a preview, and the theme picker.
+Every email in OS (newsletters, confirm, welcome, and a lead magnet's delivery email) uses `EmailComposer.vue`: the editor, a preview, and the theme picker.
 
 #### Variables
 
 - Type `{{` in the editor to add a variable. It shows as a chip with a tooltip that says what replaces it. Typing or pasting `{{ first_name }}` also makes a chip.
 - The chip serializes to `{{ first_name }}`. A link can also use a variable, for example a button to `{{ confirm_url }}`.
 - The server fills the variables when it sends (`bwh_os/mailing/email_variables.py`). Values are HTML-escaped. `first_name` falls back to "there".
-- Each email has its own variables. Newsletters: `first_name`, `email`. Confirm: also `confirm_url`. Welcome: also `download_url` and `lead_magnet`. A save fails for a variable that the email cannot fill.
+- Each email has its own variables. Newsletters and welcome: `first_name`, `email`. Confirm: also `confirm_url`. A lead magnet's delivery email: also `download_url` and `lead_magnet`. A save fails for a variable that the email cannot fill.
 - The preview, the test send, and the web archive use sample values or fallbacks.
 - Subjects accept the same `{{ key }}` text, with no chips.
 
@@ -392,6 +395,14 @@ Each slice goes through all layers. Merge each slice alone.
 - Add the YouTube video block: thumbnail, play button, title, and a link to YouTube. Add it from the slash menu, or paste a YouTube link on its own line.
 - The server gets the title from YouTube oEmbed and draws the play button into the thumbnail, because many email clients drop overlays. The image is a public file, made once for each video.
 - Demo: paste a video URL, preview the issue, click the thumbnail in Mailpit. YouTube opens.
+
+### 14. The lead magnet delivers itself
+
+- Give the download link its own page at `/download/<route>`, so the reader sees a button before anything is logged, and the URL names the file instead of an internal method.
+- Move the "here is your file" email off the signup form and onto the `Lead Magnet` it comes from: subject, reply-to, theme, content. A magnet with no email cannot be linked to a form.
+- The form's own welcome email becomes a plain greeting. With a magnet, the greeting goes first, then the file, gated by a switch. A repeat signup gets the file again, not a second greeting.
+- Add a patch that moves each form's existing welcome content onto its magnet, and clears the form's copy so the new checks do not fail on old data.
+- Demo: write the delivery email on a lead magnet. Point a form at it. Sign up: the greeting arrives, then the file, each with a link that only that subscriber's token opens.
 
 ## Open questions
 

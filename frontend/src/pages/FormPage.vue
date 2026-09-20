@@ -64,6 +64,16 @@
 					description="Shown on the site after a person subscribes."
 					:rows="2"
 				/>
+				<LeadMagnetPicker
+					v-model="draft.leadMagnet"
+					description="Gives the file away on signup, through its own delivery email."
+				/>
+				<Switch
+					v-if="draft.leadMagnet"
+					v-model="draft.sendWelcomeWithLeadMagnet"
+					label="Also send the welcome email"
+					description="They get your greeting first, then the file."
+				/>
 			</section>
 
 			<ConfirmEmailSection
@@ -79,7 +89,6 @@
 			<WelcomeEmailSection
 				v-if="loaded"
 				ref="welcomeEmail"
-				v-model:lead-magnet="draft.leadMagnet"
 				v-model:subject="draft.welcomeSubject"
 				v-model:reply-to="draft.welcomeReplyTo"
 				v-model:content="draft.welcomeContent"
@@ -109,6 +118,7 @@ import ConfirmRateCard from "@/components/forms/ConfirmRateCard.vue";
 import EmbedSnippet from "@/components/forms/EmbedSnippet.vue";
 import ActivityCards from "@/components/stats/ActivityCards.vue";
 import WelcomeEmailSection from "@/components/forms/WelcomeEmailSection.vue";
+import LeadMagnetPicker from "@/components/lead-magnets/LeadMagnetPicker.vue";
 import TagPicker from "@/components/tags/TagPicker.vue";
 import { confirmStarter, parseEmailDocument, welcomeStarter } from "@/lib/emailStarters";
 import { useSaveShortcut } from "@/composables/useSaveShortcut";
@@ -135,6 +145,7 @@ const draft = reactive({
 	tags: [] as string[],
 	successMessage: "",
 	leadMagnet: "",
+	sendWelcomeWithLeadMagnet: true,
 	welcomeSubject: "",
 	welcomeReplyTo: "",
 	welcomeContent: null as EmailDocument | null,
@@ -171,10 +182,10 @@ const saved = computed(() => {
 		tags: doc.tags.map((row) => row.tag),
 		successMessage: doc.success_message,
 		leadMagnet: doc.lead_magnet ?? "",
+		sendWelcomeWithLeadMagnet: Boolean(doc.send_welcome_with_lead_magnet ?? 1),
 		welcomeSubject: doc.welcome_subject ?? "",
 		welcomeReplyTo: doc.welcome_reply_to ?? "",
-		welcomeContent:
-			parseEmailDocument(doc.welcome_content_json) ?? welcomeStarter(Boolean(doc.lead_magnet)),
+		welcomeContent: parseEmailDocument(doc.welcome_content_json) ?? welcomeStarter(),
 		welcomeTheme: doc.welcome_theme,
 	};
 });
@@ -222,6 +233,7 @@ async function save() {
 			success_message: draft.successMessage,
 			tags: draft.tags.map((tag) => ({ tag })),
 			lead_magnet: draft.leadMagnet || null,
+			send_welcome_with_lead_magnet: draft.sendWelcomeWithLeadMagnet ? 1 : 0,
 			welcome_subject: draft.welcomeSubject,
 			welcome_reply_to: draft.welcomeReplyTo || null,
 			welcome_theme: draft.welcomeTheme,

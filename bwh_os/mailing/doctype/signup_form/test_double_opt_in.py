@@ -20,6 +20,12 @@ class IntegrationTestDoubleOptIn(IntegrationTestCase):
 	def setUp(self):
 		use_test_email_account()
 		self.lead_magnet = make_lead_magnet()
+		self.lead_magnet.db_set(
+			{
+				"subject": "Your manual",
+				"content_html": email_html('<a href="{{ download_url }}">Download</a>'),
+			}
+		)
 		self.form = make_form("test-double-opt-in")
 		self.form.db_set(
 			{
@@ -29,8 +35,6 @@ class IntegrationTestDoubleOptIn(IntegrationTestCase):
 					'<p>One click left.</p><a href="%7B%7B%20confirm_url%20%7D%7D">Confirm</a>'
 				),
 				"lead_magnet": self.lead_magnet.name,
-				"welcome_subject": "Your manual",
-				"welcome_content_html": email_html('<a href="{{ download_url }}">Download</a>'),
 			}
 		)
 		frappe.local.response = frappe._dict()
@@ -55,7 +59,7 @@ class IntegrationTestDoubleOptIn(IntegrationTestCase):
 
 		self.assertEqual(response.status_code, 404)
 
-	def test_confirm_makes_active_and_sends_welcome_email(self):
+	def test_confirm_makes_active_and_sends_the_lead_magnet(self):
 		subscribe("test-double-opt-in", "confirmer@example.com")
 		token = frappe.db.get_value("Subscriber", "confirmer@example.com", "token")
 
@@ -76,7 +80,7 @@ class IntegrationTestDoubleOptIn(IntegrationTestCase):
 
 		self.assertEqual(frappe.db.get_value("Subscriber", "link@example.com", "status"), "Active")
 
-	def test_second_confirm_click_sends_no_second_welcome(self):
+	def test_second_confirm_click_sends_no_second_magnet_email(self):
 		subscribe("test-double-opt-in", "double-click@example.com")
 		token = frappe.db.get_value("Subscriber", "double-click@example.com", "token")
 
@@ -85,7 +89,7 @@ class IntegrationTestDoubleOptIn(IntegrationTestCase):
 
 		self.assertEqual(emails_to("double-click@example.com"), 2)
 
-	def test_active_subscriber_skips_the_confirm_email_and_gets_the_welcome_one(self):
+	def test_active_subscriber_skips_the_confirm_email_and_gets_the_lead_magnet(self):
 		"""A confirmed reader has nothing left to confirm, and came for what the form gives away."""
 		make_form("test-single")
 		subscribe("test-single", "already@example.com")

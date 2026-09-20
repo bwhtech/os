@@ -9,7 +9,13 @@
   "route",
   "blurb",
   "description",
-  "file"
+  "file",
+  "email_section",
+  "subject",
+  "reply_to",
+  "theme",
+  "content_json",
+  "content_html"
  ],
  "fields": [
   {
@@ -45,6 +51,45 @@
    "fieldtype": "Attach",
    "label": "File",
    "reqd": 1
+  },
+  {
+   "description": "Sent on signup, from Send to…, or with a newsletter. Link a button to {{ download_url }}.",
+   "fieldname": "email_section",
+   "fieldtype": "Section Break",
+   "label": "Delivery Email"
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "label": "Subject"
+  },
+  {
+   "description": "Where replies go. Empty uses Mailing Settings.",
+   "fieldname": "reply_to",
+   "fieldtype": "Data",
+   "label": "Reply-To",
+   "options": "Email"
+  },
+  {
+   "default": "Frappe UI",
+   "fieldname": "theme",
+   "fieldtype": "Select",
+   "label": "Theme",
+   "options": "Frappe UI\nBasic\nMinimal"
+  },
+  {
+   "description": "The editor document",
+   "fieldname": "content_json",
+   "fieldtype": "JSON",
+   "label": "Content JSON"
+  },
+  {
+   "description": "Email HTML that the OS editor makes. Variables like {{ first_name }} stay in until the send.",
+   "fieldname": "content_html",
+   "fieldtype": "Code",
+   "label": "Content HTML",
+   "options": "HTML",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,

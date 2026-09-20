@@ -61,7 +61,16 @@ const LEAD_MAGNET: EmailVariable = {
 
 export const NEWSLETTER_VARIABLES = [FIRST_NAME, EMAIL]
 export const CONFIRM_VARIABLES = [FIRST_NAME, EMAIL, CONFIRM_URL]
-export const WELCOME_VARIABLES = [FIRST_NAME, EMAIL, DOWNLOAD_URL, LEAD_MAGNET]
+export const WELCOME_VARIABLES = [FIRST_NAME, EMAIL]
+export const LEAD_MAGNET_VARIABLES = [FIRST_NAME, EMAIL, DOWNLOAD_URL, LEAD_MAGNET]
+
+/** The magnet variables are fillable only when the email carries a magnet. */
+export function withLeadMagnet(
+	variables: EmailVariable[],
+	leadMagnet: string | null | undefined,
+): EmailVariable[] {
+	return leadMagnet ? [...variables, DOWNLOAD_URL, LEAD_MAGNET] : variables
+}
 
 // Also matches a link, where the editor URL-encodes the braces and spaces.
 const VARIABLE_PATTERN = /(?:\{\{|%7B%7B)(?:\s|%20)*([a-z_]+)(?:\s|%20)*(?:\}\}|%7D%7D)/gi

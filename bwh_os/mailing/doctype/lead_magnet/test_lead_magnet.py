@@ -24,14 +24,20 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 	def setUp(self):
 		use_test_email_account()
 		self.lead_magnet = make_lead_magnet()
+		self.lead_magnet.db_set(
+			{
+				"subject": "Here is your copy, {{ first_name }}",
+				"content_html": email_html(
+					'<p>Hi {{ first_name }}, here is {{ lead_magnet }}.</p><a href="{{ download_url }}">Download</a>'
+				),
+			}
+		)
 		self.form = make_form("test-manual")
 		self.form.db_set(
 			{
 				"lead_magnet": self.lead_magnet.name,
-				"welcome_subject": "Your manual, {{ first_name }}",
-				"welcome_content_html": email_html(
-					'<p>Hi {{ first_name }}, here is {{ lead_magnet }}.</p><a href="{{ download_url }}">Download</a>'
-				),
+				"welcome_subject": "Welcome, {{ first_name }}",
+				"welcome_content_html": email_html("<p>Hi {{ first_name }}, thanks for joining.</p>"),
 			}
 		)
 		frappe.local.response = frappe._dict()
@@ -40,24 +46,93 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			frappe.get_doc({"doctype": "Lead Magnet", "title": "Open", "file": "/files/open.pdf"}).insert()
 
-	def test_new_signup_gets_welcome_email_with_download_link(self):
+	def test_new_signup_gets_the_greeting_then_the_magnet_email(self):
 		subscribe("test-manual", "magnet@example.com", first_name="Ana")
 
-		email = last_email_to("magnet@example.com")
-		self.assertEqual(email["Subject"], "Your manual, Ana")
+		self.assertEqual(emails_to("magnet@example.com"), 2)
+		greeting, magnet_email = ordered_emails_to("magnet@example.com")
+		self.assertEqual(greeting["Subject"], "Welcome, Ana")
+		self.assertEqual(magnet_email["Subject"], "Here is your copy, Ana")
 		token = frappe.db.get_value("Subscriber", "magnet@example.com", "token")
 		download_url = self.lead_magnet.get_download_url(token).replace("&", "&amp;")
-		self.assertIn(download_url, email.get_body(("html",)).get_content())
+		self.assertIn(download_url, magnet_email.get_body(("html",)).get_content())
 
-	def test_known_email_asking_again_gets_the_file_again(self):
-		"""Someone already on the list still came for the manual."""
+	def test_known_email_asking_again_gets_the_file_but_not_the_greeting(self):
+		"""Someone already on the list still came for the manual, but has already been welcomed."""
 		subscribe("test-manual", "twice-magnet@example.com")
 		subscribe("test-manual", "twice-magnet@example.com")
 
-		self.assertEqual(
-			frappe.db.count("Email Queue", {"reference_name": "twice-magnet@example.com"}),
-			2,
-		)
+		self.assertEqual(emails_to("twice-magnet@example.com"), 3)
+		subjects = [
+			frappe.db.get_value("Email Queue", name, "message")
+			for name in frappe.db.get_all(
+				"Email Queue Recipient",
+				filters={"recipient": "twice-magnet@example.com"},
+				pluck="parent",
+			)
+		]
+		self.assertEqual(sum("Welcome" in s for s in subjects), 1)
+		self.assertEqual(sum("Here is your copy" in s for s in subjects), 2)
+
+	def test_turning_off_the_switch_sends_only_the_file(self):
+		self.form.db_set("send_welcome_with_lead_magnet", 0)
+
+		subscribe("test-manual", "file-only@example.com")
+
+		self.assertEqual(emails_to("file-only@example.com"), 1)
+		self.assertEqual(last_email_to("file-only@example.com")["Subject"], "Here is your copy, there")
+
+	def test_a_form_with_no_welcome_subject_still_sends_the_file(self):
+		self.form.db_set({"welcome_subject": "", "welcome_content_html": ""})
+
+		subscribe("test-manual", "no-welcome@example.com")
+
+		self.assertEqual(emails_to("no-welcome@example.com"), 1)
+		self.assertEqual(last_email_to("no-welcome@example.com")["Subject"], "Here is your copy, there")
+
+	def test_delivery_email_needs_the_download_link(self):
+		magnet = new_lead_magnet("No Link Yet")
+		magnet.subject = "Here it is"
+		magnet.content_html = email_html("<p>No link in here.</p>")
+
+		with self.assertRaises(frappe.ValidationError):
+			magnet.save()
+
+	def test_subject_without_content_is_refused(self):
+		magnet = new_lead_magnet("No Content Yet")
+		magnet.subject = "Here it is"
+
+		with self.assertRaises(frappe.ValidationError):
+			magnet.save()
+
+	def test_a_magnet_with_no_email_has_nothing_to_send(self):
+		magnet = new_lead_magnet("No Email At All")
+		subscriber = frappe.get_doc("Subscriber", add_subscriber("no-email-magnet@example.com"))
+
+		self.assertFalse(magnet.has_email())
+		with self.assertRaises(frappe.ValidationError):
+			magnet.send_to(subscriber, source="Manual")
+
+	def test_send_to_gives_each_subscriber_their_own_link(self):
+		first = frappe.get_doc("Subscriber", add_subscriber("first-send@example.com"))
+		second = frappe.get_doc("Subscriber", add_subscriber("second-send@example.com"))
+
+		self.lead_magnet.send_to(first, source="Manual")
+		self.lead_magnet.send_to(second, source="Manual")
+
+		first_email = last_email_to("first-send@example.com")
+		second_email = last_email_to("second-send@example.com")
+		self.assertIn(first.token, first_email.get_body(("html",)).get_content())
+		self.assertIn(second.token, second_email.get_body(("html",)).get_content())
+		self.assertNotIn(second.token, first_email.get_body(("html",)).get_content())
+
+	def test_a_form_needs_its_lead_magnet_to_have_an_email(self):
+		empty_magnet = new_lead_magnet("Nothing To Give")
+		self.form.reload()
+		self.form.lead_magnet = empty_magnet.name
+
+		with self.assertRaises(frappe.ValidationError):
+			self.form.save()
 
 	def test_route_comes_from_the_title(self):
 		self.assertEqual(new_lead_magnet("A Field Guide to Bench").route, "a-field-guide-to-bench")
@@ -160,7 +235,12 @@ def make_lead_magnet():
 
 def new_lead_magnet(title: str):
 	file = frappe.get_doc(
-		{"doctype": "File", "file_name": f"{frappe.generate_hash(length=8)}.txt", "is_private": 1, "content": FILE_BYTES}
+		{
+			"doctype": "File",
+			"file_name": f"{frappe.generate_hash(length=8)}.txt",
+			"is_private": 1,
+			"content": FILE_BYTES,
+		}
 	).insert()
 	return frappe.get_doc({"doctype": "Lead Magnet", "title": title, "file": file.file_url}).insert()
 
@@ -187,3 +267,21 @@ def last_email_to(recipient: str):
 	)
 	message = frappe.db.get_value("Email Queue", name, "message")
 	return message_from_string(message, policy=policy.default)
+
+
+def emails_to(recipient: str) -> int:
+	return frappe.db.count("Email Queue Recipient", {"recipient": recipient})
+
+
+def ordered_emails_to(recipient: str):
+	"""Every email to this recipient, oldest first, as parsed messages."""
+	names = frappe.db.get_all(
+		"Email Queue Recipient",
+		filters={"recipient": recipient},
+		pluck="parent",
+		order_by="creation asc, name asc",
+	)
+	return [
+		message_from_string(frappe.db.get_value("Email Queue", name, "message"), policy=policy.default)
+		for name in names
+	]

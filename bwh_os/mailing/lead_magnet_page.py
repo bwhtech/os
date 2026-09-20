@@ -41,9 +41,7 @@ class LeadMagnetDownloadPage(BaseRenderer):
 	def __init__(self, path=None, http_status_code=None):
 		super().__init__(path=path, http_status_code=http_status_code)
 		self.magnet = (
-			find_magnet(self.path.removeprefix(ROUTE_PREFIX))
-			if self.path.startswith(ROUTE_PREFIX)
-			else None
+			find_magnet(self.path.removeprefix(ROUTE_PREFIX)) if self.path.startswith(ROUTE_PREFIX) else None
 		)
 
 	def can_render(self) -> bool:
@@ -68,9 +66,7 @@ class LeadMagnetDownloadPage(BaseRenderer):
 				"file_name": file.file_name,
 				"file_size": readable_size(file.file_size),
 				# A logged-in browser must send the CSRF token with the POST.
-				"csrf_token": frappe.sessions.get_csrf_token()
-				if frappe.session.user != "Guest"
-				else None,
+				"csrf_token": frappe.sessions.get_csrf_token() if frappe.session.user != "Guest" else None,
 			}
 		)
 

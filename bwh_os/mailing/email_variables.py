@@ -16,8 +16,10 @@ FALLBACKS = {"first_name": "there"}
 
 SUBSCRIBER = ("first_name", "email")
 NEWSLETTER = SUBSCRIBER
+WELCOME = SUBSCRIBER  # the form's greeting. The file has its own email; see LEAD_MAGNET.
 CONFIRM = (*SUBSCRIBER, "confirm_url")
-WELCOME = (*SUBSCRIBER, "download_url", "lead_magnet")
+MAGNET = ("download_url", "lead_magnet")
+LEAD_MAGNET = (*SUBSCRIBER, *MAGNET)
 
 # Also matches a link, where the editor URL-encodes the braces and spaces.
 VARIABLE = re.compile(r"(?:\{\{|%7B%7B)(?:\s|%20)*([a-z_]+)(?:\s|%20)*(?:\}\}|%7D%7D)", re.IGNORECASE)
@@ -36,6 +38,11 @@ def fill(text: str, values: dict[str, str | None], html: bool = True) -> str:
 		return escape(value) if html else value
 
 	return VARIABLE.sub(value_for, text or "")
+
+
+def with_lead_magnet(allowed: Iterable[str], lead_magnet: str | None) -> tuple[str, ...]:
+	"""The magnet variables are fillable only when the email carries a magnet."""
+	return (*allowed, *MAGNET) if lead_magnet else tuple(allowed)
 
 
 def fallback_values(allowed: Iterable[str]) -> dict[str, str | None]:

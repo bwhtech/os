@@ -37,6 +37,8 @@ export interface SignupForm {
 	success_message: string
 	tags: TagRow[]
 	lead_magnet: string | null
+	/** With a lead magnet, also send this greeting before its delivery email. */
+	send_welcome_with_lead_magnet: 0 | 1
 	welcome_subject: string | null
 	welcome_reply_to: string | null
 	welcome_theme: NewsletterTheme
@@ -54,6 +56,12 @@ export interface LeadMagnet {
 	description: string | null
 	/** Private file URL */
 	file: string
+	/** The email that hands this file over. Empty subject means the magnet has no email yet. */
+	subject: string | null
+	reply_to: string | null
+	theme: NewsletterTheme
+	content_json: string | EmailDocument | null
+	content_html: string | null
 }
 
 export type ImportField = 'email' | 'first_name' | 'full_name' | 'tags'

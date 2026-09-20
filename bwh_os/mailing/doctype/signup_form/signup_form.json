@@ -14,6 +14,8 @@
   "settings_section",
   "tags",
   "success_message",
+  "lead_magnet",
+  "send_welcome_with_lead_magnet",
   "confirm_section",
   "confirm_subject",
   "confirm_reply_to",
@@ -21,7 +23,6 @@
   "confirm_content_json",
   "confirm_content_html",
   "welcome_section",
-  "lead_magnet",
   "welcome_subject",
   "welcome_reply_to",
   "welcome_theme",
@@ -91,6 +92,21 @@
    "reqd": 1
   },
   {
+   "description": "Gives the file away on signup, through its own delivery email.",
+   "fieldname": "lead_magnet",
+   "fieldtype": "Link",
+   "label": "Lead Magnet",
+   "options": "Lead Magnet"
+  },
+  {
+   "default": "1",
+   "depends_on": "eval:doc.lead_magnet",
+   "description": "The lead magnet brings its own email. Tick this to send the welcome email before it.",
+   "fieldname": "send_welcome_with_lead_magnet",
+   "fieldtype": "Check",
+   "label": "Also send the welcome email"
+  },
+  {
    "depends_on": "eval:doc.double_opt_in",
    "description": "Sent when a person signs up. Link a button to {{ confirm_url }}.",
    "fieldname": "confirm_section",
@@ -133,23 +149,15 @@
    "read_only": 1
   },
   {
-   "description": "Sent when a person from this form becomes Active. With a lead magnet, link a button to {{ download_url }}.",
+   "description": "Sent when a person from this form becomes Active. Leave the subject empty to send nothing.",
    "fieldname": "welcome_section",
    "fieldtype": "Section Break",
    "label": "Welcome Email"
   },
   {
-   "description": "Linked in the welcome email",
-   "fieldname": "lead_magnet",
-   "fieldtype": "Link",
-   "label": "Lead Magnet",
-   "options": "Lead Magnet"
-  },
-  {
    "fieldname": "welcome_subject",
    "fieldtype": "Data",
-   "label": "Welcome Subject",
-   "mandatory_depends_on": "eval:doc.lead_magnet"
+   "label": "Welcome Subject"
   },
   {
    "description": "Where replies go. Empty uses Mailing Settings.",

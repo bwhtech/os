@@ -60,14 +60,34 @@ class IntegrationTestEmailVariables(IntegrationTestCase):
 			}
 		).save()
 
-	def test_welcome_email_with_lead_magnet_needs_the_download_link(self):
+	def test_welcome_email_rejects_the_download_variable(self):
+		"""The greeting is a plain welcome now. The file has its own email."""
+		with self.assertRaises(frappe.ValidationError):
+			email_variables.check("<p>{{ download_url }}</p>", email_variables.WELCOME, "Email")
+
+	def test_welcome_email_cannot_link_the_download_url(self):
 		form = make_form("test-variables-welcome")
-		form.lead_magnet = make_lead_magnet().name
 		form.welcome_subject = "Welcome"
-		form.welcome_content_html = email_html("<p>Hi</p>")
+		form.welcome_content_html = email_html('<a href="{{ download_url }}">Get it</a>')
 
 		with self.assertRaises(frappe.ValidationError):
 			form.save()
+
+	def test_a_form_needs_its_lead_magnet_to_have_an_email(self):
+		form = make_form("test-variables-lead-magnet")
+		form.lead_magnet = make_lead_magnet().name
+
+		with self.assertRaises(frappe.ValidationError):
+			form.save()
+
+	def test_with_lead_magnet_widens_the_allowed_set(self):
+		self.assertEqual(
+			email_variables.with_lead_magnet(email_variables.NEWSLETTER, None), email_variables.NEWSLETTER
+		)
+		self.assertEqual(
+			set(email_variables.with_lead_magnet(email_variables.NEWSLETTER, "some-magnet")),
+			{*email_variables.NEWSLETTER, *email_variables.MAGNET},
+		)
 
 	def test_newsletter_rejects_a_variable_it_cannot_fill(self):
 		with self.assertRaises(frappe.ValidationError):
