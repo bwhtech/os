@@ -21,7 +21,13 @@ class IntegrationTestUnsubscribe(IntegrationTestCase):
 
 	def test_list_email_has_unsubscribe_link_and_headers(self):
 		form = make_form("test-unsubscribe-email")
-		form.db_set({"welcome_subject": "Welcome", "welcome_content_html": email_html("<p>Hi</p>")})
+		form.db_set(
+			{
+				"send_welcome_email": 1,
+				"welcome_subject": "Welcome",
+				"welcome_content_html": email_html("<p>Hi</p>"),
+			}
+		)
 		subscribe("test-unsubscribe-email", "headers@example.com")
 
 		email = last_email_to("headers@example.com")

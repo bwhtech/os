@@ -95,17 +95,17 @@ All doctypes go in a new module, `Mailing`.
 | double_opt_in | Check | |
 | tags | Table MultiSelect | Tags to add on signup |
 | lead_magnet | Link: Lead Magnet | Optional. Gives the file away on signup, through the magnet's own delivery email. |
-| send_welcome_with_lead_magnet | Check | With a lead magnet, also send the welcome email first. Default on. |
+| send_welcome_email | Check | Sends the welcome email. Off keeps what was written but sends nothing. Default off. |
 | success_message | Small Text | Shown on the site after submit |
 | confirm_reply_to, welcome_reply_to | Data (Email) | Where a reply to that email goes. Empty uses `Mailing Settings`. |
 | confirm_subject, confirm_theme, confirm_content_json, confirm_content_html | Data, Select, JSON, Code | Used when double opt-in is on. Written in `EmailComposer`. The content must link to `{{ confirm_url }}`. |
-| welcome_subject, welcome_theme, welcome_content_json, welcome_content_html | Data, Select, JSON, Code | A plain greeting, sent when the subscriber becomes Active. Leave the subject empty to send nothing. |
+| welcome_subject, welcome_theme, welcome_content_json, welcome_content_html | Data, Select, JSON, Code | A plain greeting, sent once when the subscriber becomes Active. Needs a subject and content only while `send_welcome_email` is on. |
 
-The form page in OS also shows the signup count, the confirm rate, and the embed snippet.
+The form page in OS lists what a signup sets off as numbered steps, in the order it happens: the success message and tags, the confirm email, the welcome email, then the lead magnet. Each email has its own switch, and a step that is off stays in the list, dimmed. The page also shows the signup count, the confirm rate, and the embed snippet.
 
 **Lead Magnet**: title, route, blurb, description, file (private Attach), and its own delivery email — subject, reply_to, theme, content_json, content_html. The route is a slug made from the title and is where the download page lives. The blurb is the line under the title on that page; the description is a note to self. The delivery email is what hands the file over: it is required to link `{{ download_url }}` once a subject is set, and a form cannot give away a magnet that has no email.
 
-A signup with a lead magnet gets two emails at most: the form's welcome email (if it has a subject and the switch is on), then the magnet's own delivery email. A repeat signup — someone already on the list who fills in the form again — gets the file again but not the greeting a second time.
+A signup with a lead magnet gets two emails at most: the form's welcome email (if its switch is on), then the magnet's own delivery email. A repeat signup — someone already on the list who fills in the form again — gets the file again but not the greeting a second time.
 
 **Lead Magnet Download**: lead_magnet, subscriber, downloaded_on. The lead magnet page lists the last 100 downloads with the subscriber. Every download is logged, but the counts and the cards count each subscriber once per file, dated from their first download: a reader who uses the link five times is one download.
 

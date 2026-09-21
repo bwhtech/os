@@ -1,13 +1,6 @@
 <template>
-	<section class="space-y-4">
-		<div class="space-y-1">
-			<h2 class="text-lg-semibold text-ink-gray-8">Welcome Email</h2>
-			<p class="text-p-sm text-ink-gray-5">
-				Sent once, when a person joins. Leave the subject empty to send nothing.
-			</p>
-		</div>
-
-		<TextInput v-model="subject" label="Subject" class="max-w-2xl" placeholder="Thanks for joining, {{ first_name }}" />
+	<div class="space-y-4">
+		<TextInput v-model="subject" label="Subject" required class="max-w-2xl" placeholder="Thanks for joining, {{ first_name }}" />
 		<TextInput
 			v-model="replyTo"
 			type="email"
@@ -22,7 +15,7 @@
 			v-model:theme="theme"
 			:variables="WELCOME_VARIABLES"
 		/>
-	</section>
+	</div>
 </template>
 
 <script setup lang="ts">

@@ -239,7 +239,9 @@ def confirm_subscription(form_id: str, token: str) -> None:
 	# Confirm links are GET requests, which Frappe does not commit by default.
 	frappe.local.flags.commit = True
 	message = _("Thanks for confirming.")
-	if form.welcome_subject:
+	if form.lead_magnet:
+		message += " " + _("Check your inbox for your download.")
+	elif form.send_welcome_email:
 		message += " " + _("Check your inbox for the welcome email.")
 	frappe.respond_as_web_page(_("You are subscribed"), message, indicator_color="green")
 

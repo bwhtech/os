@@ -37,6 +37,7 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 		self.form.db_set(
 			{
 				"lead_magnet": self.lead_magnet.name,
+				"send_welcome_email": 1,
 				"welcome_subject": "Welcome, {{ first_name }}",
 				"welcome_content_html": email_html("<p>Hi {{ first_name }}, thanks for joining.</p>"),
 			}
@@ -76,15 +77,15 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 		self.assertEqual(sum("Here is your copy" in s for s in subjects), 2)
 
 	def test_turning_off_the_switch_sends_only_the_file(self):
-		self.form.db_set("send_welcome_with_lead_magnet", 0)
+		self.form.db_set("send_welcome_email", 0)
 
 		subscribe("test-manual", "file-only@example.com")
 
 		self.assertEqual(emails_to("file-only@example.com"), 1)
 		self.assertEqual(last_email_to("file-only@example.com")["Subject"], "Here is your copy, there")
 
-	def test_a_form_with_no_welcome_subject_still_sends_the_file(self):
-		self.form.db_set({"welcome_subject": "", "welcome_content_html": ""})
+	def test_a_form_with_no_welcome_email_still_sends_the_file(self):
+		self.form.db_set({"send_welcome_email": 0, "welcome_subject": "", "welcome_content_html": ""})
 
 		subscribe("test-manual", "no-welcome@example.com")
 

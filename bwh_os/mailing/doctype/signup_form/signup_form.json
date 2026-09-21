@@ -15,7 +15,6 @@
   "tags",
   "success_message",
   "lead_magnet",
-  "send_welcome_with_lead_magnet",
   "confirm_section",
   "confirm_subject",
   "confirm_reply_to",
@@ -23,6 +22,7 @@
   "confirm_content_json",
   "confirm_content_html",
   "welcome_section",
+  "send_welcome_email",
   "welcome_subject",
   "welcome_reply_to",
   "welcome_theme",
@@ -99,14 +99,6 @@
    "options": "Lead Magnet"
   },
   {
-   "default": "1",
-   "depends_on": "eval:doc.lead_magnet",
-   "description": "The lead magnet brings its own email. Tick this to send the welcome email before it.",
-   "fieldname": "send_welcome_with_lead_magnet",
-   "fieldtype": "Check",
-   "label": "Also send the welcome email"
-  },
-  {
    "depends_on": "eval:doc.double_opt_in",
    "description": "Sent when a person signs up. Link a button to {{ confirm_url }}.",
    "fieldname": "confirm_section",
@@ -149,35 +141,47 @@
    "read_only": 1
   },
   {
-   "description": "Sent when a person from this form becomes Active. Leave the subject empty to send nothing.",
+   "description": "A greeting, sent once when a person from this form becomes Active. With a lead magnet, it goes out before the file.",
    "fieldname": "welcome_section",
    "fieldtype": "Section Break",
    "label": "Welcome Email"
   },
   {
+   "default": "0",
+   "fieldname": "send_welcome_email",
+   "fieldtype": "Check",
+   "label": "Send a Welcome Email",
+   "description": "Off keeps the email below but sends nothing."
+  },
+  {
    "fieldname": "welcome_subject",
    "fieldtype": "Data",
-   "label": "Welcome Subject"
+   "label": "Welcome Subject",
+   "mandatory_depends_on": "eval:doc.send_welcome_email",
+   "depends_on": "eval:doc.send_welcome_email"
   },
   {
    "description": "Where replies go. Empty uses Mailing Settings.",
    "fieldname": "welcome_reply_to",
    "fieldtype": "Data",
    "label": "Welcome Reply-To",
-   "options": "Email"
+   "options": "Email",
+   "depends_on": "eval:doc.send_welcome_email"
   },
   {
    "default": "Frappe UI",
    "fieldname": "welcome_theme",
    "fieldtype": "Select",
    "label": "Welcome Theme",
-   "options": "Frappe UI\nBasic\nMinimal"
+   "options": "Frappe UI\nBasic\nMinimal",
+   "depends_on": "eval:doc.send_welcome_email"
   },
   {
    "description": "The editor document",
    "fieldname": "welcome_content_json",
    "fieldtype": "JSON",
-   "label": "Welcome Content JSON"
+   "label": "Welcome Content JSON",
+   "depends_on": "eval:doc.send_welcome_email"
   },
   {
    "description": "Email HTML that the OS editor makes. Variables like {{ first_name }} stay in until the send.",
@@ -185,12 +189,13 @@
    "fieldtype": "Code",
    "label": "Welcome Content HTML",
    "options": "HTML",
-   "read_only": 1
+   "read_only": 1,
+   "depends_on": "eval:doc.send_welcome_email"
   }
  ],
  "grid_page_length": 50,
  "links": [],
- "modified": "2026-09-14 10:00:00.000000",
+ "modified": "2026-09-21 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mailing",
  "name": "Signup Form",

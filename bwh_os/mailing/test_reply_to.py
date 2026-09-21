@@ -29,6 +29,7 @@ class IntegrationTestReplyTo(IntegrationTestCase):
 				"double_opt_in": 1,
 				"confirm_subject": "Confirm",
 				"confirm_content_html": email_html('<a href="{{ confirm_url }}">Confirm</a>'),
+				"send_welcome_email": 1,
 				"welcome_subject": "Welcome",
 				"welcome_content_html": email_html("<p>Glad you are here.</p>"),
 				"welcome_reply_to": OWN_REPLY_TO,
@@ -55,9 +56,7 @@ class IntegrationTestReplyTo(IntegrationTestCase):
 		reader = "reader-reply@example.com"
 		add_subscriber(reader, tags=[tag])
 		issue = make_issue()
-		issue.update(
-			{"audience": "Tags", "tags": [{"tag": tag}], "reply_to": OWN_REPLY_TO}
-		).save()
+		issue.update({"audience": "Tags", "tags": [{"tag": tag}], "reply_to": OWN_REPLY_TO}).save()
 
 		with patch.object(frappe.db, "commit"), patch("bwh_os.mailing.newsletter_send.frappe.enqueue"):
 			send_newsletter(issue.name)

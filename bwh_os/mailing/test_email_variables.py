@@ -67,6 +67,7 @@ class IntegrationTestEmailVariables(IntegrationTestCase):
 
 	def test_welcome_email_cannot_link_the_download_url(self):
 		form = make_form("test-variables-welcome")
+		form.send_welcome_email = 1
 		form.welcome_subject = "Welcome"
 		form.welcome_content_html = email_html('<a href="{{ download_url }}">Get it</a>')
 
@@ -103,6 +104,7 @@ class IntegrationTestEmailVariables(IntegrationTestCase):
 		form = make_form("test-variables-values")
 		form.db_set(
 			{
+				"send_welcome_email": 1,
 				"welcome_subject": "Hello {{ first_name }}",
 				"welcome_content_html": email_html("<p>Hi {{ first_name }}, you are {{ email }}.</p>"),
 			}

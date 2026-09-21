@@ -6,6 +6,7 @@
 # Patches added in this section will be executed after doctypes are migrated
 bwh_os.patches.set_lead_magnet_routes
 bwh_os.patches.move_welcome_email_to_lead_magnet
+bwh_os.patches.set_send_welcome_email
 
 [post_fixture_sync]
 # Patches added in this section will be executed after fixtures and customizations

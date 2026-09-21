@@ -69,6 +69,7 @@ declare module 'vue' {
     SeriesSidebar: typeof import('./src/components/videos/SeriesSidebar.vue')['default']
     SeriesStats: typeof import('./src/components/videos/SeriesStats.vue')['default']
     SeriesVideoList: typeof import('./src/components/videos/SeriesVideoList.vue')['default']
+    SignupStep: typeof import('./src/components/forms/SignupStep.vue')['default']
     SocialCalendar: typeof import('./src/components/social/SocialCalendar.vue')['default']
     SocialChannelsSettings: typeof import('./src/components/settings/SocialChannelsSettings.vue')['default']
     SocialPostTable: typeof import('./src/components/social/SocialPostTable.vue')['default']

@@ -45,55 +45,107 @@
 					label="Collect first name"
 					description="Adds a first name field to the embed snippet."
 				/>
-				<Switch
-					v-model="draft.doubleOptIn"
-					label="Double opt-in"
-					description="People confirm by email before they join. Ask them to check their inbox in the success message."
-				/>
 			</section>
 
-			<section class="max-w-2xl space-y-4">
-				<h2 class="text-lg-semibold text-ink-gray-8">On Signup</h2>
-				<TagPicker
-					v-model="draft.tags"
-					description="Every subscriber from this form gets these tags."
-				/>
-				<Textarea
-					v-model="draft.successMessage"
-					label="Success message"
-					description="Shown on the site after a person subscribes."
-					:rows="2"
-				/>
-				<LeadMagnetPicker
-					v-model="draft.leadMagnet"
-					description="Gives the file away on signup, through its own delivery email."
-				/>
-				<Switch
-					v-if="draft.leadMagnet"
-					v-model="draft.sendWelcomeWithLeadMagnet"
-					label="Also send the welcome email"
-					description="They get your greeting first, then the file."
-				/>
+			<!-- Everything a signup sets off, in the order it happens. Each email is a step with
+			     its own switch, so what goes out is read straight down the list. -->
+			<section class="space-y-5">
+				<div class="max-w-2xl space-y-1">
+					<h2 class="text-lg-semibold text-ink-gray-8">On Signup</h2>
+					<p class="text-p-sm text-ink-gray-5">{{ outline }}</p>
+				</div>
+
+				<ol>
+					<SignupStep
+						:number="1"
+						title="Show a message and tag them"
+						summary="Right away, on your site."
+					>
+						<Textarea
+							v-model="draft.successMessage"
+							class="max-w-2xl"
+							label="Success message"
+							:description="
+								draft.doubleOptIn
+									? 'Tell them to check their inbox: nothing else happens until they confirm.'
+									: 'Shown on the site after a person subscribes.'
+							"
+							:rows="2"
+						/>
+						<TagPicker
+							v-model="draft.tags"
+							class="max-w-2xl"
+							description="Every subscriber from this form gets these tags."
+						/>
+					</SignupStep>
+
+					<SignupStep
+						:number="2"
+						title="Confirm email"
+						:on="draft.doubleOptIn"
+						:summary="
+							draft.doubleOptIn
+								? 'They stay Pending until they click the link. The steps below wait for it.'
+								: 'Off. They join right away.'
+						"
+					>
+						<template #action>
+							<Switch v-model="draft.doubleOptIn" aria-label="Ask them to confirm by email" />
+						</template>
+						<ConfirmEmailSection
+							ref="confirmEmail"
+							v-model:subject="draft.confirmSubject"
+							v-model:reply-to="draft.confirmReplyTo"
+							v-model:content="draft.confirmContent"
+							v-model:theme="draft.confirmTheme"
+						/>
+					</SignupStep>
+
+					<SignupStep
+						:number="3"
+						title="Welcome email"
+						:on="draft.sendWelcomeEmail"
+						:summary="
+							draft.sendWelcomeEmail
+								? 'Sent once, when they join.'
+								: 'Off. No greeting goes out.'
+						"
+					>
+						<template #action>
+							<Switch v-model="draft.sendWelcomeEmail" aria-label="Send a welcome email" />
+						</template>
+						<!-- The editor reads its content once, so it mounts only after the first fetch. -->
+						<WelcomeEmailSection
+							v-if="loaded"
+							ref="welcomeEmail"
+							v-model:subject="draft.welcomeSubject"
+							v-model:reply-to="draft.welcomeReplyTo"
+							v-model:content="draft.welcomeContent"
+							v-model:theme="draft.welcomeTheme"
+						/>
+					</SignupStep>
+
+					<SignupStep :number="4" title="Lead magnet" :on="Boolean(draft.leadMagnet)" last>
+						<template #summary>
+							<template v-if="draft.leadMagnet">
+								The file goes out in its own delivery email{{
+									draft.sendWelcomeEmail ? ", after the welcome email" : ""
+								}}. Someone already on the list who signs up again gets it too.
+								<router-link
+									:to="`/lead-magnets/${draft.leadMagnet}`"
+									class="text-ink-gray-7 underline hover:text-ink-gray-9"
+								>
+									Edit the delivery email
+								</router-link>
+							</template>
+							<template v-else>None. Pick a file to give away on signup.</template>
+						</template>
+						<template #action>
+							<LeadMagnetPicker v-model="draft.leadMagnet" label="" class="w-56" />
+						</template>
+					</SignupStep>
+				</ol>
 			</section>
-
-			<ConfirmEmailSection
-				v-if="draft.doubleOptIn"
-				ref="confirmEmail"
-				v-model:subject="draft.confirmSubject"
-				v-model:reply-to="draft.confirmReplyTo"
-				v-model:content="draft.confirmContent"
-				v-model:theme="draft.confirmTheme"
-			/>
-
-			<!-- The editor reads its content once, so it mounts only after the first fetch. -->
-			<WelcomeEmailSection
-				v-if="loaded"
-				ref="welcomeEmail"
-				v-model:subject="draft.welcomeSubject"
-				v-model:reply-to="draft.welcomeReplyTo"
-				v-model:content="draft.welcomeContent"
-				v-model:theme="draft.welcomeTheme"
-			/>
 
 			<EmbedSnippet class="max-w-2xl" :form-id="formId" :collect-name="draft.collectName" />
 		</template>
@@ -119,6 +171,7 @@ import EmbedSnippet from "@/components/forms/EmbedSnippet.vue";
 import ActivityCards from "@/components/stats/ActivityCards.vue";
 import WelcomeEmailSection from "@/components/forms/WelcomeEmailSection.vue";
 import LeadMagnetPicker from "@/components/lead-magnets/LeadMagnetPicker.vue";
+import SignupStep from "@/components/forms/SignupStep.vue";
 import TagPicker from "@/components/tags/TagPicker.vue";
 import { confirmStarter, parseEmailDocument, welcomeStarter } from "@/lib/emailStarters";
 import { useSaveShortcut } from "@/composables/useSaveShortcut";
@@ -145,7 +198,7 @@ const draft = reactive({
 	tags: [] as string[],
 	successMessage: "",
 	leadMagnet: "",
-	sendWelcomeWithLeadMagnet: true,
+	sendWelcomeEmail: false,
 	welcomeSubject: "",
 	welcomeReplyTo: "",
 	welcomeContent: null as EmailDocument | null,
@@ -182,12 +235,24 @@ const saved = computed(() => {
 		tags: doc.tags.map((row) => row.tag),
 		successMessage: doc.success_message,
 		leadMagnet: doc.lead_magnet ?? "",
-		sendWelcomeWithLeadMagnet: Boolean(doc.send_welcome_with_lead_magnet ?? 1),
+		sendWelcomeEmail: Boolean(doc.send_welcome_email),
 		welcomeSubject: doc.welcome_subject ?? "",
 		welcomeReplyTo: doc.welcome_reply_to ?? "",
 		welcomeContent: parseEmailDocument(doc.welcome_content_json) ?? welcomeStarter(),
 		welcomeTheme: doc.welcome_theme,
 	};
+});
+
+/** The emails a new subscriber gets, as one sentence above the steps. */
+const outline = computed(() => {
+	const emails = [
+		draft.doubleOptIn && "a confirm email",
+		draft.sendWelcomeEmail && "a welcome email",
+		draft.leadMagnet && "the lead magnet",
+	].filter(Boolean) as string[];
+	if (!emails.length) return "A new subscriber joins the list and gets no email.";
+	const list = emails.length === 1 ? emails[0] : `${emails.slice(0, -1).join(", ")}, then ${emails.at(-1)}`;
+	return `A new subscriber gets ${list}. In this order:`;
 });
 
 const dirty = computed(
@@ -215,6 +280,14 @@ watch(
 	{ immediate: true }
 );
 
+// The starter content is already there, so a starter subject makes the switch alone enough.
+watch(
+	() => draft.sendWelcomeEmail,
+	(on) => {
+		if (on && loaded.value && !draft.welcomeSubject) draft.welcomeSubject = "Thanks for joining, {{ first_name }}";
+	}
+);
+
 async function save() {
 	try {
 		await form.setValue.submit({
@@ -233,12 +306,15 @@ async function save() {
 			success_message: draft.successMessage,
 			tags: draft.tags.map((tag) => ({ tag })),
 			lead_magnet: draft.leadMagnet || null,
-			send_welcome_with_lead_magnet: draft.sendWelcomeWithLeadMagnet ? 1 : 0,
+			send_welcome_email: draft.sendWelcomeEmail ? 1 : 0,
 			welcome_subject: draft.welcomeSubject,
 			welcome_reply_to: draft.welcomeReplyTo || null,
 			welcome_theme: draft.welcomeTheme,
 			welcome_content_json: JSON.stringify(draft.welcomeContent),
-			welcome_content_html: (await welcomeEmail.value?.getHtml()) ?? form.doc?.welcome_content_html,
+			// A hidden welcome editor keeps the saved email too, so turning it off loses nothing.
+			welcome_content_html: welcomeEmail.value
+				? await welcomeEmail.value.getHtml()
+				: form.doc?.welcome_content_html,
 		});
 		saveError.value = "";
 		toast.success("Form saved");

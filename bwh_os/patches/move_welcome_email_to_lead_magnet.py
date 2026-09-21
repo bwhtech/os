@@ -69,13 +69,11 @@ def execute():
 					"welcome_content_json": None,
 					"welcome_content_html": "",
 					"welcome_reply_to": "",
-					"send_welcome_with_lead_magnet": 0,
 				},
 			)
 			cleared.append(name)
 		elif form.welcome_subject:
-			# Already a plain greeting. Send it before the file, as it always has.
-			frappe.db.set_value("Signup Form", name, "send_welcome_with_lead_magnet", 1)
+			# Already a plain greeting. set_send_welcome_email keeps it going out before the file.
 			kept.append(name)
 
 	# A form with no magnet can still carry a dead download link from before this change: the

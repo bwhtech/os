@@ -1,14 +1,5 @@
 <template>
-	<section class="space-y-4">
-		<div class="space-y-1">
-			<h2 class="text-lg-semibold text-ink-gray-8">Confirm Email</h2>
-			<p class="text-p-sm text-ink-gray-5">
-				Sent when a person signs up. The person stays Pending, and gets the welcome email
-				only after they confirm. Link a button to
-				<code v-pre class="font-mono text-ink-gray-7">{{ confirm_url }}</code>.
-			</p>
-		</div>
-
+	<div class="space-y-4">
 		<TextInput v-model="subject" label="Subject" required class="max-w-2xl" />
 		<TextInput
 			v-model="replyTo"
@@ -24,7 +15,11 @@
 			v-model:theme="theme"
 			:variables="CONFIRM_VARIABLES"
 		/>
-	</section>
+		<p class="text-p-sm text-ink-gray-5">
+			Link a button to <code v-pre class="font-mono text-ink-gray-7">{{ confirm_url }}</code>.
+			The email cannot be saved without it.
+		</p>
+	</div>
 </template>
 
 <script setup lang="ts">

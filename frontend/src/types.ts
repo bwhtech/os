@@ -37,8 +37,8 @@ export interface SignupForm {
 	success_message: string
 	tags: TagRow[]
 	lead_magnet: string | null
-	/** With a lead magnet, also send this greeting before its delivery email. */
-	send_welcome_with_lead_magnet: 0 | 1
+	/** Off keeps the welcome email but sends nothing. */
+	send_welcome_email: 0 | 1
 	welcome_subject: string | null
 	welcome_reply_to: string | null
 	welcome_theme: NewsletterTheme

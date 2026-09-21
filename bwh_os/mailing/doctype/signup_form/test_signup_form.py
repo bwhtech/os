@@ -81,6 +81,47 @@ class IntegrationTestSignupForm(IntegrationTestCase):
 			subscribe("test-blog-post", "guest@example.com")
 
 
+class IntegrationTestWelcomeSwitch(IntegrationTestCase):
+	def setUp(self):
+		self.form = make_form("test-welcome-switch")
+		self.form.db_set(
+			{
+				"send_welcome_email": 1,
+				"welcome_subject": "Welcome",
+				"welcome_content_html": email_html("<p>Glad you are here.</p>"),
+			}
+		)
+		self.form.reload()
+
+	def test_switch_on_sends_the_welcome_email(self):
+		subscribe("test-welcome-switch", "switch-on@example.com")
+
+		self.assertEqual(emails_to("switch-on@example.com"), 1)
+
+	def test_switch_off_keeps_the_email_but_sends_nothing(self):
+		self.form.send_welcome_email = 0
+		self.form.save()
+
+		subscribe("test-welcome-switch", "switch-off@example.com")
+
+		self.assertEqual(emails_to("switch-off@example.com"), 0)
+		self.assertEqual(frappe.db.get_value("Signup Form", self.form.name, "welcome_subject"), "Welcome")
+
+	def test_switch_on_needs_a_subject(self):
+		self.form.welcome_subject = ""
+
+		with self.assertRaises(frappe.ValidationError):
+			self.form.save()
+
+	def test_switch_off_skips_the_checks(self):
+		"""A half-written greeting must not block saving the rest of the form."""
+		self.form.send_welcome_email = 0
+		self.form.welcome_subject = ""
+		self.form.welcome_content_html = ""
+
+		self.form.save()
+
+
 def make_form(form_id: str, tags: list[str] | None = None):
 	if frappe.db.exists("Signup Form", form_id):
 		return frappe.get_doc("Signup Form", form_id)
@@ -110,3 +151,7 @@ def make_api_user() -> str:
 def email_html(body: str) -> str:
 	"""A full document with one outer cell, as the OS editor makes it."""
 	return f"<!DOCTYPE html><html><head></head><body><table><tr><td>{body}</td></tr></table></body></html>"
+
+
+def emails_to(recipient: str) -> int:
+	return frappe.db.count("Email Queue Recipient", {"recipient": recipient})

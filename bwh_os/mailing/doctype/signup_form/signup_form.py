@@ -42,7 +42,7 @@ class SignupForm(Document):
 		form_id: DF.Data
 		is_active: DF.Check
 		lead_magnet: DF.Link | None
-		send_welcome_with_lead_magnet: DF.Check
+		send_welcome_email: DF.Check
 		success_message: DF.SmallText
 		tags: DF.TableMultiSelect[SubscriberTagItem]
 		title: DF.Data
@@ -83,10 +83,13 @@ class SignupForm(Document):
 		)
 
 	def validate_welcome_email(self):
-		if not self.welcome_subject:
+		# Off keeps whatever was written, unchecked, so turning it back on loses nothing.
+		if not self.send_welcome_email:
 			return
+		if not self.welcome_subject:
+			frappe.throw(_("Give the welcome email a subject, or turn it off"))
 		if not self.welcome_content_html:
-			frappe.throw(_("Write the welcome email, or clear its subject to send nothing"))
+			frappe.throw(_("Write the welcome email, or turn it off"))
 		email_variables.check(self.welcome_subject, email_variables.WELCOME, _("The welcome subject"))
 		email_variables.check(self.welcome_content_html, email_variables.WELCOME, _("The welcome email"))
 
@@ -197,10 +200,7 @@ class SignupForm(Document):
 		`greeting` is False on a repeat signup: the reader already got "thanks for joining"
 		the first time, so only the lead magnet goes out again.
 		"""
-		send_greeting = (
-			greeting and self.welcome_subject and (not self.lead_magnet or self.send_welcome_with_lead_magnet)
-		)
-		if send_greeting:
+		if greeting and self.send_welcome_email:
 			with log_email_failure(subscriber, self.name, "Welcome"):
 				ListEmail(
 					subscriber,
