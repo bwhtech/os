@@ -37,7 +37,7 @@ import {
 	articleToolbar,
 	type UploadedFile,
 } from 'frappe-ui/editor'
-import { useAutosave } from '@/composables/useAutosave'
+import { SAVE_LABELS, useAutosave } from '@/composables/useAutosave'
 import type { Video } from '@/types'
 
 type Field = 'research' | 'script' | 'description'
@@ -58,8 +58,6 @@ const PLACEHOLDERS: Record<Field, string> = {
 	script: 'Write the hook, then the beats…',
 	description: 'The YouTube description, with chapters and links…',
 }
-
-const SAVE_LABELS = { idle: '', saving: 'Saving…', saved: 'Saved', error: 'Not saved' }
 
 const extensions = [RichTextKit]
 

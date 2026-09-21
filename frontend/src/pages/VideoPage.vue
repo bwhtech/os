@@ -1,6 +1,10 @@
 <template>
 	<AppPageHeader :breadcrumbs="breadcrumbs">
 		<template #actions>
+			<span v-if="view === 'canvas'" class="self-center text-xs text-ink-gray-5" aria-live="polite">
+				{{ SAVE_LABELS[canvasSaveState] }}
+			</span>
+			<TabButtons v-model="view" :options="VIEWS" />
 			<template v-if="seriesVideos.length">
 				<Button
 					variant="ghost"
@@ -8,7 +12,7 @@
 					aria-label="Previous video"
 					tooltip="Previous"
 					:disabled="!previous"
-					:route="previous ? videoRoute(previous) : undefined"
+					:route="previous ? sameView(previous) : undefined"
 				/>
 				<Button
 					variant="ghost"
@@ -16,7 +20,7 @@
 					aria-label="Next video"
 					tooltip="Next"
 					:disabled="!next"
-					:route="next ? videoRoute(next) : undefined"
+					:route="next ? sameView(next) : undefined"
 				/>
 			</template>
 			<Dropdown :options="menu">
@@ -31,7 +35,7 @@
 	</div>
 
 	<!-- Fills the space below the header, so the border of the details panel runs top to bottom. -->
-	<div v-else class="flex min-h-[calc(100dvh-3rem)]">
+	<div v-else v-show="view === 'writing'" class="flex min-h-[calc(100dvh-3rem)]">
 		<div class="min-w-0 flex-1 px-3 sm:px-5">
 			<div class="mx-auto w-full max-w-[770px] pb-40 pt-6">
 				<p v-if="series" class="text-sm text-ink-gray-5">
@@ -70,18 +74,45 @@
 			</div>
 		</aside>
 	</div>
+
+	<!-- Stays mounted after the first visit, so switching back and forth keeps the drawing and its undo. -->
+	<CanvasDocEditor
+		v-if="video.doc && canvasName"
+		v-show="view === 'canvas'"
+		:key="canvasName"
+		v-model:save-state="canvasSaveState"
+		class="h-[calc(100dvh-3rem)]"
+		:canvas-id="canvasName"
+	/>
+	<div v-else-if="video.doc && view === 'canvas'" class="px-3 py-6 sm:px-5">
+		<ErrorMessage v-if="videoCanvas.error" :message="errorMessage(videoCanvas.error)" />
+		<DetailSkeleton v-else class="mx-auto max-w-[770px]" />
+	</div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { Button, Dropdown, ErrorMessage, dayjs, debounce, dialog, toast, useDoc, useList } from 'frappe-ui'
+import { useRoute, useRouter } from 'vue-router'
+import {
+	Button,
+	Dropdown,
+	ErrorMessage,
+	TabButtons,
+	dayjs,
+	debounce,
+	dialog,
+	toast,
+	useCall,
+	useDoc,
+	useList,
+} from 'frappe-ui'
 import AppPageHeader from '@/components/shell/AppPageHeader.vue'
+import CanvasDocEditor from '@/components/canvas/CanvasDocEditor.vue'
 import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import VideoAttachments from '@/components/videos/VideoAttachments.vue'
 import VideoDetails from '@/components/videos/VideoDetails.vue'
 import VideoWriting from '@/components/videos/VideoWriting.vue'
-import { useAutosave } from '@/composables/useAutosave'
+import { SAVE_LABELS, type SaveState, useAutosave } from '@/composables/useAutosave'
 import { useVideoSeries } from '@/composables/useVideoSeries'
 import { errorMessage } from '@/lib/errors'
 import { onListUpdate } from '@/lib/socket'
@@ -90,8 +121,20 @@ import type { Video } from '@/types'
 
 const props = defineProps<{ videoId: string; seriesId?: string }>()
 
+const route = useRoute()
 const router = useRouter()
 const { byName } = useVideoSeries()
+
+const VIEWS = [
+	{ label: 'Writing', value: 'writing' },
+	{ label: 'Canvas', value: 'canvas' },
+]
+
+/** In the URL, so a reload, or the next video, stays on the canvas. */
+const view = computed<'writing' | 'canvas'>({
+	get: () => (route.query.view === 'canvas' ? 'canvas' : 'writing'),
+	set: (value) => router.replace({ query: { ...route.query, view: value === 'canvas' ? value : undefined } }),
+})
 
 const video = useDoc<Video>({ doctype: 'BWH Video', name: computed(() => props.videoId) })
 
@@ -152,14 +195,15 @@ function fitTitle() {
 watch(
 	() => video.doc && videoRoute(video.doc),
 	(route) => {
-		if (route && route !== router.currentRoute.value.path) router.replace(route)
+		const current = router.currentRoute.value
+		if (route && route !== current.path) router.replace({ path: route, query: current.query })
 	},
 )
 
 function remove() {
 	dialog.danger({
 		title: 'Delete this video?',
-		message: 'Its research, script, description and attachments are deleted too.',
+		message: 'Its research, script, description, attachments and canvas are deleted too.',
 		confirmLabel: 'Delete',
 		onConfirm: async () => {
 			const back = series.value ? `/series/${series.value.name}` : '/videos'
@@ -169,6 +213,32 @@ function remove() {
 		},
 	})
 }
+
+function sameView(row: Pick<Video, 'name' | 'series'>) {
+	return { path: videoRoute(row), query: route.query }
+}
+
+const canvasName = ref<string | null>(null)
+const canvasSaveState = ref<SaveState>('idle')
+
+const videoCanvas = useCall<string, { video: string }>({
+	url: '/api/v2/method/bwh_os.canvas.api.get_video_canvas',
+	method: 'POST',
+	immediate: false,
+})
+
+// The canvas of a video is made the first time it opens, so a video nobody draws for has none.
+watch(
+	[view, () => props.videoId],
+	async ([current, videoId], previous) => {
+		if (previous && previous[1] !== videoId) canvasName.value = null
+		if (current !== 'canvas' || canvasName.value) return
+		const name = await videoCanvas.submit({ video: videoId })
+		// The answer for a video that is no longer open is not this page's.
+		if (name && videoId === props.videoId) canvasName.value = String(name)
+	},
+	{ immediate: true },
+)
 
 /** The other videos of the series, for the previous and next buttons. */
 function useSeriesVideos() {

@@ -3,7 +3,10 @@ import { toast } from 'frappe-ui'
 import { useSaveShortcut } from '@/composables/useSaveShortcut'
 import { errorMessage } from '@/lib/errors'
 
-type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+export type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+
+/** What a page shows next to its content for each state. */
+export const SAVE_LABELS: Record<SaveState, string> = { idle: '', saving: 'Saving…', saved: 'Saved', error: 'Not saved' }
 
 /**
  * Collects edits and saves them together after a pause in typing.

@@ -1,6 +1,7 @@
 # Copyright (c) 2026, BWH and contributors
 # For license information, please see license.txt
 
+import frappe
 from frappe.model.document import Document
 from frappe.utils import cstr
 
@@ -39,6 +40,9 @@ class BWHVideo(Document):
 	def on_trash(self):
 		if self.series:
 			SeriesOrder(self.series).close_gap(leaving=self.name)
+		# The canvas belongs to the video. Left behind, its link would block the delete.
+		for canvas in frappe.get_all("BWH Canvas", filters={"video": self.name}, pluck="name"):
+			frappe.delete_doc("BWH Canvas", canvas)
 
 	def set_position(self):
 		"""The server owns the position. A video that joins a series goes to the end."""

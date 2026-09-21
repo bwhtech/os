@@ -19,6 +19,7 @@ declare module 'vue' {
     AppShell: typeof import('./src/components/shell/AppShell.vue')['default']
     AppSidebar: typeof import('./src/components/shell/AppSidebar.vue')['default']
     BlogSettings: typeof import('./src/components/settings/BlogSettings.vue')['default']
+    CanvasDocEditor: typeof import('./src/components/canvas/CanvasDocEditor.vue')['default']
     CanvasEditor: typeof import('./src/components/canvas/CanvasEditor.vue')['default']
     ChannelPicker: typeof import('./src/components/social/ChannelPicker.vue')['default']
     ColumnMappingStep: typeof import('./src/components/subscribers/import/ColumnMappingStep.vue')['default']
