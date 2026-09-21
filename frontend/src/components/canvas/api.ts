@@ -11,6 +11,13 @@ export interface CanvasMountOptions {
 	theme: CanvasTheme
 	/** Called with the serialized scene after a change to the drawing. Not for scroll, zoom or selection. */
 	onChange: (scene: string) => void
+	/** Called with a small JPEG of the drawing, as a data URL, a while after it changes. Null when empty. */
+	onThumbnail: (thumbnail: string | null) => void
+	/** Store a pasted image and give back its URL. The scene keeps the URL, not the image. */
+	uploadFile: (file: File) => Promise<string>
+	/** The shared shape library, as JSON. */
+	loadLibrary: () => Promise<string | null>
+	saveLibrary: (items: string) => Promise<void>
 }
 
 export interface MountedCanvas {

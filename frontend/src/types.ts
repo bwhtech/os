@@ -500,5 +500,7 @@ export interface Canvas {
 	video: string | null
 	/** The Excalidraw scene, as JSON. Null until the first stroke. */
 	scene: string | null
+	/** A small JPEG of the drawing, as a data URL. Null for an empty canvas. */
+	thumbnail: string | null
 	modified: string
 }

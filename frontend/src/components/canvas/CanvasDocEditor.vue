@@ -12,14 +12,16 @@
 			:key="canvas.doc.name"
 			class="size-full"
 			:scene="canvas.doc.scene"
+			:upload-file="uploadFile"
 			@change="change"
+			@thumbnail="(thumbnail) => queue({ thumbnail })"
 		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ErrorMessage, useDoc } from 'frappe-ui'
+import { ErrorMessage, upload, useDoc } from 'frappe-ui'
 import CanvasEditor from '@/components/canvas/CanvasEditor.vue'
 import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import { type SaveState, useAutosave } from '@/composables/useAutosave'
@@ -57,6 +59,12 @@ onBeforeUnmount(() => channel.close())
 function change(scene: string) {
 	queue({ scene })
 	channel.postMessage(scene)
+}
+
+/** Images pasted into the canvas are private files attached to it, and go when it goes. */
+async function uploadFile(file: File) {
+	const uploaded = await upload(file, { private: true, doctype: 'BWH Canvas', docname: props.canvasId })
+	return uploaded.file_url
 }
 
 const frame = ref<HTMLElement | null>(null)

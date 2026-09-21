@@ -35,14 +35,20 @@
 				v-for="row in rows"
 				:key="row.name"
 				:to="`/canvas/${row.name}`"
-				class="block rounded-5 border border-outline-gray-1 p-4 hover:border-outline-gray-3"
+				class="block overflow-hidden rounded-5 border border-outline-gray-1 hover:border-outline-gray-3"
 			>
-				<p class="truncate text-lg-semibold text-ink-gray-8">{{ row.title }}</p>
-				<p class="mt-1 flex items-center gap-1.5 truncate text-sm text-ink-gray-5">
-					<span :class="row.video ? 'lucide-clapperboard' : 'lucide-pen-tool'" class="size-3.5 shrink-0" aria-hidden="true" />
-					<span class="truncate">{{ row.video ? row.video_title : 'Scratch' }}</span>
-				</p>
-				<p class="mt-3 text-xs text-ink-gray-5">Edited {{ dayjs(row.modified).fromNow() }}</p>
+				<div class="canvas-thumbnail grid aspect-video place-items-center border-b border-outline-gray-1 bg-white">
+					<img v-if="row.thumbnail" :src="row.thumbnail" alt="" class="size-full object-contain p-3" />
+					<span v-else class="lucide-pen-tool size-5 text-gray-400" aria-hidden="true" />
+				</div>
+				<div class="p-4">
+					<p class="truncate text-lg-semibold text-ink-gray-8">{{ row.title }}</p>
+					<p class="mt-1 flex items-center gap-1.5 truncate text-sm text-ink-gray-5">
+						<span :class="row.video ? 'lucide-clapperboard' : 'lucide-pen-tool'" class="size-3.5 shrink-0" aria-hidden="true" />
+						<span class="truncate">{{ row.video ? row.video_title : 'Scratch' }}</span>
+					</p>
+					<p class="mt-3 text-xs text-ink-gray-5">Edited {{ dayjs(row.modified).fromNow() }}</p>
+				</div>
 			</RouterLink>
 		</div>
 	</div>
@@ -76,7 +82,7 @@ const creating = ref(false)
 const canvases = useList<CanvasRow>({
 	doctype: 'BWH Canvas',
 	// Not the scene: it can be large, and the cards do not draw it.
-	fields: ['name', 'title', 'video', 'video.title as video_title', 'modified'],
+	fields: ['name', 'title', 'video', 'video.title as video_title', 'thumbnail', 'modified'],
 	orderBy: 'modified desc',
 	// Filtering on the client keeps the tabs and the search instant.
 	limit: 1000,
@@ -106,3 +112,10 @@ async function create() {
 	}
 }
 </script>
+
+<style scoped>
+/* Thumbnails are drawn light. Dark mode inverts them the way Excalidraw draws its own dark mode. */
+:root[data-theme='dark'] .canvas-thumbnail {
+	filter: invert(93%) hue-rotate(180deg);
+}
+</style>

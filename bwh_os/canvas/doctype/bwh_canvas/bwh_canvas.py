@@ -17,6 +17,7 @@ class BWHCanvas(Document):
 
 		name: DF.Int | None
 		scene: DF.LongText | None
+		thumbnail: DF.LongText | None
 		title: DF.Data
 		video: DF.Link | None
 	# end: auto-generated types

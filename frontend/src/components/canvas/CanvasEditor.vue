@@ -11,10 +11,15 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { LoadingIndicator, useColorScheme } from 'frappe-ui'
 import type { MountedCanvas } from '@/components/canvas/api'
+import { loadCanvasLibrary, saveCanvasLibrary } from '@/lib/canvas'
 
 /** The scene is read once, at mount. The canvas keeps its own state after that. */
-const props = defineProps<{ scene: string | null }>()
-const emit = defineEmits<{ change: [scene: string] }>()
+const props = defineProps<{
+	scene: string | null
+	/** Store a pasted image and give back its URL. */
+	uploadFile: (file: File) => Promise<string>
+}>()
+const emit = defineEmits<{ change: [scene: string]; thumbnail: [thumbnail: string | null] }>()
 
 const { resolvedColorScheme } = useColorScheme()
 
@@ -30,6 +35,10 @@ onMounted(async () => {
 		scene: props.scene,
 		theme: resolvedColorScheme.value,
 		onChange: (scene) => emit('change', scene),
+		onThumbnail: (thumbnail) => emit('thumbnail', thumbnail),
+		uploadFile: props.uploadFile,
+		loadLibrary: loadCanvasLibrary,
+		saveLibrary: saveCanvasLibrary,
 	})
 	ready.value = true
 })

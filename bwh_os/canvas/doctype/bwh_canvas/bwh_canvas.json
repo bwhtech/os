@@ -8,7 +8,8 @@
  "field_order": [
   "title",
   "video",
-  "scene"
+  "scene",
+  "thumbnail"
  ],
  "fields": [
   {
@@ -35,10 +36,16 @@
    "fieldname": "scene",
    "fieldtype": "Long Text",
    "label": "Scene"
+  },
+  {
+   "description": "A small JPEG of the drawing, as a data URL, for the canvas list",
+   "fieldname": "thumbnail",
+   "fieldtype": "Long Text",
+   "label": "Thumbnail"
   }
  ],
  "links": [],
- "modified": "2026-09-21 12:00:00.000000",
+ "modified": "2026-09-21 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Canvas",
  "name": "BWH Canvas",

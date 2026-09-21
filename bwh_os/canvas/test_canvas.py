@@ -1,7 +1,7 @@
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from bwh_os.canvas.api import get_video_canvas
+from bwh_os.canvas.api import get_library, get_video_canvas, save_library
 
 
 def make_video(title: str = "Signup flow") -> str:
@@ -40,3 +40,8 @@ class IntegrationTestCanvas(IntegrationTestCase):
 	def test_unknown_video_has_no_canvas(self):
 		with self.assertRaises(frappe.DoesNotExistError):
 			get_video_canvas("999999")
+
+	def test_library_round_trips(self):
+		save_library('[{"id": "shape"}]')
+
+		self.assertEqual(get_library(), '[{"id": "shape"}]')
