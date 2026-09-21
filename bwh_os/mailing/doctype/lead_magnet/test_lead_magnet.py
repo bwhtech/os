@@ -16,6 +16,7 @@ from bwh_os.mailing.api import (
 	subscribe,
 )
 from bwh_os.mailing.doctype.signup_form.test_signup_form import email_html, make_form
+from bwh_os.mailing.lead_magnet_page import content_disposition
 
 FILE_BYTES = b"test manual"
 
@@ -190,6 +191,22 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 		self.assertEqual(activity["total"], before_activity["total"] + 1)
 		self.assertEqual(activity["last_period"], before_activity["last_period"] + 1)
 
+	def test_a_non_ascii_file_name_survives_the_header(self):
+		self.assertEqual(
+			content_disposition('Guía "2026".pdf'),
+			"attachment; filename=\"Gu_a _2026_.pdf\"; filename*=UTF-8''Gu%C3%ADa%20%222026%22.pdf",
+		)
+
+	def test_missing_token_matches_no_subscriber(self):
+		name = add_subscriber("no-token@example.com")
+		# A token-less row would match `token IS NULL` if the page looked up a missing token.
+		frappe.db.set_value("Subscriber", name, "token", None)
+
+		response = download_page(self.lead_magnet.route, None, method="POST")
+
+		self.assertEqual(response.status_code, 404)
+		self.assertFalse(frappe.db.exists("Lead Magnet Download", {"subscriber": name}))
+
 	def test_wrong_token_logs_nothing(self):
 		downloads = frappe.db.count("Lead Magnet Download")
 
@@ -209,7 +226,7 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 		self.assertIn(f"/download/{self.lead_magnet.route}", response.headers["Location"])
 
 
-def download_page(route: str, token: str, method: str = "GET"):
+def download_page(route: str, token: str | None, method: str = "GET"):
 	"""Ask for /download/<route> the way a browser does, through the real page renderer.
 
 	The request goes back as it was afterwards. A leftover one from `set_request` has no
@@ -218,8 +235,9 @@ def download_page(route: str, token: str, method: str = "GET"):
 	request = getattr(frappe.local, "request", None)
 	form_dict = frappe.local.form_dict
 	try:
-		set_request(method=method, path=f"/download/{route}", query_string=f"token={token}")
-		frappe.local.form_dict = frappe._dict(token=token)
+		query_string = f"token={token}" if token else ""
+		set_request(method=method, path=f"/download/{route}", query_string=query_string)
+		frappe.local.form_dict = frappe._dict(token=token) if token else frappe._dict()
 		return get_response()
 	finally:
 		frappe.local.request = request

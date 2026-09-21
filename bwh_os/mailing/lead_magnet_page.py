@@ -7,6 +7,7 @@ count. `bwh_os.mailing.api.unsubscribe` splits GET and POST for the same reason.
 """
 
 import mimetypes
+from urllib.parse import quote
 
 import frappe
 from frappe.website.page_renderers.base_renderer import BaseRenderer
@@ -48,9 +49,11 @@ class LeadMagnetDownloadPage(BaseRenderer):
 		return bool(self.magnet)
 
 	def render(self) -> Response:
+		# A missing token would become `token IS NULL` and match any subscriber without one.
+		token = frappe.form_dict.get("token")
 		# A Pending subscriber has not confirmed, so the file waits for the confirm link.
-		subscriber = frappe.db.get_value(
-			"Subscriber", {"token": frappe.form_dict.get("token"), "status": ("!=", "Pending")}
+		subscriber = token and frappe.db.get_value(
+			"Subscriber", {"token": token, "status": ("!=", "Pending")}
 		)
 		if not subscriber:
 			return self.page({"invalid": True}, http_status_code=404)
@@ -85,8 +88,17 @@ def send_file(magnet, subscriber: str) -> Response:
 	return Response(
 		file.get_content(),
 		mimetype=mimetypes.guess_type(file.file_name)[0] or "application/octet-stream",
-		headers={"Content-Disposition": f'attachment; filename="{file.file_name}"'},
+		headers={"Content-Disposition": content_disposition(file.file_name)},
 	)
+
+
+def content_disposition(file_name: str) -> str:
+	"""Headers are latin-1, so a name like "Guía.pdf" goes in `filename*` (RFC 6266), with an
+	ASCII `filename` for old clients."""
+	fallback = (
+		file_name.encode("ascii", "replace").decode().replace("?", "_").replace('"', "_").replace("\\", "_")
+	)
+	return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(file_name)}"
 
 
 def find_magnet(route: str) -> str | None:
