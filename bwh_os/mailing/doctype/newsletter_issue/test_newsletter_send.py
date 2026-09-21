@@ -13,9 +13,16 @@ from bwh_os.mailing.api import (
 	get_newsletter_progress,
 	send_newsletter,
 )
-from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import last_email_to, use_test_email_account
+from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import (
+	last_email_to,
+	make_lead_magnet,
+	new_lead_magnet,
+	use_test_email_account,
+)
 from bwh_os.mailing.doctype.newsletter_issue.test_newsletter_issue import make_issue
+from bwh_os.mailing.doctype.signup_form.test_signup_form import email_html
 from bwh_os.mailing.doctype.subscriber_tag.subscriber_tag import SubscriberTag
+from bwh_os.mailing.lead_magnet_page import ROUTE_PREFIX
 from bwh_os.mailing.newsletter_send import NewsletterSend, run_send_job, sync_sending_issues
 
 
@@ -172,6 +179,63 @@ class IntegrationTestNewsletterSend(IntegrationTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			send_newsletter(issue.name)
 
+	def test_issue_with_a_lead_magnet_fills_a_link_per_recipient(self):
+		first = add_subscriber(f"magnet-a-{self.tag}@example.com", tags=[self.tag])
+		second = add_subscriber(f"magnet-b-{self.tag}@example.com", tags=[self.tag])
+		issue, magnet = self.issue_for_tag_with_magnet()
+
+		run_send_job(self.start(issue).name)
+
+		first_token = frappe.db.get_value("Subscriber", first, "token")
+		second_token = frappe.db.get_value("Subscriber", second, "token")
+		first_html = last_email_to(first).get_body(("html",)).get_content()
+		second_html = last_email_to(second).get_body(("html",)).get_content()
+		self.assertIn(magnet.get_download_url(first_token).replace("&", "&amp;"), first_html)
+		self.assertIn(magnet.get_download_url(second_token).replace("&", "&amp;"), second_html)
+		self.assertNotIn(first_token, second_html)
+
+	def test_subject_can_carry_the_lead_magnet_title(self):
+		self.add_readers(1)
+		issue, magnet = self.issue_for_tag_with_magnet()
+		issue.update({"subject": "Get {{ lead_magnet }}"}).save()
+
+		run_send_job(self.start(issue).name)
+
+		email = last_email_to(self.deliveries(issue)[0].email)
+		self.assertEqual(email["Subject"], f"Get {magnet.title}")
+
+	def test_a_subscriber_with_no_token_gets_one(self):
+		reader = add_subscriber(f"no-token-{self.tag}@example.com", tags=[self.tag])
+		frappe.db.set_value("Subscriber", reader, "token", "")
+		issue, magnet = self.issue_for_tag_with_magnet()
+
+		run_send_job(self.start(issue).name)
+
+		token = frappe.db.get_value("Subscriber", reader, "token")
+		self.assertTrue(token)
+		html = last_email_to(reader).get_body(("html",)).get_content()
+		self.assertIn(magnet.get_download_url(token).replace("&", "&amp;"), html)
+
+	def test_the_download_link_is_not_click_tracked(self):
+		self.add_readers(1)
+		issue, magnet = self.issue_for_tag_with_magnet()
+
+		run_send_job(self.start(issue).name)
+
+		html = last_email_to(self.deliveries(issue)[0].email).get_body(("html",)).get_content()
+		self.assertIn(f"/{ROUTE_PREFIX}{magnet.route}", html)
+		self.assertNotIn("track_click", html)
+
+	def test_lead_magnet_is_locked_after_the_send(self):
+		self.add_readers(1)
+		issue, _magnet = self.issue_for_tag_with_magnet()
+		issue = self.start(issue)
+		other = new_lead_magnet("A Different Manual")
+
+		issue.lead_magnet = other.name
+		with self.assertRaises(frappe.ValidationError):
+			issue.save()
+
 	def add_readers(self, count: int, prefix: str = "reader") -> list[str]:
 		return [
 			add_subscriber(f"{prefix}{index}-{self.tag}@example.com", tags=[self.tag])
@@ -182,6 +246,16 @@ class IntegrationTestNewsletterSend(IntegrationTestCase):
 		issue = make_issue()
 		issue.update({"audience": "Tags", "tags": [{"tag": self.tag}], "hourly_limit": hourly_limit})
 		return issue.save()
+
+	def issue_for_tag_with_magnet(self):
+		"""A tagged, ready-to-send issue that gives away a lead magnet."""
+		magnet = make_lead_magnet()
+		issue = make_issue(
+			content_html=email_html('<a href="{{ download_url }}">Get {{ lead_magnet }}</a>'),
+			lead_magnet=magnet.name,
+		)
+		issue.update({"audience": "Tags", "tags": [{"tag": self.tag}]})
+		return issue.save(), magnet
 
 	def start(self, issue):
 		with patch("bwh_os.mailing.newsletter_send.frappe.enqueue"):

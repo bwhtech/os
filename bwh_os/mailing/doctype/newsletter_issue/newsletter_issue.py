@@ -19,6 +19,7 @@ LOCKED_FIELDS = (
 	"preview_text",
 	"reply_to",
 	"theme",
+	"lead_magnet",
 	"content_json",
 	"content_html",
 	"audience",
@@ -45,6 +46,7 @@ class NewsletterIssue(Document):
 		failed_count: DF.Int
 		hourly_limit: DF.Int
 		is_public: DF.Check
+		lead_magnet: DF.Link | None
 		opened_count: DF.Int
 		preview_text: DF.Data | None
 		recipient_count: DF.Int
@@ -72,9 +74,22 @@ class NewsletterIssue(Document):
 		self.ensure_unchanged_after_send()
 		if self.reply_to:
 			validate_email_address(self.reply_to, throw=True)
-		email_variables.check(self.subject, email_variables.NEWSLETTER, _("The subject"))
-		email_variables.check(self.content_html, email_variables.NEWSLETTER, _("The newsletter"))
+		if not self.lead_magnet and self.content_html and "download_url" in self.content_html:
+			# The generic "cannot fill this variable" message is right but unhelpful here: the
+			# reader just removed the one thing that made the link fillable.
+			frappe.throw(_("Remove the download button, or pick the lead magnet again."))
+		email_variables.check(self.subject, self.allowed_variables(), _("The subject"))
+		email_variables.check(
+			self.content_html,
+			self.allowed_variables(),
+			_("The newsletter"),
+			required=["download_url"] if self.lead_magnet else [],
+		)
 		NewsletterRoute(self).validate()
+
+	def allowed_variables(self) -> tuple[str, ...]:
+		"""`download_url` and `lead_magnet` are fillable only once a lead magnet is picked."""
+		return email_variables.with_lead_magnet(email_variables.NEWSLETTER, self.lead_magnet)
 
 	def send(self):
 		"""Send to the audience in hourly batches. See NewsletterSend."""
@@ -105,16 +120,13 @@ class NewsletterIssue(Document):
 		settings = frappe.get_cached_doc("Mailing Settings")
 		# A test goes to a user, not a subscriber, so the link has no real token.
 		unsubscribe_url = get_url("/api/method/bwh_os.mailing.api.unsubscribe?token=test")
+		values = self.test_values()
 		queued = frappe.sendmail(
 			recipients=[recipient],
 			sender=settings.get_sender(),
 			reply_to=settings.get_reply_to(self.reply_to),
-			subject=_("[Test] {0}").format(
-				email_variables.fill(
-					self.subject, email_variables.fallback_values(email_variables.NEWSLETTER), html=False
-				)
-			),
-			message=self.get_email_html(unsubscribe_url),
+			subject=_("[Test] {0}").format(email_variables.fill(self.subject, values, html=False)),
+			message=self.get_email_html(unsubscribe_url, values=values),
 			# The editor makes a full HTML document. Frappe's wrapper would nest it.
 			raw_html=True,
 			reference_doctype=self.doctype,
@@ -128,6 +140,15 @@ class NewsletterIssue(Document):
 					"{0} is unsubscribed from all email in Frappe. Remove its Email Unsubscribe record."
 				).format(recipient)
 			)
+
+	def test_values(self) -> dict[str, str | None]:
+		"""Fallbacks, except a real link for a lead magnet: `?token=test` 404s cleanly, and a blank
+		{{ download_url }} in a test send would look broken rather than say so."""
+		values = email_variables.fallback_values(self.allowed_variables())
+		if self.lead_magnet:
+			magnet = frappe.get_cached_doc("Lead Magnet", self.lead_magnet)
+			values |= {"download_url": magnet.get_download_url("test"), "lead_magnet": magnet.title}
+		return values
 
 	def get_web_html(self) -> str:
 		"""The page in the web archive: the content and the company footer, with no pixel and no unsubscribe link."""
@@ -145,8 +166,10 @@ class NewsletterIssue(Document):
 		the click redirect and the footer has the open pixel.
 		"""
 		html = email_variables.fill(
-			self.content_html, values or email_variables.fallback_values(email_variables.NEWSLETTER)
+			self.content_html, values or email_variables.fallback_values(self.allowed_variables())
 		)
 		if not tracking:
 			return add_footer(html, unsubscribe_url)
+		# Fill before rewriting links: the download link is a real URL by the time tracking sees it,
+		# and rewriting first would sign the literal `{{ download_url }}` text instead.
 		return add_footer(tracking.rewrite_links(html), unsubscribe_url, extra=tracking.pixel())

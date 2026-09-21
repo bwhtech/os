@@ -4,8 +4,13 @@
 			<form class="space-y-4" @submit.prevent="submit(close)">
 				<Switch
 					v-model="isPublic"
+					:disabled="blocked"
 					label="Show in web archive"
-					description="Anyone can read it at /newsletter. The page has no tracking and no unsubscribe link."
+					:description="
+						blocked
+							? 'This newsletter gives away a lead magnet. The download link is different for every reader, so the archive page cannot build one.'
+							: 'Anyone can read it at /newsletter. The page has no tracking and no unsubscribe link.'
+					"
 				/>
 				<TextInput
 					v-if="isPublic"
@@ -53,6 +58,9 @@ const isPublic = ref(false)
 const route = ref('')
 const saving = ref(false)
 const error = ref('')
+
+/** A sent issue's `lead_magnet` cannot change, so this holds for as long as the dialog is open. */
+const blocked = computed(() => Boolean(props.issue.lead_magnet))
 
 /** The saved page, not the one being typed */
 const pageUrl = computed(() =>

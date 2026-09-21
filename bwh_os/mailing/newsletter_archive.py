@@ -18,6 +18,13 @@ class NewsletterRoute:
 	def validate(self):
 		if not self.issue.is_public:
 			return
+		if self.issue.lead_magnet:
+			frappe.throw(
+				_(
+					"A newsletter with a lead magnet cannot go in the web archive. "
+					"The download link is different for every reader."
+				)
+			)
 		if self.issue.status != "Sent":
 			frappe.throw(_("Only a sent newsletter can show in the web archive"))
 		self.issue.route = self.unique(cleanup_page_name(self.issue.route or self.issue.subject))

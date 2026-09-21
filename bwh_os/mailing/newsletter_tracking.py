@@ -5,11 +5,13 @@ import hashlib
 import hmac
 import re
 from html import escape, unescape
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from frappe.utils import get_url
 from frappe.utils.verified_command import get_secret
 from werkzeug.wrappers import Response
+
+from bwh_os.mailing.lead_magnet_page import ROUTE_PREFIX
 
 LINK_HREF = re.compile(r'(<a\b[^>]*?\bhref\s*=\s*")([^"]*)(")', re.IGNORECASE)
 TRACKED_SCHEMES = ("http://", "https://")
@@ -24,11 +26,16 @@ class EmailTracking:
 		self.delivery = delivery
 
 	def rewrite_links(self, html: str) -> str:
-		"""Point every web link at the click redirect. Other links (mailto:, #) stay as they are."""
+		"""Point every web link at the click redirect. Other links (mailto:, #) stay as they are.
+
+		The download link is the one exception. It carries a different URL for every reader, so
+		click tracking would turn it into thousands of one-click "top links" instead of one. The
+		real event is already `Lead Magnet Download`, which is the better number anyway.
+		"""
 
 		def rewrite(match: re.Match) -> str:
 			url = unescape(match.group(2)).strip()
-			if not url.lower().startswith(TRACKED_SCHEMES):
+			if not url.lower().startswith(TRACKED_SCHEMES) or is_download_link(url):
 				return match.group(0)
 			return match.group(1) + escape(self.click_url(url)) + match.group(3)
 
@@ -48,6 +55,10 @@ class EmailTracking:
 	def unsubscribe_url(self, subscriber_url: str) -> str:
 		"""The subscriber's link, plus the delivery, so the issue report counts the unsubscribe."""
 		return f"{subscriber_url}&delivery={self.delivery}"
+
+
+def is_download_link(url: str) -> bool:
+	return urlparse(url).path.strip("/").startswith(ROUTE_PREFIX)
 
 
 def sign(delivery: str, url: str) -> str:

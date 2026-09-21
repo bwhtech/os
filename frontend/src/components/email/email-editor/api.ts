@@ -28,6 +28,10 @@ export interface MountedEmailEditor {
 	setTheme: (theme: NewsletterTheme) => void
 	/** Put a block at the end of the email, for the ones a page offers to write for you. */
 	insertBlock: (node: JSONContent) => void
+	/** Replace the whole document, for "use this lead magnet's email". The undo history starts again. */
+	setContent: (content: JSONContent) => void
+	/** Widen or narrow the `{{` menu, for a newsletter that just picked up a lead magnet. */
+	setVariables: (variables: EmailVariable[]) => void
 	unmount: () => void
 }
 

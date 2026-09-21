@@ -135,6 +135,9 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions): Mou
 	const root = createRoot(container)
 	let editorRef: EmailEditorRef | null = null
 	let currentTheme = options.theme
+	// The `{{` menu is built from this at mount. `setVariables` updates it and re-renders, the
+	// same way `insertBlock` and `setContent` change the document.
+	let currentVariables = options.variables
 	// The editor reads `content` when it mounts and never again, so a document written from
 	// outside needs a new editor. The key is what gives it one.
 	let generation = 0
@@ -147,7 +150,7 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions): Mou
 				content={content ?? undefined}
 				// A new theme object gives a new editor, so the theme applies to the whole document.
 				theme={theme.config}
-				extensions={editorExtensions(theme, options.variables)}
+				extensions={editorExtensions(theme, currentVariables)}
 				// The defaults, and our blocks, which have no text to format.
 				bubbleMenu={{ hideWhenActiveNodes: ['button', 'horizontalRule', ...BLOCK_NODES] }}
 				onUpdate={(ref) => options.onChange(ref.getJSON())}
@@ -182,6 +185,17 @@ export function mountEmailEditor(shadow: ShadowRoot, options: MountOptions): Mou
 			generation += 1
 			render(currentTheme, content)
 			options.onChange(content)
+		},
+		setContent(content: JSONContent) {
+			generation += 1
+			render(currentTheme, content)
+			options.onChange(content)
+		},
+		setVariables(variables: EmailVariable[]) {
+			currentVariables = variables
+			const content = editorRef ? editorRef.getJSON() : options.content
+			generation += 1
+			render(currentTheme, content)
 		},
 		unmount() {
 			stopMirror()

@@ -74,6 +74,9 @@ Every email in OS uses the same editor. The editor is [React Email editor](https
 - Send to all Active subscribers, or to subscribers with some tags. The page shows the recipient count before the send.
 - Emails go out in hourly batches. Each newsletter has an hourly limit.
 - Send now, or schedule the send for later.
+- **Give away a lead magnet.** Pick one and "Use its email" pulls in its saved content as a
+  starting point. Every reader gets their own download link, so the link is never click-tracked
+  and a newsletter with a lead magnet cannot go in the web archive.
 
 ![Newsletter preview](.github/images/newsletter-preview.png)
 

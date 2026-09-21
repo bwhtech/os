@@ -109,6 +109,8 @@ export interface NewsletterIssue {
 	reply_to: string | null
 	status: NewsletterStatus
 	theme: NewsletterTheme
+	/** Every reader gets their own download link. Blocks the web archive. */
+	lead_magnet: string | null
 	/** The API returns JSON fields as a string */
 	content_json: string | EmailDocument | null
 	content_html: string | null

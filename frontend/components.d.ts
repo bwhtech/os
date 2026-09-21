@@ -53,6 +53,7 @@ declare module 'vue' {
     NewNewsletterDialog: typeof import('./src/components/newsletters/NewNewsletterDialog.vue')['default']
     NewsletterAudience: typeof import('./src/components/newsletters/NewsletterAudience.vue')['default']
     NewsletterEngagement: typeof import('./src/components/newsletters/NewsletterEngagement.vue')['default']
+    NewsletterLeadMagnet: typeof import('./src/components/newsletters/NewsletterLeadMagnet.vue')['default']
     NewsletterReport: typeof import('./src/components/newsletters/NewsletterReport.vue')['default']
     PartEditor: typeof import('./src/components/social/PartEditor.vue')['default']
     PlatformIcon: typeof import('./src/components/social/PlatformIcon.vue')['default']

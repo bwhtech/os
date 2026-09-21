@@ -16,6 +16,7 @@
   "column_break_audience",
   "hourly_limit",
   "content_section",
+  "lead_magnet",
   "content_json",
   "content_html",
   "send_section",
@@ -79,6 +80,13 @@
    "fieldname": "content_section",
    "fieldtype": "Section Break",
    "label": "Content"
+  },
+  {
+   "description": "Every reader gets their own download link. A newsletter with a lead magnet cannot go in the web archive.",
+   "fieldname": "lead_magnet",
+   "fieldtype": "Link",
+   "label": "Lead Magnet",
+   "options": "Lead Magnet"
   },
   {
    "description": "The editor document",

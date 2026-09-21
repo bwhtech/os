@@ -105,11 +105,18 @@
 				:preview="audience"
 			/>
 
+			<NewsletterLeadMagnet
+				v-model:lead-magnet="draft.leadMagnet"
+				:content="draft.content"
+				@use-email="applyMagnetEmail"
+				@add-download-button="addDownloadButton"
+			/>
+
 			<EmailComposer
 				ref="composer"
 				v-model:content="draft.content"
 				v-model:theme="draft.theme"
-				:variables="NEWSLETTER_VARIABLES"
+				:variables="variables"
 				:preview-text="draft.previewText"
 			/>
 		</template>
@@ -153,13 +160,14 @@ import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import EmailComposer from '@/components/email/EmailComposer.vue'
 import EmailPreview from '@/components/email/EmailPreview.vue'
 import NewsletterAudience from '@/components/newsletters/NewsletterAudience.vue'
+import NewsletterLeadMagnet from '@/components/newsletters/NewsletterLeadMagnet.vue'
 import NewsletterReport from '@/components/newsletters/NewsletterReport.vue'
 import PublishDialog from '@/components/newsletters/PublishDialog.vue'
 import SendNewsletterDialog from '@/components/newsletters/SendNewsletterDialog.vue'
 import SendTestDialog from '@/components/newsletters/SendTestDialog.vue'
 import { useAudiencePreview } from '@/composables/useAudiencePreview'
-import { parseEmailDocument } from '@/lib/emailStarters'
-import { NEWSLETTER_VARIABLES, fillSamples } from '@/lib/emailVariables'
+import { downloadButton, parseEmailDocument } from '@/lib/emailStarters'
+import { NEWSLETTER_VARIABLES, fillSamples, withLeadMagnet } from '@/lib/emailVariables'
 import { useSaveShortcut } from '@/composables/useSaveShortcut'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { errorMessage } from '@/lib/errors'
@@ -202,7 +210,9 @@ const loaded = ref(false)
 const isDraft = computed(() => issue.doc?.status === 'Draft')
 
 /** A scheduled or sent issue shows the saved email with sample values. */
-const sampleHtml = computed(() => fillSamples(issue.doc?.content_html ?? '', NEWSLETTER_VARIABLES))
+const sampleHtml = computed(() =>
+	fillSamples(issue.doc?.content_html ?? '', withLeadMagnet(NEWSLETTER_VARIABLES, issue.doc?.lead_magnet)),
+)
 
 const draft = reactive({
 	subject: '',
@@ -212,8 +222,12 @@ const draft = reactive({
 	audience: 'All Active' as Audience,
 	tags: [] as string[],
 	hourlyLimit: 0,
+	leadMagnet: '',
 	content: null as EmailDocument | null,
 })
+
+/** Widens the `{{` menu once a lead magnet is picked. */
+const variables = computed(() => withLeadMagnet(NEWSLETTER_VARIABLES, draft.leadMagnet))
 
 const audience = useAudiencePreview(() => ({
 	audience: draft.audience,
@@ -258,6 +272,7 @@ const saved = computed(() => {
 		audience: doc.audience,
 		tags: doc.tags.map((row) => row.tag),
 		hourlyLimit: doc.hourly_limit,
+		leadMagnet: doc.lead_magnet ?? '',
 		content: parseEmailDocument(doc.content_json),
 	}
 })
@@ -296,6 +311,7 @@ async function save() {
 			audience: draft.audience,
 			tags: draft.tags.map((tag) => ({ tag })),
 			hourly_limit: draft.hourlyLimit,
+			lead_magnet: draft.leadMagnet || null,
 			content_json: JSON.stringify(draft.content),
 			content_html: (await composer.value?.getHtml()) ?? '',
 		})
@@ -320,6 +336,16 @@ async function unschedule() {
 	}
 	await issue.reload()
 	toast.success('Newsletter is a draft again')
+}
+
+function applyMagnetEmail(content: EmailDocument, subject: string) {
+	draft.content = content
+	if (!draft.subject) draft.subject = subject
+	composer.value?.setContent(content)
+}
+
+function addDownloadButton() {
+	composer.value?.insertBlock(downloadButton())
 }
 
 /** A test and a send use the saved HTML, so unsaved changes are saved first. */

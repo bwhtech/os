@@ -180,7 +180,7 @@ class NewsletterSend:
 		tracking = EmailTracking(row.name)
 		subscriber = frappe.get_doc("Subscriber", row.subscriber)
 		unsubscribe_url = tracking.unsubscribe_url(subscriber.get_unsubscribe_url())
-		values = email_variables.subscriber_values(subscriber)
+		values = email_variables.subscriber_values(subscriber) | self.magnet_values(subscriber)
 		settings = frappe.get_cached_doc("Mailing Settings")
 		queue = frappe.sendmail(
 			recipients=[row.email],
@@ -203,6 +203,14 @@ class NewsletterSend:
 			)
 			return
 		set_delivery(row.name, email_queue=queue.name, queued_at=now_datetime())
+
+	def magnet_values(self, subscriber) -> dict[str, str]:
+		if not self.issue.lead_magnet:
+			return {}
+		# Every subscriber gets one on insert; this only covers an odd row with none.
+		if not subscriber.token:
+			subscriber.db_set("token", frappe.generate_hash(length=32))
+		return frappe.get_cached_doc("Lead Magnet", self.issue.lead_magnet).values_for(subscriber)
 
 	def send_after(self, batch: int):
 		if not batch:

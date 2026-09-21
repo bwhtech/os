@@ -5,11 +5,16 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from bwh_os.mailing.api import send_test_newsletter
-from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import last_email_to, use_test_email_account
+from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import (
+	last_email_to,
+	make_lead_magnet,
+	use_test_email_account,
+)
+from bwh_os.mailing.doctype.signup_form.test_signup_form import email_html
 
 CONTENT_HTML = (
 	'<!DOCTYPE html><html><head></head><body style="background-color:#f3f3f3">'
-	'<table><tr><td><p>Hello readers</p></td></tr></table>'
+	"<table><tr><td><p>Hello readers</p></td></tr></table>"
 	"</body></html>"
 )
 
@@ -81,13 +86,43 @@ class IntegrationTestNewsletterIssue(IntegrationTestCase):
 		with self.assertRaises(frappe.PermissionError):
 			send_test_newsletter(issue.name, "reader-test@example.com")
 
+	def test_issue_with_a_lead_magnet_needs_the_download_link(self):
+		with self.assertRaises(frappe.ValidationError):
+			make_issue(lead_magnet=make_lead_magnet().name)
 
-def make_issue(content_html: str = CONTENT_HTML):
+	def test_issue_with_a_lead_magnet_and_the_link_saves(self):
+		magnet = make_lead_magnet()
+
+		issue = make_issue(
+			content_html=email_html('<a href="{{ download_url }}">Download</a>'), lead_magnet=magnet.name
+		)
+
+		self.assertEqual(issue.lead_magnet, magnet.name)
+
+	def test_a_newsletter_without_a_lead_magnet_cannot_use_the_download_link(self):
+		with self.assertRaises(frappe.ValidationError):
+			make_issue(content_html=email_html('<a href="{{ download_url }}">Download</a>'))
+
+	def test_send_test_uses_a_real_download_link(self):
+		magnet = make_lead_magnet()
+		issue = make_issue(
+			content_html=email_html('<a href="{{ download_url }}">Download</a>'), lead_magnet=magnet.name
+		)
+
+		send_test_newsletter(issue.name, "magnet-test@example.com")
+
+		email = last_email_to("magnet-test@example.com")
+		download_url = magnet.get_download_url("test").replace("&", "&amp;")
+		self.assertIn(download_url, email.get_body(("html",)).get_content())
+
+
+def make_issue(content_html: str = CONTENT_HTML, lead_magnet: str | None = None):
 	return frappe.get_doc(
 		{
 			"doctype": "Newsletter Issue",
 			"subject": "Issue #1",
 			"content_json": {"type": "doc", "content": []},
 			"content_html": content_html,
+			"lead_magnet": lead_magnet,
 		}
 	).insert()

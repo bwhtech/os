@@ -118,6 +118,7 @@ The link in an email goes to the download page, not to the file. The page shows 
 | subject | Data | |
 | preview_text | Data | |
 | reply_to | Data (Email) | Where a reply to this issue goes. Empty uses `Mailing Settings`. Locked once the send starts. |
+| lead_magnet | Link: Lead Magnet | Optional. Slice 16. Widens the variables to `download_url` and `lead_magnet`, and requires the content to link `download_url`. Locked once the send starts. Blocks the web archive. |
 | content_json | JSON | Editor document |
 | content_html | Code (HTML) | Email-safe HTML. The editor makes it in the browser and OS saves it with `content_json`. Code, because Frappe sanitizes Long Text and removes `<html>`, `<head>`, and `<body>`. |
 | theme | Select | Frappe UI (default), Basic, Minimal. Frappe UI uses the frappe-ui light tokens as hex colors. |
@@ -263,7 +264,7 @@ Every email in OS (newsletters, confirm, welcome, and a lead magnet's delivery e
 - Type `{{` in the editor to add a variable. It shows as a chip with a tooltip that says what replaces it. Typing or pasting `{{ first_name }}` also makes a chip.
 - The chip serializes to `{{ first_name }}`. A link can also use a variable, for example a button to `{{ confirm_url }}`.
 - The server fills the variables when it sends (`bwh_os/mailing/email_variables.py`). Values are HTML-escaped. `first_name` falls back to "there".
-- Each email has its own variables. Newsletters and welcome: `first_name`, `email`. Confirm: also `confirm_url`. A lead magnet's delivery email: also `download_url` and `lead_magnet`. A save fails for a variable that the email cannot fill.
+- Each email has its own variables. Newsletters and welcome: `first_name`, `email`. Confirm: also `confirm_url`. A lead magnet's delivery email: also `download_url` and `lead_magnet`. A newsletter gets the same two only once it picks a lead magnet, and then must use `download_url`. A save fails for a variable that the email cannot fill.
 - The preview, the test send, and the web archive use sample values or fallbacks.
 - Subjects accept the same `{{ key }}` text, with no chips.
 
@@ -411,6 +412,16 @@ Each slice goes through all layers. Merge each slice alone.
 - Add the Send Lead Magnet dialog: Subscribers or Tag, live recipient and already-downloaded counts, the skip switch. The lead magnet page's Send to… button is disabled until the delivery email is written and saved.
 - `LeadMagnet.recipients()` and its `downloaders_of()` subquery are shared: the newsletter audience filter in the next slice reuses the same "already has it" query.
 - Demo: write a delivery email, pick two subscribers on the lead magnet page, send. Each gets an email with their own download link, right away.
+
+### 16. A newsletter can give away a lead magnet
+
+- Add `lead_magnet` to `Newsletter Issue`, locked once the send starts. Picking one widens the newsletter's variables to `download_url` and `lead_magnet`, and requires the content to link `{{ download_url }}`.
+- `NewsletterSend.queue()` resolves each recipient's own link the same way a lead magnet's own delivery email does. A subscriber with no token gets one rather than a dead link.
+- The download link is never click-tracked: it is different for every reader, so tracking it would turn one button into thousands of "top links". `Lead Magnet Download` is already the real event.
+- A newsletter with a lead magnet cannot go in the web archive — the download link only works for the subscriber it was sent to. `PublishDialog` disables the switch and says why; the server refuses it either way.
+- The newsletter page gets a Lead Magnet section: pick one, or "Use its email" to copy the magnet's saved content in as a starting point (confirmed if the newsletter already has content). Un-picking a magnet whose download button is still in the body is confirmed too, so a save does not fail as a surprise.
+- The editor gained `setContent` and `setVariables`, alongside the existing `insertBlock` and `setTheme`: the only two ways anything outside the editor changes what is inside it, now four.
+- Demo: pick a lead magnet on a newsletter, use its email, send a test. The test carries a real download link. Try to publish the sent issue to the archive — refused, with the reason on screen.
 
 ## Open questions
 

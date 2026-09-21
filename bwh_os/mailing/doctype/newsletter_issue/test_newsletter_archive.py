@@ -5,7 +5,9 @@ import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.website.serve import get_response
 
+from bwh_os.mailing.doctype.lead_magnet.test_lead_magnet import make_lead_magnet
 from bwh_os.mailing.doctype.newsletter_issue.test_newsletter_issue import make_issue
+from bwh_os.mailing.doctype.signup_form.test_signup_form import email_html
 from bwh_os.mailing.newsletter_archive import public_issues
 
 
@@ -20,6 +22,20 @@ class IntegrationTestNewsletterArchive(IntegrationTestCase):
 		issue = make_issue()
 		issue.is_public = 1
 
+		with self.assertRaises(frappe.ValidationError):
+			issue.save()
+
+	def test_a_lead_magnet_issue_cannot_be_public(self):
+		magnet = make_lead_magnet()
+		issue = make_issue(
+			content_html=email_html('<a href="{{ download_url }}">Download</a>'), lead_magnet=magnet.name
+		)
+		# db_set, not save: is_public is the only field this test changes, and the status jump
+		# alone would trip ensure_unchanged_after_send if it went through validate().
+		issue.db_set({"status": "Sent", "sent_at": frappe.utils.now_datetime()})
+		issue.reload()
+
+		issue.is_public = 1
 		with self.assertRaises(frappe.ValidationError):
 			issue.save()
 

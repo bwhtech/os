@@ -73,5 +73,7 @@ defineExpose({
 	getHtml,
 	/** Put a block at the end of the email, for the ones a page offers to write for you. */
 	insertBlock: (node: EmailDocument) => editor.value?.insertBlock(node),
+	/** Replace the whole document, for "use this lead magnet's email". */
+	setContent: (document_: EmailDocument) => editor.value?.setContent(document_),
 })
 </script>

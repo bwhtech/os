@@ -21,7 +21,6 @@ import type { EmailDocument, NewsletterTheme } from '@/types'
 const props = withDefaults(
 	defineProps<{
 		theme: NewsletterTheme
-		/** Read once, on mount */
 		variables?: EmailVariable[]
 	}>(),
 	{ variables: () => [] },
@@ -60,6 +59,11 @@ watch(
 	(theme) => mounted?.setTheme(theme),
 )
 
+watch(
+	() => props.variables,
+	(variables) => mounted?.setVariables(variables),
+)
+
 onBeforeUnmount(() => mounted?.unmount())
 
 /** Email clients need a public image, so uploads are public files. */
@@ -80,6 +84,8 @@ async function uploadImage(file: File): Promise<{ url: string }> {
 defineExpose({
 	/** Put a block at the end of the email. The editor announces it, so the model follows. */
 	insertBlock: (node: EmailDocument) => mounted?.insertBlock(node),
+	/** Replace the whole document. The editor announces it, so the model follows. */
+	setContent: (content: EmailDocument) => mounted?.setContent(content),
 	/** Email HTML for the current content. Empty until the editor is ready. */
 	getHtml: (previewText: string) => api?.getHtml(previewText) ?? Promise.resolve(''),
 })
