@@ -3,3 +3,4 @@ Mailing
 Blog
 Videos
 Social
+Canvas

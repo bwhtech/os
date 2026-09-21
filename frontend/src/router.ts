@@ -97,6 +97,17 @@ const routes: RouteRecordRaw[] = [
 		component: () => import('@/pages/VideoPage.vue'),
 		props: true,
 	},
+	{
+		path: '/canvas',
+		name: 'Canvases',
+		component: () => import('@/pages/CanvasesPage.vue'),
+	},
+	{
+		path: '/canvas/:canvasId',
+		name: 'Canvas',
+		component: () => import('@/pages/CanvasPage.vue'),
+		props: true,
+	},
 	{ path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

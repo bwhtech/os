@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.1",
     "@react-email/editor": "1.7.7",
     "@tiptap/extension-mention": "3.31.3",
     "@tiptap/suggestion": "3.31.3",

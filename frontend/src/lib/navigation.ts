@@ -39,6 +39,10 @@ export const SECTIONS: NavSection[] = [
 			{ to: '/series', label: 'Series', icon: 'lucide-library' },
 		],
 	},
+	{
+		label: 'Canvas',
+		items: [{ to: '/canvas', label: 'All Canvases', icon: 'lucide-pen-tool' }],
+	},
 ]
 
 /** The pages that get a tab in the mobile nav. The rest live in the "More" sheet. */

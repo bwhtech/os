@@ -491,3 +491,14 @@ export interface TargetValidation {
 	counts: number[]
 	errors: string[]
 }
+
+export interface Canvas {
+	/** Autoincrement. The server sends a number, and useList types every name as a string. */
+	name: string
+	title: string
+	/** Empty for a scratch canvas. */
+	video: string | null
+	/** The Excalidraw scene, as JSON. Null until the first stroke. */
+	scene: string | null
+	modified: string
+}
