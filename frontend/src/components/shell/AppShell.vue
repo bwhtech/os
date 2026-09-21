@@ -1,6 +1,9 @@
 <template>
+	<!-- A bare route is the page alone, such as a canvas in a window of its own. -->
+	<router-view v-if="route.meta.bare" />
+
 	<!-- Mobile and desktop are different navigation models, so the app picks one shell. -->
-	<MobileShell v-if="isMobile">
+	<MobileShell v-else-if="isMobile">
 		<router-view />
 		<template #nav>
 			<AppMobileNav @open-settings="settingsOpen = true" />

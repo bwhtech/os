@@ -4,6 +4,11 @@
 			<span v-if="view === 'canvas'" class="self-center text-xs text-ink-gray-5" aria-live="polite">
 				{{ SAVE_LABELS[canvasSaveState] }}
 			</span>
+			<CanvasViewButtons
+				v-if="view === 'canvas' && canvasName"
+				:canvas-id="canvasName"
+				@fullscreen="canvasEditor?.enterFullscreen()"
+			/>
 			<TabButtons v-model="view" :options="VIEWS" />
 			<template v-if="seriesVideos.length">
 				<Button
@@ -79,6 +84,7 @@
 	<CanvasDocEditor
 		v-if="video.doc && canvasName"
 		v-show="view === 'canvas'"
+		ref="canvasEditor"
 		:key="canvasName"
 		v-model:save-state="canvasSaveState"
 		class="h-[calc(100dvh-3rem)]"
@@ -108,6 +114,7 @@ import {
 } from 'frappe-ui'
 import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import CanvasDocEditor from '@/components/canvas/CanvasDocEditor.vue'
+import CanvasViewButtons from '@/components/canvas/CanvasViewButtons.vue'
 import DetailSkeleton from '@/components/stats/DetailSkeleton.vue'
 import VideoAttachments from '@/components/videos/VideoAttachments.vue'
 import VideoDetails from '@/components/videos/VideoDetails.vue'
@@ -220,6 +227,7 @@ function sameView(row: Pick<Video, 'name' | 'series'>) {
 
 const canvasName = ref<string | null>(null)
 const canvasSaveState = ref<SaveState>('idle')
+const canvasEditor = ref<InstanceType<typeof CanvasDocEditor> | null>(null)
 
 const videoCanvas = useCall<string, { video: string }>({
 	url: '/api/v2/method/bwh_os.canvas.api.get_video_canvas',

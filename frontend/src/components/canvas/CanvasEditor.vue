@@ -37,4 +37,9 @@ onMounted(async () => {
 watch(resolvedColorScheme, (theme) => mounted?.setTheme(theme))
 
 onBeforeUnmount(() => mounted?.unmount())
+
+defineExpose({
+	/** Replace the drawing with a scene saved somewhere else. It does not emit `change`. */
+	setScene: (scene: string) => mounted?.setScene(scene),
+})
 </script>

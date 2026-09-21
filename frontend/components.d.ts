@@ -21,6 +21,7 @@ declare module 'vue' {
     BlogSettings: typeof import('./src/components/settings/BlogSettings.vue')['default']
     CanvasDocEditor: typeof import('./src/components/canvas/CanvasDocEditor.vue')['default']
     CanvasEditor: typeof import('./src/components/canvas/CanvasEditor.vue')['default']
+    CanvasViewButtons: typeof import('./src/components/canvas/CanvasViewButtons.vue')['default']
     ChannelPicker: typeof import('./src/components/social/ChannelPicker.vue')['default']
     ColumnMappingStep: typeof import('./src/components/subscribers/import/ColumnMappingStep.vue')['default']
     CommentGroup: typeof import('./src/components/blog/CommentGroup.vue')['default']

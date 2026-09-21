@@ -2,13 +2,20 @@
 	<AppPageHeader :breadcrumbs="breadcrumbs">
 		<template #actions>
 			<span class="self-center text-xs text-ink-gray-5" aria-live="polite">{{ SAVE_LABELS[saveState] }}</span>
+			<CanvasViewButtons :canvas-id="canvasId" @fullscreen="editor?.enterFullscreen()" />
 			<Dropdown v-if="canvas.doc" :options="menu">
 				<Button variant="ghost" icon="lucide-ellipsis" aria-label="More actions" />
 			</Dropdown>
 		</template>
 	</AppPageHeader>
 
-	<CanvasDocEditor ref="editor" v-model:save-state="saveState" class="h-[calc(100dvh-3rem)]" :canvas-id="canvasId" />
+	<CanvasDocEditor
+		ref="editor"
+		:key="canvasId"
+		v-model:save-state="saveState"
+		class="h-[calc(100dvh-3rem)]"
+		:canvas-id="canvasId"
+	/>
 </template>
 
 <script setup lang="ts">
@@ -17,6 +24,7 @@ import { useRouter } from 'vue-router'
 import { Button, Dropdown, dialog, toast, useDoc } from 'frappe-ui'
 import AppPageHeader from '@/components/shell/AppPageHeader.vue'
 import CanvasDocEditor from '@/components/canvas/CanvasDocEditor.vue'
+import CanvasViewButtons from '@/components/canvas/CanvasViewButtons.vue'
 import { SAVE_LABELS, type SaveState } from '@/composables/useAutosave'
 import type { Canvas } from '@/types'
 

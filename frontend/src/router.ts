@@ -108,6 +108,14 @@ const routes: RouteRecordRaw[] = [
 		component: () => import('@/pages/CanvasPage.vue'),
 		props: true,
 	},
+	// A window of its own, without the sidebar or the header. See AppShell.
+	{
+		path: '/canvas/:canvasId/window',
+		name: 'Canvas Window',
+		component: () => import('@/pages/CanvasWindowPage.vue'),
+		props: true,
+		meta: { bare: true },
+	},
 	{ path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

@@ -15,5 +15,7 @@ export interface CanvasMountOptions {
 
 export interface MountedCanvas {
 	setTheme: (theme: CanvasTheme) => void
+	/** Replace the drawing with a scene saved somewhere else, such as another window. */
+	setScene: (scene: string) => void
 	unmount: () => void
 }
