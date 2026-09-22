@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 from email import message_from_string, policy
+from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
@@ -15,7 +16,9 @@ from bwh_os.mailing.api import (
 	get_lead_magnet_activity,
 	subscribe,
 )
+from bwh_os.mailing.doctype.lead_magnet.lead_magnet import tag_downloaders
 from bwh_os.mailing.doctype.signup_form.test_signup_form import email_html, make_form
+from bwh_os.mailing.doctype.subscriber_tag.subscriber_tag import SubscriberTag
 from bwh_os.mailing.lead_magnet_page import content_disposition
 
 FILE_BYTES = b"test manual"
@@ -192,6 +195,43 @@ class IntegrationTestLeadMagnet(IntegrationTestCase):
 		self.assertEqual(activity["total"], before_activity["total"] + 1)
 		self.assertEqual(activity["last_period"], before_activity["last_period"] + 1)
 
+	def test_a_download_adds_the_magnet_tags(self):
+		self.set_tags(["test-downloaded-manual"])
+		name = add_subscriber("tagged-downloader@example.com")
+		token = frappe.db.get_value("Subscriber", name, "token")
+
+		download_page(self.lead_magnet.route, token, method="POST")
+
+		self.assertIn("test-downloaded-manual", subscriber_tags(name))
+
+	def test_a_new_tag_reaches_past_downloaders(self):
+		# The download page commits, so a tag from another test can still be on the magnet.
+		self.set_tags([])
+		name = add_subscriber("early-downloader@example.com")
+		self.lead_magnet.log_download(name)
+		self.lead_magnet.log_download(name)
+
+		with patch("frappe.enqueue") as enqueue:
+			self.set_tags(["test-downloaded-manual"])
+
+		self.assertEqual(enqueue.call_args.kwargs["tags"], ["test-downloaded-manual"])
+		tag_downloaders(**{key: enqueue.call_args.kwargs[key] for key in ("lead_magnet", "tags")})
+		self.assertEqual(subscriber_tags(name).count("test-downloaded-manual"), 1)
+
+	def test_saving_without_a_new_tag_starts_no_backfill(self):
+		self.set_tags(["test-downloaded-manual"])
+
+		with patch("frappe.enqueue") as enqueue:
+			self.lead_magnet.blurb = "Changed"
+			self.lead_magnet.save()
+
+		enqueue.assert_not_called()
+
+	def set_tags(self, tags: list[str]):
+		self.lead_magnet.reload()
+		self.lead_magnet.set("tags", [{"tag": SubscriberTag.ensure(tag)} for tag in tags])
+		self.lead_magnet.save()
+
 	def test_a_non_ascii_file_name_survives_the_header(self):
 		self.assertEqual(
 			content_disposition('Guía "2026".pdf'),
@@ -243,6 +283,10 @@ def download_page(route: str, token: str | None, method: str = "GET"):
 	finally:
 		frappe.local.request = request
 		frappe.local.form_dict = form_dict
+
+
+def subscriber_tags(name: str) -> list[str]:
+	return [row.tag for row in frappe.get_doc("Subscriber", name).tags]
 
 
 def make_lead_magnet():

@@ -70,6 +70,10 @@
 					:rows="2"
 				/>
 				<LeadMagnetFileInput v-model="draft.file" />
+				<TagPicker
+					v-model="draft.tags"
+					description="Everyone who downloads the file gets these tags. A new tag also goes to past downloads."
+				/>
 			</section>
 
 			<!-- The editor reads its content once, so it mounts only after the first fetch. -->
@@ -105,6 +109,7 @@ import LeadMagnetDownloads from '@/components/lead-magnets/LeadMagnetDownloads.v
 import LeadMagnetEmailSection from '@/components/lead-magnets/LeadMagnetEmailSection.vue'
 import LeadMagnetFileInput from '@/components/lead-magnets/LeadMagnetFileInput.vue'
 import SendLeadMagnetDialog from '@/components/lead-magnets/SendLeadMagnetDialog.vue'
+import TagPicker from '@/components/tags/TagPicker.vue'
 import ActivityCards from '@/components/stats/ActivityCards.vue'
 import { useSaveShortcut } from '@/composables/useSaveShortcut'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -134,6 +139,7 @@ const draft = reactive({
 	blurb: '',
 	description: '',
 	file: '',
+	tags: [] as string[],
 	subject: '',
 	replyTo: '',
 	content: null as EmailDocument | null,
@@ -157,6 +163,7 @@ const saved = computed(() => {
 		blurb: doc.blurb ?? '',
 		description: doc.description ?? '',
 		file: doc.file,
+		tags: doc.tags.map((row) => row.tag),
 		subject: doc.subject ?? '',
 		replyTo: doc.reply_to ?? '',
 		// A magnet with no email yet starts from a first draft.
@@ -211,6 +218,7 @@ async function save() {
 			blurb: draft.blurb,
 			description: draft.description,
 			file: draft.file,
+			tags: draft.tags.map((tag) => ({ tag })),
 			subject: draft.subject,
 			reply_to: draft.replyTo || null,
 			theme: draft.theme,

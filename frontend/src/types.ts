@@ -56,6 +56,8 @@ export interface LeadMagnet {
 	description: string | null
 	/** Private file URL */
 	file: string
+	/** Given to everyone who downloads the file */
+	tags: TagRow[]
 	/** The email that hands this file over. Empty subject means the magnet has no email yet. */
 	subject: string | null
 	reply_to: string | null

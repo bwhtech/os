@@ -10,6 +10,7 @@
   "blurb",
   "description",
   "file",
+  "tags",
   "email_section",
   "subject",
   "reply_to",
@@ -51,6 +52,13 @@
    "fieldtype": "Attach",
    "label": "File",
    "reqd": 1
+  },
+  {
+   "description": "Added to every subscriber who downloads the file",
+   "fieldname": "tags",
+   "fieldtype": "Table MultiSelect",
+   "label": "Tags",
+   "options": "Subscriber Tag Item"
   },
   {
    "description": "Sent on signup, from Send to…, or with a newsletter. Link a button to {{ download_url }}.",

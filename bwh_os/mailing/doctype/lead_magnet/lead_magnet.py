@@ -25,6 +25,8 @@ class LeadMagnet(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		from bwh_os.mailing.doctype.subscriber_tag_item.subscriber_tag_item import SubscriberTagItem
+
 		blurb: DF.SmallText | None
 		content_html: DF.Code | None
 		content_json: DF.JSON | None
@@ -33,6 +35,7 @@ class LeadMagnet(Document):
 		reply_to: DF.Data | None
 		route: DF.Data | None
 		subject: DF.Data | None
+		tags: DF.TableMultiSelect[SubscriberTagItem]
 		theme: DF.Literal["Frappe UI", "Basic", "Minimal"]
 		title: DF.Data
 	# end: auto-generated types
@@ -43,6 +46,9 @@ class LeadMagnet(Document):
 			frappe.throw(_("Upload the lead magnet as a private file"))
 		LeadMagnetRoute(self).validate()
 		self.validate_email()
+
+	def on_update(self):
+		self.tag_past_downloaders()
 
 	def validate_email(self):
 		if not self.subject:
@@ -79,6 +85,25 @@ class LeadMagnet(Document):
 				"downloaded_on": now_datetime(),
 			}
 		).insert(ignore_permissions=True)
+		tag_subscriber(subscriber, self.tag_names())
+
+	def tag_names(self) -> list[str]:
+		return [row.tag for row in self.tags]
+
+	def tag_past_downloaders(self):
+		"""A tag added later reaches the people who already have the file too. A removed tag
+		stays on them: they did download it."""
+		before = self.get_doc_before_save()
+		added = set(self.tag_names()) - set(before.tag_names() if before else [])
+		if not added:
+			return
+		frappe.enqueue(
+			tag_downloaders,
+			queue="long",
+			enqueue_after_commit=True,
+			lead_magnet=self.name,
+			tags=sorted(added),
+		)
 
 	def send_to(self, subscriber, source: str, reference: str | None = None):
 		"""The "here is your file" email, with a link only this subscriber can use."""
@@ -150,3 +175,20 @@ def downloaders_of(lead_magnet: str):
 	"""
 	download = frappe.qb.DocType("Lead Magnet Download")
 	return frappe.qb.from_(download).select(download.subscriber).where(download.lead_magnet == lead_magnet)
+
+
+def tag_downloaders(lead_magnet: str, tags: list[str]):
+	"""The backfill job: give these tags to everyone who has downloaded the magnet."""
+	for subscriber in downloaders_of(lead_magnet).distinct().run(pluck=True):
+		tag_subscriber(subscriber, tags)
+
+
+def tag_subscriber(name: str, tags: list[str]):
+	"""Add the tags the subscriber does not have yet. No new tag means no save."""
+	if not tags:
+		return
+	subscriber = frappe.get_doc("Subscriber", name)
+	count = len(subscriber.tags)
+	subscriber.add_tags(tags)
+	if len(subscriber.tags) > count:
+		subscriber.save(ignore_permissions=True)
